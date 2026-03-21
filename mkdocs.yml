@@ -1,0 +1,56 @@
+site_name: MoDeNa
+site_description: Multi-scale modelling framework with surrogate models
+
+docs_dir: docs
+
+nav:
+  - Home: quick-start-user.md
+  - Developer Guide: quick-start-developer.md
+  - Language Bindings:
+      - C: quick-start-c.md
+      - C++: quick-start-cpp.md
+      - Fortran: quick-start-fortran.md
+      - Julia: quick-start-julia.md
+      - MATLAB / Octave: quick-start-matlab.md
+      - R: quick-start-r.md
+  - Architecture: architecture.md
+  - Core Developer Guide: core-developer-guide.md
+  - Model Registry: model-registry.md
+  - FireWorks: fireworks.md
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - tables
+  - toc:
+      permalink: true
