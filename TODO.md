@@ -266,3 +266,150 @@ and complicates deployment.
   ensembles), the out-of-bounds detector cannot assess prediction confidence,
   which is central to the backward-mapping loop.
 
+---
+
+## Public model archive and portal
+
+> A shared repository where researchers publish, discover, and reuse fitted
+> surrogate models — the way PyPI works for Python packages, or the way
+> Hugging Face works for machine learning models, but designed around the
+> specific needs of multi-scale simulation.
+
+### Motivation
+
+Fitting a surrogate model for a physical sub-process (gas viscosity, foam
+conductivity, reaction kinetics) takes significant computational effort:
+exact simulations must be run, parameters fitted, validation performed.
+Once that work is done, the fitted model is currently locked in a local
+MongoDB instance and cannot easily be shared with collaborators or reused
+in a different project.
+
+A public archive would allow a researcher to publish a fitted model once and
+let others drop it into any MoDeNa simulation without re-running the training
+data collection.
+
+---
+
+### What a published model contains
+
+A model entry in the archive is more than just a set of fitted numbers.
+It is a self-contained, reproducible artefact:
+
+| Component | Description |
+|---|---|
+| **C source code** | The surrogate evaluation function (`CFunction.Ccode`), stored as source. The compiled `.so` is platform-specific and not archived — users compile locally on install. |
+| **Fitted parameters** | The parameter vector at publication time, with names and bounds. |
+| **Input / output specification** | Variable names, physical units, trained bounds. Requires Phase 1 (units) to be complete. |
+| **Training data** | The `fitData` collection used to fit the model, enabling independent validation and refitting. |
+| **Validation metrics** | Cross-validation error, out-of-sample error on a held-out test set, plot of predicted vs measured. |
+| **Dependency graph** | The full substitute-model tree, with each dependency versioned and resolvable. |
+| **Model card** | Human-readable description: physical context, applicability range, known limitations, citation, licence. |
+| **Workflow snapshot** | The `initModels` and `workflow` scripts that produced this version, making the result fully reproducible. |
+
+---
+
+### Versioning
+
+Models are versioned using semantic versioning (`major.minor.patch`):
+
+- **patch** — re-fit on additional training data; same functional form and variables
+- **minor** — new optional input added; existing callers still work unchanged
+- **major** — breaking change: input/output renamed, removed, or reordered
+
+The `argPos` system maps directly to this contract: any change to `argPos`
+assignments is a major version bump.  Callers pin to a major version; the
+archive serves the latest patch within that major.
+
+---
+
+### CLI interface
+
+```bash
+# Publish the local 'flowRate' model to the archive
+modena publish flowRate --version 1.0.0 --licence CC-BY-4.0
+
+# Search the archive
+modena search "gas density"
+modena search --input T --input p --output rho
+
+# Install a published model into the local database
+modena install idealGas
+modena install flowRate@2.1.0          # specific version
+modena install flowRate@^2             # latest 2.x
+
+# Inspect
+modena list
+modena info flowRate
+```
+
+`modena install` downloads the model document (parameters, bounds, C source),
+compiles the surrogate `.so` locally, and registers the model in the local
+MongoDB — exactly as if the user had run `initModels`, but without running
+any exact simulations.
+
+---
+
+### Portal pages
+
+The existing local portal (`src/portal/`) already has the core building
+blocks: model library table, per-model detail pages (overview, parameters,
+I/O bounds, dependency graph, fit data, C code, interactive evaluator), and
+a runs view.  The public portal extends this with:
+
+| Page | Description |
+|---|---|
+| **Browse** | Search and filter the global archive by name, physical quantity, domain (thermodynamics, kinetics, transport, …), input/output variable names, surrogate type, or validation error. |
+| **Model card** | Per-model landing page: description, validation plots, dependency graph, C source, fit data download, citation block, and a live *Try it* evaluator that runs the surrogate in the browser. |
+| **Workflow gallery** | Published `initModels` + `workflow` script pairs, each linked to the models they produce. A researcher reproducing a literature result can find the workflow here and run it with one command. |
+| **Organisation pages** | Groups of models from a research group or project (e.g. PUfoam, CoolProp wrappers). |
+| **Comparison** | Side-by-side validation plots for two versions of the same model, or two different models with the same inputs and outputs. |
+
+---
+
+### Authentication and trust
+
+- **Publishing** requires a registered account associated with an ORCID or
+  institutional identity to enable citation.
+- **Downloading / installing** is open and requires no authentication.
+- **Endorsements** — other registered users can mark a model as validated
+  against an independent dataset, providing a trust signal analogous to
+  download counts or peer review.
+- **Licencing** — each model specifies a licence (CC-BY, MIT, etc.) stored
+  in the model card.  The CLI can refuse to install models whose licence is
+  incompatible with a user-specified policy.
+
+---
+
+### Relationship to the existing portal
+
+| | Local portal | Public portal |
+|---|---|---|
+| **Audience** | Developer running a local simulation | Community of researchers |
+| **Data source** | Local MongoDB | Hosted archive database |
+| **Authentication** | None | ORCID / institutional login |
+| **Editing** | Full — documentation, retrigger fits | Read-only (install to use) |
+| **Deployment** | `modena-portal`, localhost | Hosted web service |
+
+The local portal is partially implemented.  The public portal reuses its
+components and extends them.
+
+---
+
+### Open design questions
+
+- **Hosting model** — self-hosted (the MoDeNa project runs one archive) vs
+  federated (each group hosts their own, `modena.toml` lists trusted
+  registries, similar to Cargo's alternative registries).  Federation avoids
+  a single point of failure and lets domain-specific archives emerge.
+- **`fitData` storage** — training datasets can be large.  The archive should
+  always store metadata and validation metrics, but raw `fitData` could live
+  in a separate object store (S3-compatible) with the model card linking to it.
+- **Reproducibility of exact simulations** — the compiled binary that generated
+  the training data is not portable.  Packaging it as a container image
+  alongside the model would make full reproduction possible but significantly
+  increases archive size.
+- **DOI minting** — models used in publications need persistent identifiers.
+  Integration with Zenodo or a similar DOI service would enable proper citation.
+
+---
+
