@@ -1,5 +1,6 @@
 site_name: MoDeNa
 site_description: Multi-scale modelling framework with surrogate models
+site_url: https://sigveka.github.io/MoDeNa2/
 
 docs_dir: docs
 
