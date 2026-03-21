@@ -136,26 +136,26 @@ automatically, without any application-side changes.
 flowchart TD
     s([Macroscopic solver starts])
     load["modena_model_new()\nLoad surrogate + parameters\nfrom MongoDB"]
-    step["Next time step"]
-    call["modena_model_call()\nEvaluate compiled surrogate .so"]
-    check{Input within\ntrained bounds?}
+    tstep["Next time step"]
+    eval["modena_model_call()\nEvaluate compiled surrogate .so"]
+    bounds{Input within\ntrained bounds?}
     use["Use output value\nAdvance simulation"]
     finish([Simulation complete])
 
-    oob["Return code 200 — exit process"]
+    oob["Return code 200 - exit process"]
     fw["FireWorks detects exit code 200"]
     exact["Run exact simulation\nseconds to hours"]
     refit["Refit surrogate to\nexpanded dataset"]
     requeue["Re-queue macroscopic solver"]
 
-    s --> load --> step --> call --> check
-    check -- Yes --> use --> step
+    s --> load --> tstep --> eval --> bounds
+    bounds -- Yes --> use --> tstep
     use -- t ge t_end --> finish
-    check -- No, out of bounds --> oob --> fw --> exact --> refit --> requeue --> load
+    bounds -- No, out of bounds --> oob --> fw --> exact --> refit --> requeue --> load
 
     style exact   fill:#fff3e0,stroke:#ef6c00
     style refit   fill:#fff3e0,stroke:#ef6c00
-    style call    fill:#e8f5e9,stroke:#388e3c
+    style eval    fill:#e8f5e9,stroke:#388e3c
     style finish  fill:#e8f5e9,stroke:#388e3c
 ```
 
