@@ -42,6 +42,165 @@ restarts the caller — all without any application-side code changes.
 
 ---
 
+## Architecture diagrams
+
+### Substitute model dependency
+
+A surrogate model can declare other surrogate models as *substitutes*. The
+framework evaluates them automatically and wires their outputs into the outer
+model's input vector — the C application only supplies the top-level inputs.
+
+```mermaid
+flowchart LR
+    app(["C application"])
+
+    subgraph outer["flowRate — BackwardMappingModel"]
+        fR["surrogate .so\noutputs[0] = mdot"]
+    end
+
+    subgraph sub["idealGas — ForwardMappingModel"]
+        iG["surrogate .so\noutputs[0] = rho0"]
+    end
+
+    app -- "D, T0, p0, p1Byp0" --> fR
+    iG -- "rho0 ➜ input[2]" --> fR
+    fR -- "mdot" --> app
+
+    style sub fill:#e8eaf6,stroke:#7986cb
+    style outer fill:#e8f5e9,stroke:#66bb6a
+```
+
+The C application queries `argPos` for `D`, `T0`, `p0`, `p1Byp0` — not for
+`rho0`. The framework fills that slot silently. `modena_model_argPos_check()`
+knows which positions are covered by substitutes and does not require the
+application to declare them.
+
+---
+
+### Multi-level dependency graph
+
+Substitute models can themselves have substitutes. MoDeNa traverses the full
+DAG at model-load time and evaluates sub-models bottom-up before each call to
+the outer surrogate.
+
+```mermaid
+flowchart TD
+    app(["CFD solver"])
+
+    app -->|"T, x_gas, x_poly\nporosity, strut_content"| foam
+
+    subgraph foam["foamConductivity — BackwardMappingModel"]
+        direction LR
+        fSo["surrogate .so"]
+    end
+
+    subgraph gasC["gasConductivity — BackwardMappingModel"]
+        direction LR
+        gSo["surrogate .so"]
+    end
+
+    subgraph polyC["polymerConductivity — ForwardMappingModel"]
+        direction LR
+        pSo["surrogate .so"]
+    end
+
+    subgraph blowing["blowingAgentViscosity — ForwardMappingModel"]
+        direction LR
+        bSo["surrogate .so"]
+    end
+
+    blowing -->|"visc ➜ input"| gasC
+    gasC    -->|"lambda_gas ➜ input"| foam
+    polyC   -->|"lambda_poly ➜ input"| foam
+    foam    -->|"lambda_eff"| app
+
+    style blowing  fill:#fff8e1,stroke:#ffb300
+    style polyC    fill:#fff8e1,stroke:#ffb300
+    style gasC     fill:#e8eaf6,stroke:#7986cb
+    style foam     fill:#e8f5e9,stroke:#66bb6a
+```
+
+Yellow = `ForwardMappingModel` (exact formula, fixed parameters).
+Blue = `BackwardMappingModel` (trained surrogate, adaptive).
+
+---
+
+### The backward-mapping loop
+
+At runtime, the surrogate is evaluated in microseconds. When a query falls
+outside the trained region, the application exits, FireWorks runs new exact
+simulations, the surrogate is refitted, and the application is restarted —
+automatically, without any application-side changes.
+
+```mermaid
+flowchart TD
+    start([Macroscopic solver starts])
+    load["modena_model_new()\nLoad surrogate + parameters\nfrom MongoDB"]
+    step["Next time step"]
+    call["modena_model_call()\nEvaluate compiled surrogate .so\n⚡ microseconds"]
+    check{Input within\ntrained bounds?}
+    use["Use output value\nAdvance simulation"]
+    done([Simulation complete t = t_end])
+
+    oob["Return code 200\nExit process"]
+    fw["FireWorks detects exit code 200"]
+    exact["Run exact simulation\n🐢 seconds – hours"]
+    refit["Refit surrogate to\nexpanded dataset"]
+    requeue["Re-queue macroscopic solver\n(from last checkpoint)"]
+
+    start --> load --> step --> call --> check
+    check -- Yes --> use --> step
+    use  -- t ≥ t_end --> done
+    check -- No, out of bounds --> oob --> fw --> exact --> refit --> requeue --> load
+
+    style exact  fill:#fff3e0,stroke:#ef6c00
+    style refit  fill:#fff3e0,stroke:#ef6c00
+    style call   fill:#e8f5e9,stroke:#388e3c
+    style done   fill:#e8f5e9,stroke:#388e3c
+```
+
+---
+
+### Auto-initialisation — the 202 protocol
+
+Running `./workflow` before `./initModels` is valid. When a model has no
+fitted parameters yet, `libmodena` returns exit code 202. FireWorks intercepts
+this, builds an initialisation detour workflow on the fly, runs it (collecting
+training data and fitting the surrogate), then retries the original simulation.
+
+```mermaid
+sequenceDiagram
+    participant App  as C application
+    participant lib  as libmodena (C)
+    participant DB   as MongoDB
+    participant FW   as FireWorks
+    participant py   as modena (Python)
+
+    App  ->>  lib : modena_model_new("flowRate")
+    lib  ->>  DB  : load surrogate + parameters
+    DB   -->> lib : parameters = []&nbsp;&nbsp;❌ not yet fitted
+    lib  -->> App : NULL, exit code 202
+
+    App  -->> FW  : process exits with code 202
+    FW   ->>  py  : handleReturnCode(202)
+    py   ->>  DB  : find model with empty parameters
+    py   ->>  FW  : build initialisation detour workflow
+    FW   ->>  FW  : insert detour, re-queue App after
+
+    Note over FW,py: Detour executes first
+    FW   ->>  py  : run exact simulations (InitialPoints strategy)
+    FW   ->>  py  : fit surrogate, save parameters to MongoDB
+
+    Note over FW,App: Original simulation retried
+    FW   ->>  App : restart macroscopic solver
+    App  ->>  lib : modena_model_new("flowRate")
+    lib  ->>  DB  : load surrogate + parameters
+    DB   -->> lib : parameters = [P₀, P₁]&nbsp;&nbsp;✓
+    lib  -->> App : model ready
+```
+
+---
+
 ## Requirements
 
 ### System
