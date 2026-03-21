@@ -228,6 +228,36 @@ effect.  Control FireWorks verbosity only via the `strm_lvl` kwarg at
 helper in `Launchpad.py` derives the right value from the active modena log
 level.
 
+### C-side diagnostics (libmodena)
+
+`libmodena` has its own parallel log-level system driven by the same
+`MODENA_LOG_LEVEL` environment variable as the Python side.
+
+**Mechanism** — `global.c:PyInit_libmodena()` reads `$MODENA_LOG_LEVEL` at
+startup (before any model is loaded) and stores the result in the process-global
+`int modena_log_level`.  Three macros in `global.h` gate output against this
+integer:
+
+| Macro | Fires when | Use for |
+|---|---|---|
+| `Modena_Error_Print(fmt, ...)` | Always (stderr) | Fatal errors, unexpected states |
+| `Modena_Debug_Print(fmt, ...)` | `MODENA_LOG_LEVEL >= DEBUG` | Model loading, parameter counts, substitute wiring |
+| `Modena_Verbose_Print(fmt, ...)` | `MODENA_LOG_LEVEL >= DEBUG_VERBOSE` | Per-call input/output value traces |
+
+**Adding new diagnostics** — use `Modena_Debug_Print` for anything that fires
+once per model load (e.g. configuration messages), and `Modena_Verbose_Print`
+for anything that fires every time-step (e.g. per-call value traces).  Never
+use bare `printf` for diagnostic output — it cannot be suppressed.
+
+**Level constants** (defined in `global.h`):
+
+```c
+#define MODENA_LOG_WARNING       0   /* default — silent    */
+#define MODENA_LOG_INFO          1
+#define MODENA_LOG_DEBUG         2
+#define MODENA_LOG_DEBUG_VERBOSE 3
+```
+
 ---
 
 ## Cross-language boundaries

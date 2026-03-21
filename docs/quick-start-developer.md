@@ -478,6 +478,79 @@ and `MODENA_SURROGATE_LIB_DIR`.
 
 ---
 
+## Diagnostics and logging
+
+MoDeNa has a unified log-level system controlled by a single environment
+variable, `MODENA_LOG_LEVEL`.  The same variable governs both the Python
+library output and the C runtime diagnostics — there is nothing extra to
+configure.
+
+### Log levels
+
+| Level | Python output | C runtime (`libmodena`) output |
+|---|---|---|
+| `WARNING` (default) | Warnings and errors only | Silent |
+| `INFO` | Normal progress messages | Silent |
+| `DEBUG` | Modena debug output; FireWorks quiet | Model loading, parameter counts, substitute model mapping |
+| `DEBUG_VERBOSE` | Full debug from modena + FireWorks | Everything above, plus per-call input/output value traces |
+
+### Setting the level
+
+```bash
+# Quiet — only warnings and errors (default)
+./workflow
+
+# Show which models are loading, parameter counts, substitute-model wiring
+MODENA_LOG_LEVEL=DEBUG ./workflow
+
+# Also trace every input/output value flowing through substitute models
+MODENA_LOG_LEVEL=DEBUG_VERBOSE ./workflow
+```
+
+Persistent setting in `modena.toml`:
+
+```toml
+[logging]
+level = "DEBUG"
+# file = "run.log"   # optional: also write to a file
+```
+
+### What DEBUG reveals
+
+When running with `DEBUG`, `libmodena` emits to stderr:
+
+- **Model loading** — `modena_model_new: loading model 'flowRate'`
+  Confirms which model is being loaded and when.
+
+- **Parameter count mismatch** — `Wrong number of parameters in 'flowRate'. Requires 2 -- Given 0`
+  This appears when a model exists in MongoDB but has not yet been fitted (e.g.
+  `initModels` has not been run, or the model was just registered).  At runtime
+  the framework handles this automatically via the 202 protocol, but the
+  message is useful when debugging a new model definition.
+
+- **Substitute model activation** — `modena_substitute_model_call: running substitute model`
+  Confirms that the framework is correctly evaluating the sub-model before the
+  outer surrogate.  If this message does not appear when expected, the
+  substitute model wiring in the Python definition is incorrect.
+
+### What DEBUG_VERBOSE reveals
+
+At `DEBUG_VERBOSE`, each invocation of a substitute model also prints the
+actual numeric values being mapped:
+
+```
+[modena TRACE]   sub-input  i1 <- parent[0]  (300.000)
+[modena TRACE]   sub-input  i2 <- parent[1]  (3.00e+05)
+[modena TRACE]   sub-output parent[2] <- o0  (3.484)
+```
+
+This is the most detailed level.  Use it to verify that the index maps between
+the outer model and a substitute are wired correctly, or to diagnose
+unexpected values being passed between models.  It will be very noisy in a
+long simulation — use it only during initial model development.
+
+---
+
 ## Troubleshooting
 
 Run the environment health check before filing a bug:
