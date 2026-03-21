@@ -134,29 +134,29 @@ automatically, without any application-side changes.
 
 ```mermaid
 flowchart TD
-    start([Macroscopic solver starts])
+    s([Macroscopic solver starts])
     load["modena_model_new()\nLoad surrogate + parameters\nfrom MongoDB"]
     step["Next time step"]
-    call["modena_model_call()\nEvaluate compiled surrogate .so\n⚡ microseconds"]
+    call["modena_model_call()\nEvaluate compiled surrogate .so"]
     check{Input within\ntrained bounds?}
     use["Use output value\nAdvance simulation"]
-    done([Simulation complete t = t_end])
+    finish([Simulation complete])
 
-    oob["Return code 200\nExit process"]
+    oob["Return code 200 — exit process"]
     fw["FireWorks detects exit code 200"]
-    exact["Run exact simulation\n🐢 seconds – hours"]
+    exact["Run exact simulation\nseconds to hours"]
     refit["Refit surrogate to\nexpanded dataset"]
-    requeue["Re-queue macroscopic solver\n(from last checkpoint)"]
+    requeue["Re-queue macroscopic solver"]
 
-    start --> load --> step --> call --> check
+    s --> load --> step --> call --> check
     check -- Yes --> use --> step
-    use  -- t ≥ t_end --> done
+    use -- t ge t_end --> finish
     check -- No, out of bounds --> oob --> fw --> exact --> refit --> requeue --> load
 
-    style exact  fill:#fff3e0,stroke:#ef6c00
-    style refit  fill:#fff3e0,stroke:#ef6c00
-    style call   fill:#e8f5e9,stroke:#388e3c
-    style done   fill:#e8f5e9,stroke:#388e3c
+    style exact   fill:#fff3e0,stroke:#ef6c00
+    style refit   fill:#fff3e0,stroke:#ef6c00
+    style call    fill:#e8f5e9,stroke:#388e3c
+    style finish  fill:#e8f5e9,stroke:#388e3c
 ```
 
 ---
@@ -170,33 +170,33 @@ training data and fitting the surrogate), then retries the original simulation.
 
 ```mermaid
 sequenceDiagram
-    participant App  as C application
-    participant lib  as libmodena (C)
-    participant DB   as MongoDB
-    participant FW   as FireWorks
-    participant py   as modena (Python)
+    participant App as C application
+    participant lib as libmodena
+    participant DB  as MongoDB
+    participant FW  as FireWorks
+    participant py  as modena
 
-    App  ->>  lib : modena_model_new("flowRate")
-    lib  ->>  DB  : load surrogate + parameters
-    DB   -->> lib : parameters = []&nbsp;&nbsp;❌ not yet fitted
-    lib  -->> App : NULL, exit code 202
+    App ->> lib : modena_model_new("flowRate")
+    lib ->> DB  : load surrogate + parameters
+    DB -->> lib : parameters = [] (not yet fitted)
+    lib -->> App : NULL, exit code 202
+    App -->> FW  : process exits with code 202
 
-    App  -->> FW  : process exits with code 202
-    FW   ->>  py  : handleReturnCode(202)
-    py   ->>  DB  : find model with empty parameters
-    py   ->>  FW  : build initialisation detour workflow
-    FW   ->>  FW  : insert detour, re-queue App after
+    FW  ->>  py  : handleReturnCode(202)
+    py  ->>  DB  : find model with empty parameters
+    py  ->>  FW  : build initialisation detour workflow
+    FW  ->>  FW  : insert detour, re-queue App after
 
-    Note over FW,py: Detour executes first
-    FW   ->>  py  : run exact simulations (InitialPoints strategy)
-    FW   ->>  py  : fit surrogate, save parameters to MongoDB
+    Note over FW,py: Detour runs first
+    FW  ->>  py  : run exact simulations
+    FW  ->>  py  : fit surrogate, save parameters
 
     Note over FW,App: Original simulation retried
-    FW   ->>  App : restart macroscopic solver
-    App  ->>  lib : modena_model_new("flowRate")
-    lib  ->>  DB  : load surrogate + parameters
-    DB   -->> lib : parameters = [P₀, P₁]&nbsp;&nbsp;✓
-    lib  -->> App : model ready
+    FW  ->>  App : restart macroscopic solver
+    App ->>  lib : modena_model_new("flowRate")
+    lib ->>  DB  : load surrogate + parameters
+    DB -->>  lib : parameters = [P0, P1] (fitted)
+    lib -->> App : model ready
 ```
 
 ---
