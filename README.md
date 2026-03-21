@@ -66,8 +66,8 @@ flowchart LR
     iG -- "rho0 ➜ input[2]" --> fR
     fR -- "mdot" --> app
 
-    style sub fill:#e8eaf6,stroke:#7986cb
-    style outer fill:#e8f5e9,stroke:#66bb6a
+    style sub stroke:#7986cb,stroke-width:2px
+    style outer stroke:#66bb6a,stroke-width:2px
 ```
 
 The C application queries `argPos` for `D`, `T0`, `p0`, `p1Byp0` — not for
@@ -114,14 +114,14 @@ flowchart TD
     polyC   -->|"lambda_poly ➜ input"| foam
     foam    -->|"lambda_eff"| app
 
-    style blowing  fill:#fff8e1,stroke:#ffb300
-    style polyC    fill:#fff8e1,stroke:#ffb300
-    style gasC     fill:#e8eaf6,stroke:#7986cb
-    style foam     fill:#e8f5e9,stroke:#66bb6a
+    style blowing  stroke:#ffb300,stroke-width:2px
+    style polyC    stroke:#ffb300,stroke-width:2px
+    style gasC     stroke:#7986cb,stroke-width:2px
+    style foam     stroke:#66bb6a,stroke-width:2px
 ```
 
-Yellow = `ForwardMappingModel` (exact formula, fixed parameters).
-Blue = `BackwardMappingModel` (trained surrogate, adaptive).
+Orange border = `ForwardMappingModel` (exact formula, fixed parameters).
+Blue/green border = `BackwardMappingModel` (trained surrogate, adaptive).
 
 ---
 
@@ -153,10 +153,10 @@ flowchart TD
     use -- t ge t_end --> finish
     bounds -- No, out of bounds --> oob --> fw --> exact --> refit --> requeue --> load
 
-    style exact   fill:#fff3e0,stroke:#ef6c00
-    style refit   fill:#fff3e0,stroke:#ef6c00
-    style eval    fill:#e8f5e9,stroke:#388e3c
-    style finish  fill:#e8f5e9,stroke:#388e3c
+    style exact   stroke:#ef6c00,stroke-width:2px
+    style refit   stroke:#ef6c00,stroke-width:2px
+    style eval    stroke:#388e3c,stroke-width:2px
+    style finish  stroke:#388e3c,stroke-width:2px
 ```
 
 ---
