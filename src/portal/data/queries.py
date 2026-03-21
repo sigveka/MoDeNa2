@@ -13,7 +13,6 @@ __all__ = [
     'list_model_sample_counts',
     'get_model',
     'get_fitdata',
-    'save_documentation',
     'get_parameter_table',
     'transpose_fitdata',
 ]
@@ -61,10 +60,3 @@ def get_fitdata(model_id: str):
     return SurrogateModel.objects.only('fitData').get(_id=model_id)
 
 
-# ---------------------------------------------------------------------------
-# Documentation
-# ---------------------------------------------------------------------------
-
-def save_documentation(model_id: str, text: str):
-    """Atomically update the documentation field."""
-    SurrogateModel.objects(_id=model_id).update_one(set__documentation=text)

@@ -95,7 +95,7 @@ def _find_project_config() -> 'Path | None':
 
 def _site_packages_in_prefix(prefix: str) -> list:
     """Return all lib/pythonX.Y/site-packages dirs inside *prefix*."""
-    pattern = os.path.join(prefix, 'lib', 'python*', 'site-packages')
+    pattern = str(Path(prefix) / 'lib' / 'python*' / 'site-packages')
     return _glob.glob(pattern)
 
 
@@ -308,16 +308,14 @@ class ModelRegistry:
             FileNotFoundError: if the binary is not found in any location.
         """
         for d in self._bin_dirs:
-            candidate = os.path.join(d, name)
-            if os.path.isfile(candidate):
-                return candidate
+            candidate = Path(d) / name
+            if candidate.is_file():
+                return str(candidate)
         if caller_file is not None:
-            fallback = os.path.join(
-                os.path.dirname(os.path.abspath(caller_file)), 'bin', name
-            )
-            if os.path.isfile(fallback):
-                return fallback
-            fallback_dir = os.path.dirname(fallback)
+            fallback = Path(caller_file).resolve().parent / 'bin' / name
+            if fallback.is_file():
+                return str(fallback)
+            fallback_dir = str(fallback.parent)
         else:
             fallback_dir = None
 
@@ -336,7 +334,7 @@ class ModelRegistry:
         packages: dict = {}
         for prefix in self._prefixes:
             for sp in _site_packages_in_prefix(prefix):
-                for di in _glob.glob(os.path.join(sp, '*.dist-info')):
+                for di in _glob.glob(str(Path(sp) / '*.dist-info')):
                     name, version = _read_dist_info(di)
                     if name and version:
                         packages[name] = version
@@ -489,8 +487,8 @@ class ModelRegistry:
 def _read_dist_info(dist_info_dir: str) -> 'tuple[str | None, str | None]':
     """Extract Name and Version from a .dist-info directory."""
     for fname in ('METADATA', 'PKG-INFO'):
-        meta = os.path.join(dist_info_dir, fname)
-        if not os.path.isfile(meta):
+        meta = Path(dist_info_dir) / fname
+        if not meta.is_file():
             continue
         name = version = None
         try:

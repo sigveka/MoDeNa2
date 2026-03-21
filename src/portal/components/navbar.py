@@ -10,8 +10,9 @@ def make_navbar(model_id: str | None = None, page: str | None = None,
     active: 'library' | 'runs' | None — highlights the matching top-level link.
     """
     items = [
-        dbc.NavItem(dbc.NavLink("Library", href="/",    active=active == 'library')),
-        dbc.NavItem(dbc.NavLink("Runs",    href="/runs", active=active == 'runs')),
+        dbc.NavItem(dbc.NavLink("Overview", href="/",        active=active == 'overview')),
+        dbc.NavItem(dbc.NavLink("Library",  href="/library", active=active == 'library')),
+        dbc.NavItem(dbc.NavLink("Runs",     href="/runs",    active=active == 'runs')),
     ]
 
     if model_id:

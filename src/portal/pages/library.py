@@ -8,7 +8,7 @@ from modena_portal.components.navbar import make_navbar
 from modena_portal.components.status_badge import status_string
 from modena_portal.data.queries import list_models, list_model_sample_counts
 
-dash.register_page(__name__, path="/", title="MoDeNa - Model Library")
+dash.register_page(__name__, path="/library", title="MoDeNa - Model Library")
 
 
 def layout():

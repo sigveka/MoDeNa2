@@ -1,5 +1,5 @@
 """Status badge component for surrogate model training state."""
-import os
+from pathlib import Path
 import dash_bootstrap_components as dbc
 
 
@@ -14,7 +14,7 @@ def status_badge(model):
         return dbc.Badge("Untrained", color="danger")
 
     lib = getattr(model.surrogateFunction, 'libraryName', None)
-    if lib and os.path.isfile(lib):
+    if lib and Path(lib).is_file():
         return dbc.Badge("Trained", color="success")
 
     return dbc.Badge("Library missing", color="warning")
@@ -25,6 +25,6 @@ def status_string(model) -> str:
     if not model.parameters:
         return "Untrained"
     lib = getattr(model.surrogateFunction, 'libraryName', None)
-    if lib and os.path.isfile(lib):
+    if lib and Path(lib).is_file():
         return "Trained"
     return "Library missing"

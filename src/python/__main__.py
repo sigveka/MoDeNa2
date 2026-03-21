@@ -36,8 +36,7 @@ License
 """
 import sys
 from argparse import ArgumentParser
-from os import getcwd, walk
-from os.path import abspath, isabs, join, lexists
+from pathlib import Path
 
 from modena import __version__ as MODENA_VERSION
 from modena import SurrogateModel
@@ -68,10 +67,9 @@ def _lpad_cmd(fn):
         sys.exit(1)
 
 
-def find_file(name: str, path: str = getcwd()) -> str | None:
-    for (root, dirs, files) in walk(path):
-        if name in files:
-            return join(root, name)
+def find_file(name: str, path: Path | None = None) -> Path | None:
+    for p in (path or Path.cwd()).rglob(name):
+        return p
 
 
 # ------------------------------------------------------------------ #
@@ -101,10 +99,10 @@ def _fw_orphans(args):
 
 
 def _fw_run(args):
-    rundir = getcwd()
+    rundir = Path.cwd()
     if args.dir:
-        rundir = args.dir if isabs(args.dir) else abspath(join(rundir, args.dir))
-        assert lexists(rundir), f"Directory {rundir} does not exist"
+        rundir = Path(args.dir).resolve()
+        assert rundir.exists(), f"Directory {rundir} does not exist"
 
     if args.script:
         fname = 'workflow.yaml'

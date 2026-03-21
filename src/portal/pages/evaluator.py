@@ -1,5 +1,5 @@
 """Model Evaluator page - /model/<encoded_id>/evaluate."""
-import os
+from pathlib import Path
 import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
@@ -28,7 +28,7 @@ def layout(model_id: str = ""):
         ])
 
     sf = model.surrogateFunction
-    lib_ok = sf and sf.libraryName and os.path.isfile(sf.libraryName)
+    lib_ok = sf and sf.libraryName and Path(sf.libraryName).is_file()
 
     encoded_id = quote(decoded_id, safe='')
 

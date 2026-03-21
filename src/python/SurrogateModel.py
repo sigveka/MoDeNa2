@@ -588,7 +588,7 @@ class CFunction(SurrogateFunction):
         d = str(lib_dir / ('func_' + h))
         ln = str(lib_dir / ('func_' + h) / ('lib' + h + '.so'))
 
-        if not os.path.exists(ln):
+        if not Path(ln).exists():
             Path(d).mkdir(parents=True, exist_ok=True)
             cwd_before = os.getcwd()
             os.chdir(d)
@@ -853,6 +853,9 @@ class SurrogateModel(DynamicDocument):
                 raise TypeError('Need surrogateFunction')
 
             self.___indices___ = self.parseIndices(kwargs['_id'])
+
+            if isinstance(kwargs.get('documentation'), Path):
+                kwargs['documentation'] = kwargs['documentation'].read_text()
 
             kwargs['fitData'] = {}
             kwargs['inputs'] = {}

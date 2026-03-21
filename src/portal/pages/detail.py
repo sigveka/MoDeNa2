@@ -99,29 +99,20 @@ def layout(model_id: str = ""):
     # Documentation tab
     doc_text = getattr(model, 'documentation', '') or ''
     doc_tab = dbc.Tab(label="Documentation", tab_id="tab-docs", children=[
-        dbc.Row([
-            dbc.Col([
-                html.H6("Edit (Markdown + LaTeX)"),
-                dcc.Textarea(
-                    id='doc-textarea',
-                    value=doc_text,
-                    style={'width': '100%', 'height': '400px', 'fontFamily': 'monospace'},
-                ),
-                dbc.Button("Save", id='doc-save-btn', color='primary',
-                           className='mt-2'),
-                html.Div(id='doc-save-feedback', className='mt-2'),
-            ], width=6),
-            dbc.Col([
-                html.H6("Preview"),
-                dcc.Markdown(
-                    id='doc-preview',
-                    children=doc_text,
-                    mathjax=True,
-                    style={'border': '1px solid #dee2e6', 'padding': '12px',
-                           'minHeight': '400px', 'borderRadius': '4px'},
-                ),
-            ], width=6),
-        ], className="mt-3"),
+        html.Div([
+            dbc.Alert(
+                "Documentation is defined in the model's Python package and "
+                "synced to the database on initModels.",
+                color="info", className="mt-3 py-2",
+            ),
+            dcc.Markdown(
+                doc_text or '*No documentation provided.*',
+                mathjax=True,
+                style={'border': '1px solid #dee2e6', 'padding': '16px',
+                       'minHeight': '200px', 'borderRadius': '4px',
+                       'marginTop': '8px'},
+            ),
+        ]),
     ])
 
     # Fit Data tab (only for BackwardMappingModel)
@@ -142,6 +133,7 @@ def layout(model_id: str = ""):
     ccode_tab = dbc.Tab(label="C Code", tab_id="tab-ccode", children=[
         dcc.Markdown(
             f"```c\n{ccode}\n```",
+            highlight_config={"theme": "dark"},
             style={'marginTop': '16px'},
         ),
     ])
