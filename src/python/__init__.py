@@ -39,6 +39,17 @@ import os, sys
 from importlib.metadata import version
 from pathlib import Path
 
+# Platform-specific shared library name and dynamic-linker search-path variable.
+if sys.platform == 'darwin':
+    _LIBMODENA_NAME  = 'libmodena.dylib'
+    _LIBPATH_ENV_VAR = 'DYLD_LIBRARY_PATH'
+elif sys.platform == 'win32':
+    _LIBMODENA_NAME  = 'modena.dll'
+    _LIBPATH_ENV_VAR = 'PATH'
+else:  # Linux and other POSIX
+    _LIBMODENA_NAME  = 'libmodena.so'
+    _LIBPATH_ENV_VAR = 'LD_LIBRARY_PATH'
+
 from modena._logging import configure_logging  # noqa: F401 — public API
 from modena._logging import logger as _logger
 
@@ -101,15 +112,16 @@ def find_module(target: str, startsearch: str = MODENA_WORKING_DIR) -> str | Non
 
 def import_helper() -> object:
     # MODENA_LIB_DIR is set by CMake at install time to the exact location
-    # of libmodena.so. This is also the directory users must add to
-    # LD_LIBRARY_PATH for C/Fortran programs that link against the library.
+    # of the shared library. This is also the directory users must add to
+    # the platform dynamic-linker search path (_LIBPATH_ENV_VAR) for
+    # C/Fortran programs that link against the library.
     import importlib.util
-    lib_path = str(Path(MODENA_LIB_DIR) / 'libmodena.so')
+    lib_path = str(Path(MODENA_LIB_DIR) / _LIBMODENA_NAME)
     spec = importlib.util.spec_from_file_location('libmodena', lib_path)
     if spec is None or spec.loader is None:
         raise ImportError(
             f"Could not load '{lib_path}'. "
-            f"Ensure LD_LIBRARY_PATH includes '{MODENA_LIB_DIR}'."
+            f"Ensure {_LIBPATH_ENV_VAR} includes '{MODENA_LIB_DIR}'."
         )
     _mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(_mod)

@@ -184,15 +184,15 @@ class ModelRegistry:
             _read_logging(proj_cfg)
             _log.info("ModelRegistry: using project config %s", proj_cfg_path)
 
-        # Layer 4: MODENA_PATH env var (colon-separated)
+        # Layer 4: MODENA_PATH env var (os.pathsep-separated)
         env_path = os.environ.get('MODENA_PATH', '')
         if env_path:
-            prefixes.extend(p for p in env_path.split(':') if p)
+            prefixes.extend(p for p in env_path.split(os.pathsep) if p)
 
-        # Layer 4b: MODENA_BIN_PATH env var (colon-separated)
+        # Layer 4b: MODENA_BIN_PATH env var (os.pathsep-separated)
         env_bin_path = os.environ.get('MODENA_BIN_PATH', '')
         if env_bin_path:
-            bin_dirs.extend(p for p in env_bin_path.split(':') if p)
+            bin_dirs.extend(p for p in env_bin_path.split(os.pathsep) if p)
 
         # Layer 4c: MODENA_SURROGATE_LIB_DIR env var
         env_lib_dir = os.environ.get('MODENA_SURROGATE_LIB_DIR', '')

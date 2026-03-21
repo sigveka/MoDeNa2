@@ -3,6 +3,16 @@ import os
 import sys
 from pathlib import Path
 
+if sys.platform == 'darwin':
+    _LIBMODENA_NAME  = 'libmodena.dylib'
+    _LIBPATH_ENV_VAR = 'DYLD_LIBRARY_PATH'
+elif sys.platform == 'win32':
+    _LIBMODENA_NAME  = 'modena.dll'
+    _LIBPATH_ENV_VAR = 'PATH'
+else:
+    _LIBMODENA_NAME  = 'libmodena.so'
+    _LIBPATH_ENV_VAR = 'LD_LIBRARY_PATH'
+
 import dash
 import dash_bootstrap_components as dbc
 from dash import html
@@ -60,13 +70,13 @@ def _kv_table(rows: list[tuple[str, str]]) -> dbc.Table:
 
 
 def _find_libmodena() -> str:
-    """Best-effort search for libmodena.so on LD_LIBRARY_PATH."""
-    ld_path = os.environ.get("LD_LIBRARY_PATH", "")
-    for d in ld_path.split(":"):
-        candidate = Path(d) / "libmodena.so"
+    """Best-effort search for the modena shared library on the platform library path."""
+    search_path = os.environ.get(_LIBPATH_ENV_VAR, "")
+    for d in search_path.split(os.pathsep):
+        candidate = Path(d) / _LIBMODENA_NAME
         if candidate.is_file():
             return str(candidate)
-    return "not found on LD_LIBRARY_PATH"
+    return f"not found on {_LIBPATH_ENV_VAR}"
 
 
 def _mongo_status(uri: str) -> tuple[bool, str]:
@@ -100,9 +110,9 @@ def layout():
                  "Default: ~/.modena/surrogate_functions"),
         _env_row("MODENA_LOG_LEVEL",
                  "Log verbosity: WARNING | INFO (default) | DEBUG | DEBUG_VERBOSE"),
-        _env_row("LD_LIBRARY_PATH",
-                 "Must include the directory containing libmodena.so so that "
-                 "surrogate .so files can be loaded at runtime."),
+        _env_row(_LIBPATH_ENV_VAR,
+                 f"Must include the directory containing {_LIBMODENA_NAME} so that "
+                 "compiled surrogate libraries can be loaded at runtime."),
     ]
 
     # ── Install locations ─────────────────────────────────────────────────────
@@ -121,8 +131,8 @@ def layout():
 
     install_rows = [
         ("Python library", python_lib),
-        ("libmodena.so",   _find_libmodena()),
-        ("Surrogate .so cache", str(surrogate_lib_dir)),
+        (_LIBMODENA_NAME,          _find_libmodena()),
+        ("Surrogate library cache", str(surrogate_lib_dir)),
         ("Python executable",   sys.executable),
     ]
 
