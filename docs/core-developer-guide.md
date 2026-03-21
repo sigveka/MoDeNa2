@@ -436,9 +436,20 @@ The `surrogate_lib_dir` is resolved from (highest priority first):
 
 ### Linux
 
-Fully supported.  `LD_LIBRARY_PATH` must include the directory containing
-`libmodena.so` so that the compiled surrogate libraries can be loaded at
-runtime.
+Fully supported.  If MoDeNa is installed to a non-standard prefix (e.g.
+`$HOME` via the convenience `install` script), the install directory must
+be on `LD_LIBRARY_PATH` so that applications can locate `libmodena.so` at
+load time:
+
+```bash
+export LD_LIBRARY_PATH="$HOME/lib:$LD_LIBRARY_PATH"
+```
+
+If installed to a standard system prefix (`/usr/local`) and `ldconfig` has
+been run, no environment variable is needed.
+
+The compiled surrogate `.so` files are loaded by the absolute path stored
+in MongoDB (`libraryName` field) and do **not** require `LD_LIBRARY_PATH`.
 
 ### macOS *(experimental)*
 
@@ -451,7 +462,8 @@ values are selected automatically at runtime:
 | Library search path env var | `LD_LIBRARY_PATH` | `DYLD_LIBRARY_PATH` |
 | Path separator (`MODENA_PATH` etc.) | `:` | `:` |
 
-`DYLD_LIBRARY_PATH` must include the directory containing `libmodena.dylib`.
+The same logic applies on macOS: `DYLD_LIBRARY_PATH` is only needed when
+installing to a non-standard prefix.
 
 The C library and language wrappers (`function.c`, `modena_gateway.c`,
 `modena_r.c`) use `dlopen` / `RTLD_GLOBAL`, which work on macOS.  The
