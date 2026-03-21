@@ -536,6 +536,60 @@ class SurrogateFunction(DynamicDocument):
         return self.objects.get(_id=surrogateFunctionId)
 
 
+def _compile_c_surrogate(source_c, output_so, include_dir, lib_dir):
+    """Compile a single-file C surrogate to a shared library.
+
+    Uses the C compiler that built the current Python interpreter (via
+    sysconfig) so the ABI is guaranteed to match.  No CMake required.
+
+    Args:
+        source_c:    Path to the rendered .c file.
+        output_so:   Destination path for the compiled .so / .dylib.
+        include_dir: Directory containing modena.h.
+        lib_dir:     Directory containing libmodena.so.
+
+    Raises:
+        RuntimeError: if the compiler exits non-zero or times out.
+    """
+    import sys
+    import sysconfig
+    import shutil
+    from subprocess import run, CalledProcessError, TimeoutExpired
+
+    cc_raw   = sysconfig.get_config_var('CC') or shutil.which('cc') or 'cc'
+    ccshared = sysconfig.get_config_var('CCSHARED') or '-fPIC'
+    shared   = '-dynamiclib' if sys.platform == 'darwin' else '-shared'
+
+    cmd = (
+        cc_raw.split()
+        + ccshared.split()
+        + [shared, '-O2',
+           '-o', str(output_so),
+           str(source_c),
+           f'-I{include_dir}',
+           f'-L{lib_dir}', '-lmodena']
+    )
+
+    _log.debug('compile surrogate: %s', ' '.join(cmd))
+    try:
+        result = run(cmd, capture_output=True, text=True, timeout=60, check=True)
+        if result.stderr:
+            _log.debug('compiler stderr:\n%s', result.stderr.rstrip())
+    except CalledProcessError as exc:
+        if exc.stdout:
+            _log.error('compiler stdout:\n%s', exc.stdout)
+        if exc.stderr:
+            _log.error('compiler stderr:\n%s', exc.stderr)
+        raise RuntimeError(
+            f'Compiler failed for surrogate {Path(source_c).name} '
+            f'(exit {exc.returncode})'
+        ) from exc
+    except TimeoutExpired as exc:
+        raise RuntimeError(
+            f'Compiler timed out (>60 s) for surrogate {Path(source_c).name}'
+        ) from exc
+
+
 class CFunction(SurrogateFunction):
     """
     @brief   Class for defining Surrogate Functions where the executable code
@@ -573,101 +627,52 @@ class CFunction(SurrogateFunction):
     def compileCcode(self, kwargs):
         """
         @brief   Helper function to compile a model into local library.
-        @return  (str) name of the compiled function, i.e. the shared library.
+        @return  (str) path to the compiled surrogate shared library.
         """
-
         m = hashlib.sha256()
         m.update(kwargs['Ccode'].encode('utf-8'))
-        h = m.hexdigest()[:32]  # 32 hex chars — same length as MD5, directory names stay short
-        # Resolve the library output directory from the registry so the user
-        # can override it via modena.toml [surrogate_functions] lib_dir or the
-        # MODENA_SURROGATE_LIB_DIR env var.  Default: MODENA_LIB_DIR (stable
-        # across FireWorks launcher directories and process restarts).
+        h = m.hexdigest()[:32]
+
+        # Resolve the output directory from the registry so the user can
+        # override via modena.toml [surrogate_functions] lib_dir or the
+        # MODENA_SURROGATE_LIB_DIR env var.
         from modena.Registry import ModelRegistry
-        lib_dir = ModelRegistry().surrogate_lib_dir
-        d = str(lib_dir / ('func_' + h))
-        ln = str(lib_dir / ('func_' + h) / ('lib' + h + '.so'))
+        surrogate_dir = ModelRegistry().surrogate_lib_dir
+        func_dir  = surrogate_dir / ('func_' + h)
+        source_c  = func_dir / (h + '.c')
+        output_so = func_dir / ('lib' + h + '.so')
 
-        if not Path(ln).exists():
-            Path(d).mkdir(parents=True, exist_ok=True)
-            cwd_before = os.getcwd()
-            os.chdir(d)
+        if not output_so.exists():
+            func_dir.mkdir(parents=True, exist_ok=True)
 
-            env = jinja2.Environment(lstrip_blocks=True, trim_blocks=True)
-
+            env   = jinja2.Environment(lstrip_blocks=True, trim_blocks=True)
             child = env.from_string(r'''
-    {% extends Ccode %}
-    {% block variables %}
-    const double* parameters = model->parameters;
-    {% for k, v in pFunction.inputs.items() %}
-    {% if 'index' in v %}
-    const size_t {{k}}_argPos = {{v.argPos}};
-    const double* {{k}} = &inputs[{{k}}_argPos];
-    const size_t {{k}}_size = {{ v.index.iterator_size() }};
-    {% else %}
-    const size_t {{k}}_argPos = {{v['argPos']}};
-    const double {{k}} = inputs[{{k}}_argPos];
-    {% endif %}
-    {% endfor %}
-    {% endblock %}
+{% extends Ccode %}
+{% block variables %}
+const double* parameters = model->parameters;
+{% for k, v in pFunction.inputs.items() %}
+{% if 'index' in v %}
+const size_t {{k}}_argPos = {{v.argPos}};
+const double* {{k}} = &inputs[{{k}}_argPos];
+const size_t {{k}}_size = {{ v.index.iterator_size() }};
+{% else %}
+const size_t {{k}}_argPos = {{v['argPos']}};
+const double {{k}} = inputs[{{k}}_argPos];
+{% endif %}
+{% endfor %}
+{% endblock %}
             ''')
-
             parent = env.from_string(kwargs['Ccode'])
+            child.stream(pFunction=kwargs, Ccode=parent).dump(str(source_c))
 
-            #print child.render(pFunction=kwargs, Ccode=parent)
-            child.stream(pFunction=kwargs, Ccode=parent).dump(f'{h}.c')
+            _compile_c_surrogate(
+                source_c  = source_c,
+                output_so = output_so,
+                include_dir = Path(modena.MODENA_INCLUDE_DIR),
+                lib_dir     = Path(modena.MODENA_LIB_DIR).parent,
+            )
 
-            with open('CMakeLists.txt', 'w') as FILE:
-                cmake_min = modena.MODENA_CMAKE_MINIMUM_VERSION
-                FILE.write(f"""
-cmake_minimum_required (VERSION {cmake_min})
-project ({h} C)
-
-#set(CMAKE_BUILD_TYPE Debug)
-
-find_package(MODENA REQUIRED)
-find_package(LTDL REQUIRED)
-
-add_library({h} MODULE {h}.c)
-target_link_libraries({h} MODENA::modena ${{LTDL_LIBRARIES}})
-
-install(TARGETS {h} DESTINATION ${{CMAKE_INSTALL_PREFIX}}/lib )
-""")
-
-            from subprocess import run, TimeoutExpired, CalledProcessError
-
-            # Derive the cmake prefix from the known modena installation path
-            # so that find_package(MODENA) works regardless of how this process
-            # was started (workflow Python, embedded Python inside a macroscopic
-            # solver, etc.) and without requiring CMAKE_PREFIX_PATH in the env.
-            cmake_prefix = str(Path(modena.MODENA_LIB_DIR).parents[1])
-
-            try:
-                result_cfg = run(
-                    ['cmake', '.', f'-DCMAKE_PREFIX_PATH={cmake_prefix}'],
-                    check=True, timeout=300,
-                    capture_output=True, text=True,
-                )
-                _log.debug('cmake configure:\n%s', result_cfg.stdout.rstrip())
-                result_bld = run(
-                    ['cmake', '--build', '.'],
-                    check=True, timeout=300,
-                    capture_output=True, text=True,
-                )
-                _log.debug('cmake build:\n%s', result_bld.stdout.rstrip())
-            except (CalledProcessError, TimeoutExpired) as exc:
-                # On failure, emit stdout+stderr at ERROR level so the user can diagnose
-                if hasattr(exc, 'stdout') and exc.stdout:
-                    _log.error('cmake stdout:\n%s', exc.stdout)
-                if hasattr(exc, 'stderr') and exc.stderr:
-                    _log.error('cmake stderr:\n%s', exc.stderr)
-                os.chdir(cwd_before)
-                raise RuntimeError(
-                    f'cmake failed for surrogate function {h}: {exc}'
-                ) from exc
-            os.chdir(cwd_before)
-
-        return ln
+        return str(output_so)
 
 
 class Function(CFunction):

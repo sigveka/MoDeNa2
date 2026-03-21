@@ -62,13 +62,13 @@ configure_logging()
 MODENA_WORKING_DIR = str(Path.cwd().resolve())
 
 try:
-    from modena._paths import MODENA_LIB_DIR, MODENA_CMAKE_MINIMUM_VERSION
+    from modena._paths import MODENA_LIB_DIR, MODENA_INCLUDE_DIR, MODENA_CMAKE_MINIMUM_VERSION
 except ImportError:
     # _paths.py has not been generated yet (cmake configure not run).
     # Infer from __file__ as a development fallback.
-    MODENA_LIB_DIR = str(
-        (Path(__file__).parent / '..' / '..' / 'lib').resolve()
-    )
+    _prefix = (Path(__file__).parent / '..' / '..').resolve()
+    MODENA_LIB_DIR    = str(_prefix / 'lib')
+    MODENA_INCLUDE_DIR = str(_prefix / 'include')
     MODENA_CMAKE_MINIMUM_VERSION = '3.0'
 
 def find_module(target: str, startsearch: str = MODENA_WORKING_DIR) -> str | None:
