@@ -35,10 +35,10 @@ License
 @ingroup   twoTank
 """
 
+from pathlib import Path
 from modena.Strategy import BackwardMappingScriptTask
-import os
 
 # Source code in src/twoTanksMacroscopicProblem.C
 m = BackwardMappingScriptTask(
-    script=os.path.dirname(os.path.abspath(__file__))+'/bin/twoTanksMacroscopicProblem'
+    script=str(Path(__file__).resolve().parent / 'bin' / 'twoTanksMacroscopicProblem')
 )

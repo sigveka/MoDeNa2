@@ -35,12 +35,8 @@ License
 @ingroup   twoTank
 """
 
-import os
 import modena
-from modena import ForwardMappingModel, BackwardMappingModel, SurrogateModel, CFunction, ModenaFireTask
-import modena.Strategy as Strategy
-from fireworks import Firework, Workflow, FWAction
-from fireworks.utilities.fw_utilities import explicit_serialize
+from modena import ForwardMappingModel, CFunction
 
 
 f = CFunction(

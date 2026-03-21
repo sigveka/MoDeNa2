@@ -292,7 +292,7 @@ modena_model_t *modena_model_new
     const char *modelId
 )
 {
-    // Modena_Info_Print("In '%s' model Id '%s'", __func__, modelId);
+    Modena_Debug_Print("modena_model_new: loading model '%s'", modelId);
 
     PyObject *args = PyTuple_New(0);
     PyObject *kw = Py_BuildValue("{s:s}", "modelId", modelId);
@@ -420,14 +420,29 @@ size_t modena_model_outputs_argPos(const modena_model_t *self, const char *name)
 void modena_model_argPos_check(const modena_model_t *self)
 {
     bool allUsed = true;
-    size_t j = 0;
+    size_t j;
 
     for(j = 0; j < self->inputs_internal_size; j++)
     {
-        if(!self->argPos_used[j])
+        if(self->argPos_used[j]){ continue; }
+
+        /* Accept positions that are filled automatically by a substitute model.
+         * The framework calls modena_substitute_model_call() before the outer
+         * surrogate, which writes substitute outputs into these slots — the C
+         * application never sets them and should not have to. */
+        bool covered = false;
+        size_t s, k;
+        for(s = 0; s < self->substituteModels_size && !covered; s++)
         {
-            // @TODO: Replace by call into python
-            //Modena_Info_Print("argPos for %s not used", self->inputs_names[j]);
+            const modena_substitute_model_t *sm = &self->substituteModels[s];
+            for(k = 0; k < sm->map_outputs_size && !covered; k++)
+            {
+                if(sm->map_outputs[2*k+1] == j){ covered = true; }
+            }
+        }
+
+        if(!covered)
+        {
             fprintf(stderr, "argPos %zu not used\n", j);
             allUsed = false;
             break;
@@ -478,19 +493,16 @@ int modena_substitute_model_call
     modena_inputs_t *inputs
 )
 {
-    // Modena_Info_Print("In %s", __func__);
+    Modena_Debug_Print("modena_substitute_model_call: running substitute model");
     size_t j;
     for(j = 0; j < sm->map_inputs_size; j++)
     {
-        /*
-        printf
-        (
-            "i%zu <- ip%zu (%g)\n",
+        Modena_Verbose_Print(
+            "  sub-input  i%zu <- parent[%zu]  (%g)",
             sm->map_inputs[2*j+1],
             sm->map_inputs[2*j],
             inputs->inputs[sm->map_inputs[2*j]]
         );
-        */
         sm->inputs->inputs[sm->map_inputs[2*j+1]] =
             inputs->inputs[sm->map_inputs[2*j]];
     }
@@ -500,15 +512,12 @@ int modena_substitute_model_call
 
     for(j = 0; j < sm->map_outputs_size; j++)
     {
-        /*
-        printf
-        (
-            "ip%zu <- o%zu (%g)\n",
+        Modena_Verbose_Print(
+            "  sub-output parent[%zu] <- o%zu  (%g)",
             sm->map_outputs[2*j+1],
             sm->map_outputs[2*j],
             sm->outputs->outputs[sm->map_outputs[2*j]]
         );
-        */
         inputs->inputs[sm->map_outputs[2*j+1]] =
             sm->outputs->outputs[sm->map_outputs[2*j]];
     }
@@ -569,7 +578,7 @@ int modena_model_call
     modena_outputs_t *outputs
 )
 {
-    // Modena_Info_Print("In '%s' model", __func__);
+    Modena_Debug_Print("modena_model_call: evaluating model (parameters_size=%zu)", self->parameters_size);
     if
     (
           self->parameters_size == 0
@@ -967,8 +976,6 @@ static int modena_model_t_init
     PyObject *kwds
 )
 {
-    // Modena_Info_Print("In %s", __func__);
-
     PyObject *pParameters=NULL, *pModel=NULL;
     char *modelId=NULL;
     size_t i, j;
@@ -1095,28 +1102,19 @@ static int modena_model_t_init
 
     if(self->parameters_size != PySequence_Size(pParameters))
     {
-        printf
-        (
-            "Wrong number of parameters in '%s'. Requires %zu -- Given %zu\n",
-            modelId,
+        Modena_Debug_Print(
+            "Wrong number of parameters in '%s'. Requires %zu -- Given %zu",
+            modelId ? modelId : "(unknown)",
             self->parameters_size,
-            PySequence_Size(pParameters)
+            (size_t)PySequence_Size(pParameters)
         );
-        exit(1);
+        PyObject *excArgs = PyTuple_New(2);
+        PyTuple_SET_ITEM(excArgs, 0,
+            PyString_FromString("Surrogate model does not have valid parameters"));
+        Py_INCREF(self->pModel);
+        PyTuple_SET_ITEM(excArgs, 1, self->pModel);
 
-        PyObject *args = PyTuple_New(2);
-        PyObject* str = PyString_FromString
-        (
-            "Wrong number of parameters"
-        );
-        PyTuple_SET_ITEM(args, 0, str);
-        PyTuple_SET_ITEM(args, 1, self->pModel);
-
-        PyErr_SetObject
-        (
-            modena_ParametersNotValid,
-            args
-        );
+        PyErr_SetObject(modena_ParametersNotValid, excArgs);
 
         Py_DECREF(pSeq);
         Py_DECREF(pParameters);

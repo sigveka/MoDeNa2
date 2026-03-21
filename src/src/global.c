@@ -72,8 +72,9 @@ License
 #endif
 
 
-// Initialise global variable
+// Initialise global variables
 thread_local int modena_error_code = 0;
+int modena_log_level = MODENA_LOG_WARNING;
 
 PyObject *modena_DoesNotExist = NULL;
 PyObject *modena_OutOfBounds = NULL;
@@ -185,6 +186,15 @@ static PyTypeObject CustomType = {
 // Define initialisation function: PyInit_libmodena
 MOD_INIT(libmodena)
 {
+    /* Read MODENA_LOG_LEVEL once, matching the Python-side levels. */
+    {
+        const char *env = getenv("MODENA_LOG_LEVEL");
+        if      (!env || strcmp(env, "WARNING") == 0) modena_log_level = MODENA_LOG_WARNING;
+        else if (strcmp(env, "INFO")          == 0)   modena_log_level = MODENA_LOG_INFO;
+        else if (strcmp(env, "DEBUG")         == 0)   modena_log_level = MODENA_LOG_DEBUG;
+        else if (strcmp(env, "DEBUG_VERBOSE") == 0)   modena_log_level = MODENA_LOG_DEBUG_VERBOSE;
+    }
+
     // Initialize the Python Interpreter
     if(!Py_IsInitialized())
     {

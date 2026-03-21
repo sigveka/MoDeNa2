@@ -35,13 +35,11 @@ License
 @ingroup   twoTank
 """
 
-import os
+import subprocess
 import modena
-from modena import ForwardMappingModel, BackwardMappingModel, SurrogateModel, CFunction, ModenaFireTask
+from modena import BackwardMappingModel, CFunction, ModenaFireTask
 import modena.Strategy as Strategy
-from fireworks import Firework, Workflow, FWAction
 from fireworks.utilities.fw_utilities import explicit_serialize
-from blessings import Terminal
 from jinja2 import Template
 import idealGas
 
@@ -68,7 +66,7 @@ class FlowRateExactSim(ModenaFireTask):
         # In this simple example, this call stands for a complex microscopic
         # code - such as full 3D CFD simulation.
         # Source code in src/flowRateExact.C
-        ret = os.system(os.path.dirname(os.path.abspath(__file__))+'/bin/flowRateExact')
+        ret = subprocess.call([self.find_binary('flowRateExact')])
 
         # This enables backward mapping capabilities (not needed in this example)
         self.handleReturnCode(ret)

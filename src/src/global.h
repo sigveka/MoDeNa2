@@ -183,6 +183,51 @@ const char* modena_error_message(int error_code);
  */
 void modena_print_backtrace();
 
+/* ── C-side log level (mirrors MODENA_LOG_LEVEL on the Python side) ─────── */
+/** Log level constant: errors only (default when MODENA_LOG_LEVEL is unset). */
+#define MODENA_LOG_WARNING       0
+/** Log level constant: normal progress messages. */
+#define MODENA_LOG_INFO          1
+/** Log level constant: model-loading details, parameter counts, argPos maps. */
+#define MODENA_LOG_DEBUG         2
+/** Log level constant: per-call input/output value traces. */
+#define MODENA_LOG_DEBUG_VERBOSE 3
+
+/** Set once in PyInit_libmodena by reading $MODENA_LOG_LEVEL.
+ *  Never written after initialisation.  Defaults to MODENA_LOG_WARNING. */
+extern int modena_log_level;
+
+/**
+ * @brief Emit a debug message to stderr when MODENA_LOG_LEVEL >= DEBUG.
+ *
+ * Usage: `Modena_Debug_Print("loaded %zu parameters for '%s'", n, id);`
+ * Output (stderr): `[modena DEBUG] loaded 3 parameters for 'flowRate'`
+ *
+ * Zero cost at WARNING/INFO level — the condition is a single integer
+ * comparison against a process-global constant set at startup.
+ */
+#define Modena_Debug_Print(fmt, ...)                                          \
+    do {                                                                      \
+        if (modena_log_level >= MODENA_LOG_DEBUG) {                           \
+            fprintf(stderr, "[modena DEBUG] " fmt "\n", ##__VA_ARGS__);       \
+        }                                                                     \
+    } while(0)
+
+/**
+ * @brief Like Modena_Debug_Print but only at DEBUG_VERBOSE.
+ *
+ * Use for per-call traces (e.g. substitute model input/output values) that
+ * would be too noisy at DEBUG level in a long simulation.
+ *
+ * Usage: `Modena_Verbose_Print("i%zu <- ip%zu (%g)", dst, src, val);`
+ */
+#define Modena_Verbose_Print(fmt, ...)                                        \
+    do {                                                                      \
+        if (modena_log_level >= MODENA_LOG_DEBUG_VERBOSE) {                   \
+            fprintf(stderr, "[modena TRACE] " fmt "\n", ##__VA_ARGS__);       \
+        }                                                                     \
+    } while(0)
+
 /**
  * @brief Print an informational message with file/line context to `stdout`.
  *
