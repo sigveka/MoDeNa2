@@ -4,7 +4,8 @@ site_description: Multi-scale modelling framework with surrogate models
 docs_dir: docs
 
 nav:
-  - Home: quick-start-user.md
+  - Home: index.md
+  - User Guide: quick-start-user.md
   - Developer Guide: quick-start-developer.md
   - Language Bindings:
       - C: quick-start-c.md
