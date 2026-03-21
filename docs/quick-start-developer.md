@@ -263,6 +263,24 @@ The `{% block variables %}` block is filled in by MoDeNa's Jinja2 template
 engine, which generates `const double D = inputs[0];` style bindings for each
 declared input.  You use those variable names directly in the C body.
 
+**`argPos` — the index contract between Python and C:**
+
+`argPos` is the integer index into the `double[]` arrays that the C runtime and
+the compiled surrogate exchange.  It is set once at model creation and stored in
+MongoDB.  The rules are:
+
+| Variable kind | argPos | Rule |
+|---|---|---|
+| **inputs** | not specified | Assigned automatically: scalars first (0, 1, 2, …), then `IndexSet`-backed vector inputs |
+| **outputs** | required | Must be unique, starting from 0.  `outputs[argPos]` in your C code. |
+| **parameters** | required | Must be unique, starting from 0.  `parameters[argPos]` in your C code. |
+
+**Never change `argPos` on a model that already has data in MongoDB.**  Doing so
+silently shifts which array slot the C application reads, corrupting all
+existing results without any error message.  If you need to add a new input
+to an existing model, append it at the next available index and update the C
+application code.
+
 ### 2 — Exact task
 
 The exact task is a FireWorks `FireTask` that runs the expensive simulation
@@ -333,45 +351,90 @@ the database before the first simulation run.
 trained region.  `ExtendSpaceStochasticSampling` adds random points around the
 out-of-bounds query.
 
-**`nonConvergenceStrategy`** *(optional)* — what to do when an exact simulation
-raises an exception (numerical failure, convergence error, etc.).
-
-| Strategy | Behaviour |
-|---|---|
-| `SkipPoint()` | Log WARNING, skip the point, continue — **default** |
-| `FizzleOnFailure()` | Re-raise → FireWorks marks the firework FIZZLED |
-| `DefuseWorkflowOnFailure()` | Defuse the entire workflow (pre-3.x behaviour) |
-
-Models where numerical failures are expected at certain input combinations
-(e.g. mixture properties near phase boundaries) should set this explicitly:
-
-```python
-nonConvergenceStrategy=Strategy.SkipPoint(),
-```
-
 **`parameterFittingStrategy`** — how to fit the surrogate to the collected
 data.  `NonLinFitWithErrorContol` uses non-linear least squares
-(`scipy.optimize.least_squares`) with a composable cross-validation/acceptance
-design:
+(`scipy.optimize.least_squares`) with four independently composable strategy
+plug-ins:
 
-| Constructor key | Type | Purpose |
+```mermaid
+flowchart LR
+    NL["NonLinFitWithErrorContol"]
+
+    subgraph cv["crossValidation"]
+        CV1["Holdout(p)"]
+        CV2["KFold(k)"]
+        CV3["LeaveOneOut()"]
+        CV4["LeavePOut(p)"]
+        CV5["Jackknife()"]
+    end
+
+    subgraph ac["acceptanceCriterion"]
+        AC1["MaxError(threshold)\nmetric= AbsoluteError()\nmetric= RelativeError()\nmetric= NormalizedError()"]
+    end
+
+    subgraph ie["improveErrorStrategy"]
+        IE1["StochasticSampling(n)\nsampler= LatinHypercube()\nsampler= Halton()\nsampler= Sobol()\nsampler= RandomUniform()"]
+    end
+
+    subgraph op["optimizer"]
+        OP1["TrustRegionReflective()"]
+        OP2["LevenbergMarquardt()"]
+        OP3["DogBox()"]
+    end
+
+    cv --> NL
+    ac --> NL
+    ie --> NL
+    op --> NL
+```
+
+| Constructor key | Type | Default |
 |---|---|---|
-| `crossValidation` | `CrossValidationStrategy` | How to split data into train/test folds.  Default: `Holdout(testDataPercentage=0.2)`. |
-| `acceptanceCriterion` | `AcceptanceCriterionBase` | When to accept the fit.  Default: `MaxError(threshold=0.1)`. |
-| `improveErrorStrategy` | `ImproveErrorStrategy` | What to do when the fit is rejected.  Typically `StochasticSampling(nNewPoints=N)`. |
+| `crossValidation` | `CrossValidationStrategy` | `Holdout(testDataPercentage=0.2)` |
+| `acceptanceCriterion` | `AcceptanceCriterionBase` | `MaxError(threshold=0.1)` |
+| `improveErrorStrategy` | `ImproveErrorStrategy` | `StochasticSampling(nNewPoints=2)` |
+| `optimizer` | `ResidualsOptimizer` | `TrustRegionReflective()` |
 
-Available cross-validation strategies:
+**Cross-validation strategies:**
 
-| Strategy | Description |
-|---|---|
-| `Holdout(testDataPercentage)` | Single random train/test split |
-| `KFold(k)` | k-fold cross-validation (shuffled) |
-| `LeaveOneOut()` | Leave-one-out (N folds) |
-| `LeavePOut(p)` | Leave-p-out (C(N,p) folds).  Raises `ValueError` when the fold count exceeds 1000 — use `KFold` or `LeaveOneOut` for larger datasets. |
-| `Jackknife()` | LOO splits, mean error aggregation |
+| Strategy | Folds | Error aggregation |
+|---|---|---|
+| `Holdout(testDataPercentage)` | 1 random split | max |
+| `KFold(k)` | k shuffled folds | max |
+| `LeaveOneOut()` | N folds (test size = 1) | max |
+| `LeavePOut(p)` | C(N,p) folds — raises `ValueError` above 1000 | max |
+| `Jackknife()` | N LOO folds | **mean** (bias estimation) |
+
+**Error metrics** — passed as `metric=` to `MaxError`:
+
+| Class | Residual | Notes |
+|---|---|---|
+| `AbsoluteError()` | `measured − predicted` | Default |
+| `RelativeError()` | `(measured − predicted) / \|measured\|` | Falls back to absolute when `\|measured\| < 1e-10` |
+| `NormalizedError()` | `(measured − predicted) / output_range` | Falls back to absolute when range < 1e-10 |
+
+```python
+# Example: relative error acceptance
+acceptanceCriterion=Strategy.MaxError(
+    threshold=0.05,
+    metric=Strategy.RelativeError(),
+),
+```
 
 When the CV error is acceptable, the surrogate is refit on **all** data before
 saving, giving the best possible parameters.
+
+> **Backward compatibility:** existing MongoDB documents that store the old
+> `testDataPercentage` and `maxError` keys continue to work.  The new
+> `crossValidation` and `acceptanceCriterion` keys take precedence when present.
+
+**`nonConvergenceStrategy`** — when to use which option:
+
+| Strategy | Use when |
+|---|---|
+| `SkipPoint()` *(default)* | Numerical failures are expected at certain inputs (e.g. near phase boundaries, composition limits).  Fitting continues with the remaining points. |
+| `FizzleOnFailure()` | Any exact-simulation failure is a bug and should stop the workflow immediately for investigation. |
+| `DefuseWorkflowOnFailure()` | A failure in one simulation invalidates the entire run (rare; legacy behaviour). |
 
 ---
 
