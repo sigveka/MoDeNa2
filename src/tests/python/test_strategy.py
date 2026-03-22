@@ -228,7 +228,9 @@ class TestModenaFireTaskRunTask:
         # Should not raise; should return defuse action
         assert result is not None
 
-    def test_returns_defuse_workflow_on_exception(self):
+    def test_model_load_failure_skips_point(self):
+        """When SurrogateModel.load raises (_model stays None), the SkipPoint()
+        fallback applies: the firework completes without defusing the workflow."""
         from modena.Strategy import ModenaFireTask
         task = self._make_task()
 
@@ -246,7 +248,9 @@ class TestModenaFireTaskRunTask:
             else:
                 del modena_stub.SurrogateModel
 
-        assert result.defuse_workflow is True
+        # SkipPoint() returns FWAction() — firework completes, workflow continues
+        assert result is not None
+        assert result.defuse_workflow is False
 
 
 # ---------------------------------------------------------------------------

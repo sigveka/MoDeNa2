@@ -40,6 +40,7 @@ License
 import abc
 import sys
 import copy
+import concurrent.futures
 from datetime import datetime, timezone
 import modena
 from modena.Registry import ModelRegistry
@@ -98,6 +99,178 @@ __all__ = (
 ##
 # @addtogroup python_interface_library
 # @{
+
+# ------------------------------------------------------------------ #
+# Parallel CV fold support                                            #
+# ------------------------------------------------------------------ #
+
+class _FitProxy:
+    """Picklable proxy for BackwardMappingModel used in parallel CV fold workers.
+
+    Extracts all data that ``modena_model_t(model=proxy, ...)`` and
+    ``model.error(cModel, ...)`` require from a MongoEngine document into plain
+    Python objects.  Instances are fully picklable and can be sent to
+    ``ProcessPoolExecutor`` worker processes.
+
+    Only models without substitute models can use this proxy.  Models with
+    substitute models fall back to serial fold evaluation.
+    """
+
+    class _SurrFuncProxy:
+        """Minimal proxy for ``surrogateFunction``.
+
+        The C binding reads ``functionName``, ``libraryName``, and the *size*
+        of ``inputs``, ``outputs``, and ``parameters`` (via ``PyObject_Size``).
+        Plain lists satisfy the size requirement.
+        """
+        def __init__(self, library_name, function_name, n_inputs, n_outputs, n_params):
+            self.libraryName  = library_name
+            self.functionName = function_name
+            self.inputs     = [None] * n_inputs
+            self.outputs    = [None] * n_outputs
+            self.parameters = [None] * n_params
+
+        def inputs_size(self):
+            return len(self.inputs)
+
+    def __init__(self, library_name, function_name,
+                 min_values, max_values,
+                 input_names, output_names, parameter_names,
+                 fit_data, input_arg_pos, output_arg_pos, output_ranges,
+                 n_inputs_internal):
+        self.surrogateFunction = self._SurrFuncProxy(
+            library_name, function_name,
+            n_inputs_internal, len(output_names), len(parameter_names),
+        )
+        self.substituteModels  = []
+        self._min_values       = min_values
+        self._max_values       = max_values
+        self._input_names      = input_names
+        self._output_names     = output_names
+        self._parameter_names  = parameter_names
+        self.fitData           = fit_data
+        self._input_arg_pos    = input_arg_pos   # {name: argPos}
+        self._output_arg_pos   = output_arg_pos  # {name: argPos}
+        self._output_ranges    = output_ranges   # {name: float}
+        self.nSamples          = len(next(iter(fit_data.values()))) if fit_data else 0
+        # The C binding calls PyDict_Size on model.outputs — provide a plain dict.
+        self.outputs           = {name: None for name in output_names}
+
+    def minMax(self):
+        return (
+            self._min_values, self._max_values,
+            list(self._input_names), list(self._output_names),
+            list(self._parameter_names),
+        )
+
+    def inputs_argPos(self, name):
+        return self._input_arg_pos[name]
+
+    def outputs_argPos(self, name):
+        return self._output_arg_pos[name]
+
+    def error(self, cModel, **kwargs):
+        """Same logic as ``SurrogateModel.error()`` but operates on plain dicts."""
+        idxGenerator = kwargs.pop('idxGenerator', range(self.nSamples))
+        checkBounds  = kwargs.pop('checkBounds', True)
+        metric       = kwargs.pop('metric', None)
+
+        i = [0.0] * len(self.surrogateFunction.inputs)
+        input_keys_and_pos = list(self._input_arg_pos.items())
+
+        if metric is None:
+            output_info = list(self._output_arg_pos.items())
+        else:
+            output_info = [
+                (name, pos, self._output_ranges[name])
+                for name, pos in self._output_arg_pos.items()
+            ]
+
+        for idx in idxGenerator:
+            for k, pos in input_keys_and_pos:
+                i[pos] = self.fitData[k][idx]
+            out = cModel(i, checkBounds=checkBounds)
+            if metric is None:
+                for name, argPos in output_info:
+                    yield self.fitData[name][idx] - out[argPos]
+            else:
+                for name, argPos, rng in output_info:
+                    yield metric.residual(out[argPos], self.fitData[name][idx], rng)
+
+    @classmethod
+    def from_model(cls, model):
+        """Extract a picklable ``_FitProxy`` from a ``BackwardMappingModel``."""
+        sf = model.surrogateFunction
+        min_vals, max_vals, _, _, _ = model.minMax()
+
+        input_names    = list(model.inputs.keys())
+        output_names   = list(model.outputs.keys())
+        parameter_names = list(sf.parameters.keys())
+
+        input_arg_pos  = {k: model.inputs_argPos(k)  for k in input_names}
+        output_arg_pos = {k: model.outputs_argPos(k) for k in output_names}
+        output_ranges  = {
+            name: (
+                model.outputs[name].max - model.outputs[name].min
+                if model.outputs[name].max != model.outputs[name].min
+                else 1.0
+            )
+            for name in output_names
+        }
+
+        if not model.fitData:
+            model.reload('fitData')
+        fit_data = {k: list(v) for k, v in model.fitData.items()}
+
+        return cls(
+            library_name      = sf.libraryName,
+            function_name     = sf.functionName,
+            min_values        = list(min_vals),
+            max_values        = list(max_vals),
+            input_names       = input_names,
+            output_names      = output_names,
+            parameter_names   = parameter_names,
+            fit_data          = fit_data,
+            input_arg_pos     = input_arg_pos,
+            output_arg_pos    = output_arg_pos,
+            output_ranges     = output_ranges,
+            n_inputs_internal = sf.inputs_size(),
+        )
+
+
+def _cv_fold_worker(proxy, train_list, optimizer_dict, metric_dict,
+                    min_parameters, max_parameters, init_parameters):
+    """Fit one CV fold in a worker process.
+
+    Module-level so ``ProcessPoolExecutor`` can pickle it.  Reconstructs
+    ``modena_model_t`` from the ``_FitProxy`` (no MongoDB query needed).
+
+    Returns the fitted parameter list for this fold.
+    """
+    from fireworks.utilities.fw_serializers import load_object
+
+    optimizer = load_object(optimizer_dict)
+    metric    = load_object(metric_dict) if metric_dict is not None else None
+
+    cModel = modena.libmodena.modena_model_t(
+        model=proxy, parameters=list(init_parameters)
+    )
+
+    def errorFit(parameters):
+        cModel.parameters = list(parameters)
+        return np.array(list(proxy.error(
+            cModel,
+            idxGenerator=iter(train_list),
+            checkBounds=False,
+            metric=metric,
+        )))
+
+    return list(optimizer.fit(
+        errorFit,
+        np.array(init_parameters, dtype=float),
+        bounds=(min_parameters, max_parameters),
+    ))
+
 
 class StrategyBaseClass(defaultdict, FWSerializable):
     """
@@ -1650,13 +1823,17 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
             min_parameters[v.argPos] = v.min
             max_parameters[v.argPos] = v.max
 
-        def _fit(train_idx):
-            """Fit on train_idx; return optimised parameter list."""
-            train_list = list(train_idx)
+        # Serialize optimizer and metric once for use in workers.
+        optimizer = self.get('optimizer', TrustRegionReflective())
+        optimizer_dict = optimizer.to_dict()
+        metric_dict = (
+            criterion.metric.to_dict()
+            if criterion.metric is not None else None
+        )
 
-            # One cModel reused across all optimizer iterations via the
-            # parameters setter (modena_model_t_set_parameters updates the
-            # internal double[] in-place — no malloc on each callback).
+        def _fit_serial(train_idx):
+            """Serial fallback: fit on train_idx using the full model object."""
+            train_list = list(train_idx)
             cModel = modena.libmodena.modena_model_t(
                 model=model, parameters=list(init_parameters)
             )
@@ -1670,31 +1847,53 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
                     metric=criterion.metric,
                 )))
 
-            optimizer = self.get('optimizer', TrustRegionReflective())
             return list(optimizer.fit(
                 errorFit,
                 np.array(init_parameters, dtype=float),
                 bounds=(min_parameters, max_parameters),
             ))
 
-        # Cross-validation loop
-        # TODO: parallelize folds with ProcessPoolExecutor.  The current barrier
-        #   is that _fit() closes over `model` (a MongoEngine DynamicDocument),
-        #   which is not picklable.  To enable Pool.map, restructure _fit to
-        #   accept only plain serializable data (parameter bounds, fitData arrays)
-        #   and re-initialise modena_model_t inside the worker.
+        # Collect all fold splits up front so we can submit them in parallel.
+        fold_splits = list(cv.splits(model.nSamples))
+        n_folds     = len(fold_splits)
+
+        # Parallel CV folds via ProcessPoolExecutor.
+        # Each worker reconstructs modena_model_t from a picklable _FitProxy —
+        # no MongoDB query needed, no MongoEngine objects sent across the wire.
+        # Falls back to serial when the model has substitute models (the proxy
+        # only supports models without substituteModels).
+        can_parallel = (
+            n_folds > 1
+            and not getattr(model, 'substituteModels', [])
+        )
+
+        if can_parallel:
+            proxy = _FitProxy.from_model(model)
+            futures_map = {}
+            with concurrent.futures.ProcessPoolExecutor(
+                max_workers=n_folds
+            ) as pool:
+                for i, (train_idx, _) in enumerate(fold_splits):
+                    futures_map[i] = pool.submit(
+                        _cv_fold_worker,
+                        proxy, list(train_idx), optimizer_dict, metric_dict,
+                        min_parameters, max_parameters, init_parameters,
+                    )
+            fold_params = [futures_map[i].result() for i in range(n_folds)]
+        else:
+            fold_params = [_fit_serial(train_idx) for train_idx, _ in fold_splits]
+
         fold_errors = []
         best_params = None
         best_err = float('inf')
 
-        # One cModel_eval reused across all folds for test-set residual
-        # evaluation — parameters updated in-place via setter before each use.
+        # Evaluate each fold on its held-out test set using the main-process
+        # model (avoids re-importing modena in a worker just for evaluation).
         cModel_eval = modena.libmodena.modena_model_t(
             model=model, parameters=list(init_parameters)
         )
 
-        for train_idx, test_idx in cv.splits(model.nSamples):
-            params = _fit(train_idx)
+        for (_, test_idx), params in zip(fold_splits, fold_params):
             cModel_eval.parameters = params
             residuals = list(model.error(
                 cModel_eval,

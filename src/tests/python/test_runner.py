@@ -7,9 +7,14 @@ Covers:
   - run() reset=False      — does not call lpad.reset()
   - run() reset=True       — calls lpad.reset() with correct args
   - run() empty model list — short-circuits before rapidfire
-  - run() prints done msg  — output contains 'done'
+  - run() logs done msg    — log record contains 'done'
   - run() passes sleep_time to rapidfire
   - run() passes timeout to rapidfire when set
+
+All tests use njobs=1 to keep execution in-process so that unittest.mock
+patches on fireworks.core.rocket_launcher.rapidfire are visible to run().
+With njobs>1, run() spawns worker processes that inherit a fresh Python
+interpreter and bypass any in-process patches.
 
 No MongoDB or libmodena required.
 """
@@ -37,7 +42,7 @@ class TestRunBasic:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire'):
-            result = run(Workflow([Firework([])]), lpad=lp, reset=False)
+            result = run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
         assert result is lp
 
     def test_adds_workflow_to_lpad(self):
@@ -46,7 +51,7 @@ class TestRunBasic:
         lp = _make_lpad()
         wf = Workflow([Firework([])])
         with patch('fireworks.core.rocket_launcher.rapidfire'):
-            run(wf, lpad=lp, reset=False)
+            run(wf, lpad=lp, reset=False, njobs=1)
         lp.add_wf.assert_called_once_with(wf)
 
     def test_calls_rapidfire(self):
@@ -54,16 +59,18 @@ class TestRunBasic:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
-            run(Workflow([Firework([])]), lpad=lp, reset=False)
+            run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
         mock_rf.assert_called_once()
 
-    def test_prints_done(self, capsys):
+    def test_logs_done(self, caplog):
+        import logging
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire'):
-            run(Workflow([Firework([])]), lpad=lp, reset=False)
-        assert 'done' in capsys.readouterr().out.lower()
+        with caplog.at_level(logging.INFO, logger='modena.runner'):
+            with patch('fireworks.core.rocket_launcher.rapidfire'):
+                run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
+        assert 'done' in caplog.text.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +84,7 @@ class TestRunWithFirework:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire'):
-            run(Firework([]), lpad=lp, reset=False)
+            run(Firework([]), lpad=lp, reset=False, njobs=1)
         lp.add_wf.assert_called_once()
 
 
@@ -92,7 +99,7 @@ class TestRunReset:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire'):
-            run(Workflow([Firework([])]), lpad=lp, reset=True)
+            run(Workflow([Firework([])]), lpad=lp, reset=True, njobs=1)
         lp.reset.assert_called_once_with('', require_password=False)
 
     def test_reset_false_does_not_call_lpad_reset(self):
@@ -100,7 +107,7 @@ class TestRunReset:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire'):
-            run(Workflow([Firework([])]), lpad=lp, reset=False)
+            run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
         lp.reset.assert_not_called()
 
 
@@ -124,13 +131,14 @@ class TestRunEmptyModels:
             result = run([], lpad=lp)
         assert result is lp
 
-    def test_empty_list_prints_nothing_to_do(self, capsys):
+    def test_empty_list_logs_nothing_to_do(self, caplog):
+        import logging
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire'):
-            run([], lpad=lp)
-        out = capsys.readouterr().out
-        assert 'nothing' in out.lower() or 'no model' in out.lower()
+        with caplog.at_level(logging.INFO, logger='modena.runner'):
+            with patch('fireworks.core.rocket_launcher.rapidfire'):
+                run([], lpad=lp)
+        assert 'nothing' in caplog.text.lower() or 'no model' in caplog.text.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +152,7 @@ class TestRunRapidfireKwargs:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
-            run(Workflow([Firework([])]), lpad=lp, reset=False, sleep_time=5)
+            run(Workflow([Firework([])]), lpad=lp, reset=False, sleep_time=5, njobs=1)
         _, kwargs = mock_rf.call_args
         assert kwargs.get('sleep_time') == 5
 
@@ -153,7 +161,7 @@ class TestRunRapidfireKwargs:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
-            run(Workflow([Firework([])]), lpad=lp, reset=False, timeout=120)
+            run(Workflow([Firework([])]), lpad=lp, reset=False, timeout=120, njobs=1)
         _, kwargs = mock_rf.call_args
         assert kwargs.get('timeout') == 120
 
@@ -162,6 +170,6 @@ class TestRunRapidfireKwargs:
         from modena.Runner import run
         lp = _make_lpad()
         with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
-            run(Workflow([Firework([])]), lpad=lp, reset=False, timeout=None)
+            run(Workflow([Firework([])]), lpad=lp, reset=False, timeout=None, njobs=1)
         _, kwargs = mock_rf.call_args
         assert 'timeout' not in kwargs
