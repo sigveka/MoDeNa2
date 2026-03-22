@@ -124,13 +124,17 @@ def checkAndConvertType(kwargs, name, cls):
     @param name   (str)  name of strategy, i.e. the key in kwargs
     @param cls    class type
     """
-    try:
-        if not isinstance(kwargs[name], cls):
-            raise TypeError(f'{name} must be of type {cls}')
-        kwargs['meth_' + name] = kwargs[name].to_dict()
-        del kwargs[name]
-    except Exception as e:
-        raise Exception(f'{name} not found') from e
+    if name not in kwargs:
+        raise TypeError(
+            f"'{name}' is a required argument of type {cls.__name__}"
+        )
+    if not isinstance(kwargs[name], cls):
+        raise TypeError(
+            f"'{name}' must be of type {cls.__name__}, "
+            f"got {type(kwargs[name]).__name__}"
+        )
+    kwargs['meth_' + name] = kwargs[name].to_dict()
+    del kwargs[name]
 
 
 def loadType(obj, name, cls):
@@ -202,8 +206,8 @@ class IndexSet(Document):
         """
         try:
             return self.names[index]
-        except Exception as e:
-            raise Exception(f'{index} is not in index set {self.name}') from e
+        except IndexError:
+            raise IndexError(f'{index} is not in index set {self.name!r}') from None
 
 
     def get_index(self, name):
@@ -214,8 +218,8 @@ class IndexSet(Document):
         """
         try:
             return self.___index___[name]
-        except Exception as e:
-            raise Exception(f'{name} is not in index set {self.name}') from e
+        except KeyError:
+            raise KeyError(f'{name!r} is not in index set {self.name!r}') from None
 
 
     def iterator_end(self):
@@ -545,7 +549,7 @@ def _compile_c_surrogate(source_c, output_so, include_dir, lib_dir):
     Args:
         source_c:    Path to the rendered .c file.
         output_so:   Destination path for the compiled .so / .dylib.
-        include_dir: Directory containing modena.h.
+        include_dir: Directory containing modena.h directly (i.e. <prefix>/include/modena, not <prefix>/include).
         lib_dir:     Directory containing libmodena.so.
 
     Raises:
@@ -560,6 +564,8 @@ def _compile_c_surrogate(source_c, output_so, include_dir, lib_dir):
     ccshared = sysconfig.get_config_var('CCSHARED') or '-fPIC'
     shared   = '-dynamiclib' if sys.platform == 'darwin' else '-shared'
 
+    python_include = sysconfig.get_path('include')
+
     cmd = (
         cc_raw.split()
         + ccshared.split()
@@ -567,6 +573,7 @@ def _compile_c_surrogate(source_c, output_so, include_dir, lib_dir):
            '-o', str(output_so),
            str(source_c),
            f'-I{include_dir}',
+           f'-I{python_include}',
            f'-L{lib_dir}', '-lmodena']
     )
 
@@ -606,8 +613,8 @@ class CFunction(SurrogateFunction):
 
         @param   kwargs (dict) initialisation dictionary.
         """
-        #if 'Ccode 'not in kwargs:
-        #    raise Exception('Need Ccode')
+        if 'Ccode' not in kwargs:
+            raise TypeError("CFunction requires a 'Ccode' keyword argument")
 
         ln = self.compileCcode(kwargs)
         fn = re.search(
@@ -669,7 +676,7 @@ const double {{k}} = inputs[{{k}}_argPos];
                 source_c  = source_c,
                 output_so = output_so,
                 include_dir = Path(modena.MODENA_INCLUDE_DIR),
-                lib_dir     = Path(modena.MODENA_LIB_DIR).parent,
+                lib_dir     = Path(modena.MODENA_LIB_DIR),
             )
 
         return str(output_so)

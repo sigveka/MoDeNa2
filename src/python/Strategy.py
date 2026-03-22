@@ -1495,20 +1495,6 @@ class Test(ParameterFittingStrategy):
         """
         """
         test_set = set(testIndices)
-        # ------------------------------ Function --------------------------- #
-        def errorFit(parameters):
-            cModel = modena.libmodena.modena_model_t(
-                model=model,
-                parameters=list(parameters)
-            )
-            return np.array(list(model.error(
-                cModel,
-                idxGenerator=(
-                    i for i in range(model.nSamples) if i not in test_set
-                ),
-                checkBounds=False,
-            )))
-        # ------------------------------------------------------------------- #
 
         new_parameters = model.parameters[:]
         if not len(new_parameters):
@@ -1521,6 +1507,23 @@ class Test(ParameterFittingStrategy):
         for k, v in model.surrogateFunction.parameters.items():
             min_parameters[v.argPos] = v.min
             max_parameters[v.argPos] = v.max
+
+        # One cModel reused across all optimizer iterations via the parameters
+        # setter (modena_model_t_set_parameters updates the internal double[]
+        # in-place — no malloc on each callback).
+        cModel = modena.libmodena.modena_model_t(
+            model=model, parameters=list(new_parameters)
+        )
+
+        def errorFit(parameters):
+            cModel.parameters = list(parameters)
+            return np.array(list(model.error(
+                cModel,
+                idxGenerator=(
+                    i for i in range(model.nSamples) if i not in test_set
+                ),
+                checkBounds=False,
+            )))
 
         new_parameters = list(TrustRegionReflective().fit(
             errorFit,
@@ -1651,16 +1654,15 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
             """Fit on train_idx; return optimised parameter list."""
             train_list = list(train_idx)
 
+            # One cModel reused across all optimizer iterations via the
+            # parameters setter (modena_model_t_set_parameters updates the
+            # internal double[] in-place — no malloc on each callback).
+            cModel = modena.libmodena.modena_model_t(
+                model=model, parameters=list(init_parameters)
+            )
+
             def errorFit(parameters):
-                # TODO: modena_model_t is reconstructed (malloc + copy) on every
-                #   optimizer callback.  To avoid this, the C API would need a
-                #   modena_model_set_parameters() function that updates parameters
-                #   in-place on an existing modena_model_t.  Until then this cost
-                #   is unavoidable without changing src/src/model.c and the Python
-                #   binding.
-                cModel = modena.libmodena.modena_model_t(
-                    model=model, parameters=list(parameters)
-                )
+                cModel.parameters = list(parameters)
                 return np.array(list(model.error(
                     cModel,
                     idxGenerator=iter(train_list),
@@ -1677,21 +1679,25 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
 
         # Cross-validation loop
         # TODO: parallelize folds with ProcessPoolExecutor.  The current barrier
-        #   is that _fit() closes over modena_model_t, which is not picklable.
-        #   To enable Pool.map, restructure _fit to accept only plain serializable
-        #   data (parameter bounds, fitData arrays) and re-initialise modena_model_t
-        #   inside the worker.
+        #   is that _fit() closes over `model` (a MongoEngine DynamicDocument),
+        #   which is not picklable.  To enable Pool.map, restructure _fit to
+        #   accept only plain serializable data (parameter bounds, fitData arrays)
+        #   and re-initialise modena_model_t inside the worker.
         fold_errors = []
         best_params = None
         best_err = float('inf')
 
+        # One cModel_eval reused across all folds for test-set residual
+        # evaluation — parameters updated in-place via setter before each use.
+        cModel_eval = modena.libmodena.modena_model_t(
+            model=model, parameters=list(init_parameters)
+        )
+
         for train_idx, test_idx in cv.splits(model.nSamples):
             params = _fit(train_idx)
-            cModel = modena.libmodena.modena_model_t(
-                model=model, parameters=params
-            )
+            cModel_eval.parameters = params
             residuals = list(model.error(
-                cModel,
+                cModel_eval,
                 idxGenerator=iter(test_idx),
                 checkBounds=False,
                 metric=criterion.metric,
@@ -1773,33 +1779,32 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
             testPoint = [i]
             test_set = set(testPoint)
 
-            # -------------------------- Function --------------------------- #
-            def errorTest(parameters, _testPoint=testPoint):
-                # Instantiate the surrogate model
-                cModel = modena.libmodena.modena_model_t(
-                    model,
-                    parameters=list(parameters)
-                )
+            # One cModel per LOO fold, reused across all optimizer callbacks
+            # via the parameters setter (modena_model_t_set_parameters updates
+            # the internal double[] in-place — no malloc on each callback).
+            # errorFit and errorTest are called sequentially, so sharing one
+            # struct is safe.
+            cModel = modena.libmodena.modena_model_t(
+                model=model, parameters=list(new_parameters)
+            )
 
+            # -------------------------- Function --------------------------- #
+            def errorTest(parameters, _cModel=cModel, _testPoint=testPoint):
+                _cModel.parameters = list(parameters)
                 return max(
                     abs(r) for r in model.error(
-                        cModel,
+                        _cModel,
                         idxGenerator=iter(_testPoint),
                         checkBounds=False
                     )
                 )
 
             # -------------------------- Function --------------------------- #
-            def errorFit(parameters, _test_set=test_set):
-                # Instantiate the surrogate model
-                cModel = modena.libmodena.modena_model_t(
-                    model=model,
-                    parameters=list(parameters)
-                )
-
+            def errorFit(parameters, _cModel=cModel, _test_set=test_set):
+                _cModel.parameters = list(parameters)
                 return np.array(list(
                     model.error(
-                        cModel,
+                        _cModel,
                         idxGenerator=(
                             j for j in range(model.nSamples)
                             if j not in _test_set
@@ -1824,13 +1829,26 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
         _log.debug('old parameters = [%s]', ', '.join(f'{k:g}' for k in model.parameters))
         _log.info('new parameters = [%s]', ', '.join(f'{k:g}' for k in new_parameters))
 
-        # Update database
-        # TODO: This is not save if the model is updated by another fitting
-        #                                         task running concurrently
+        # Update the in-memory object so update_lock() sees the new state.
         model.parameters = new_parameters
         model.updateMinMax()
         model.last_fitted = datetime.now(timezone.utc)
-        model.save()
+
+        # Atomic field-level update — avoids a full document write that would
+        # overwrite concurrent changes (e.g. fitData appended by another task).
+        # $set on individual fields is safe regardless of execution order.
+        _update = {
+            'set__parameters':  new_parameters,
+            'set__last_fitted': model.last_fitted,
+        }
+        for k, v in model.inputs.items():
+            _update[f'set__inputs__{k}__min'] = v.min
+            _update[f'set__inputs__{k}__max'] = v.max
+        for k, v in model.outputs.items():
+            _update[f'set__outputs__{k}__min'] = v.min
+            _update[f'set__outputs__{k}__max'] = v.max
+        type(model).objects(pk=model.pk).update_one(**_update)
+
         ModelRegistry().update_lock(model)
 
         del parameterError
@@ -1866,16 +1884,11 @@ class Initialisation(FireTaskBase):
         @brief    Method called by Fireworks in order to run the Firetask
         @params   fw_spec (dict) parameters passed to the Firetask
         """
-        try:
-            _log.info('Performing initialisation')
-            model = modena.SurrogateModel.load(self['surrogateModelId'])
-            return FWAction(
-                detours=model.initialisationStrategy().workflow(model)
-            )
-        except Exception:
-            import traceback
-            traceback.print_exc()
-            return FWAction(defuse_workflow=True)
+        _log.info('Performing initialisation')
+        model = modena.SurrogateModel.load(self['surrogateModelId'])
+        return FWAction(
+            detours=model.initialisationStrategy().workflow(model)
+        )
 
 
 @explicit_serialize
@@ -1903,35 +1916,35 @@ class ParameterFitting(FireTaskBase):
         @brief    Method called by Fireworks in order to run the Firetask
         @params   fw_spec (dict) parameters passed to the Firetask
         """
-        try:
-            model = modena.SurrogateModel.load(self['surrogateModelId'])
-            _log.info('Performing parameter fitting for model %s', model._id)
-            model.updateFitDataFromFwSpec(fw_spec)
-            action = model.parameterFittingStrategy().newPointsFWAction(model)
-            # When fitting succeeds (no detours needed), push the model ID into
-            # fw_spec so the upstream BackwardMappingScriptTask can tell freeze()
-            # exactly which models were retrained in this detour chain — avoiding
-            # loading and compiling every model in the database.
-            if not action.detours:
-                action.mod_spec = (action.mod_spec or []) + [
-                    {'_push': {'_modena_fitted_models': self['surrogateModelId']}}
-                ]
-            return action
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return FWAction(defuse_workflow=True)
+        model = modena.SurrogateModel.load(self['surrogateModelId'])
+        _log.info('Performing parameter fitting for model %s', model._id)
+        model.updateFitDataFromFwSpec(fw_spec)
+        action = model.parameterFittingStrategy().newPointsFWAction(model)
+        # When fitting succeeds (no detours needed), push the model ID into
+        # fw_spec so the upstream BackwardMappingScriptTask can tell freeze()
+        # exactly which models were retrained in this detour chain — avoiding
+        # loading and compiling every model in the database.
+        if not action.detours:
+            action.mod_spec = (action.mod_spec or []) + [
+                {'_push': {'_modena_fitted_models': self['surrogateModelId']}}
+            ]
+        return action
 
 
 class OutOfBounds(Exception):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, message, model, returnCode=None):
+        self.model      = model
+        self.returnCode = returnCode
         _log.info('%s out-of-bounds, executing outOfBoundsStrategy for model %s',
-                  args[0], args[1]._id)
-        super().__init__(*args, **kwargs)
+                  message, model._id)
+        super().__init__(message, model, returnCode)
 
 
 class ParametersNotValid(Exception):
-    pass
+    def __init__(self, message, model, returnCode=None):
+        self.model      = model
+        self.returnCode = returnCode
+        super().__init__(message, model, returnCode)
 
 
 class TerminateWorkflow(Exception):
@@ -2102,7 +2115,7 @@ class ModenaFireTask(FireTaskBase):
             op()
 
         except OutOfBounds as e:
-            model = e.args[1]
+            model = e.model
             _log.info('%s out-of-bounds, executing outOfBoundsStrategy for model %s',
                       text, model._id)
 
@@ -2120,7 +2133,7 @@ class ModenaFireTask(FireTaskBase):
             raise ModifyWorkflow(FWAction(detours=wf))
 
         except ParametersNotValid as e:
-            model = e.args[1]
+            model = e.model
             _log.info('%s is not initialised, executing initialisationStrategy for model %s',
                       text, model._id)
 
@@ -2186,8 +2199,8 @@ class ModenaFireTask(FireTaskBase):
             return e.args[0]
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            _log.debug('Exact simulation exception for model %s',
+                       self.get('modelId', '?'), exc_info=True)
             strategy = (
                 _model.nonConvergenceStrategy()
                 if _model is not None
@@ -2314,9 +2327,7 @@ class BackwardMappingScriptTask(ModenaFireTask, ScriptTask):
             return e.args[0]
 
         except Exception as e:
-            _log.error('%s', e)
-            import traceback
-            traceback.print_exc()
+            _log.error('Macroscopic simulation failed: %s', e, exc_info=True)
             return FWAction(defuse_workflow=True)
 
         return FWAction()

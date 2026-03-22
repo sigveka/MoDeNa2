@@ -179,11 +179,14 @@ class ModenaLaunchPad(LaunchPad):
                         if age > max_age_seconds:
                             orphaned = True
 
-                        # PID check (best-effort, Linux/macOS)
+                        # PID check (best-effort, Linux/macOS).
+                        # Pass t_start as a Unix timestamp so _pid_alive can
+                        # reject a reused PID that started after the launch.
                         pid = getattr(launch, 'pid', None)
                         host = getattr(launch, 'host', None)
                         if pid and host and host == _this_hostname():
-                            if not _pid_alive(pid):
+                            ts = t_start.timestamp() if t_start else None
+                            if not _pid_alive(pid, not_before=ts):
                                 orphaned = True
                 else:
                     # No launch record at all — definitely orphaned
@@ -387,10 +390,64 @@ def _this_hostname() -> str:
     return socket.gethostname()
 
 
-def _pid_alive(pid: int) -> bool:
-    """Return True if a process with the given PID is running."""
+def _proc_start_epoch(pid: int) -> float | None:
+    """Return the Unix timestamp at which ``pid`` started, or ``None``.
+
+    Uses ``/proc/<pid>/stat`` (Linux only).  Returns ``None`` on any platform
+    where the information is unavailable or unreadable.
+    """
+    import sys
+    if not sys.platform.startswith('linux'):
+        return None
+    try:
+        from pathlib import Path
+        stat_text = Path(f'/proc/{pid}/stat').read_text()
+        # The process name (field 2) is enclosed in parentheses and may itself
+        # contain parentheses and spaces.  Use rfind to locate the end of it.
+        idx = stat_text.rfind(')')
+        if idx < 0:
+            return None
+        fields = stat_text[idx + 2:].split()
+        # After the closing paren the fields are: state ppid pgrp session
+        # tty_nr tpgid flags minflt cminflt majflt cmajflt utime stime cutime
+        # cstime priority nice num_threads itrealvalue starttime …
+        # starttime is the 20th field after ')' (0-indexed: 19).
+        starttime_ticks = int(fields[19])
+        clk_tck = os.sysconf('SC_CLK_TCK')
+
+        btime = None
+        for line in Path('/proc/stat').read_text().splitlines():
+            if line.startswith('btime '):
+                btime = int(line.split()[1])
+                break
+        if btime is None:
+            return None
+
+        return btime + starttime_ticks / clk_tck
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _pid_alive(pid: int, not_before: float | None = None) -> bool:
+    """Return ``True`` if ``pid`` refers to the process that was running at
+    ``not_before`` (Unix timestamp).
+
+    ``os.kill(pid, 0)`` alone cannot distinguish the original process from an
+    unrelated one that reused the same PID after the original died.  On Linux,
+    we cross-check the process start time from ``/proc/<pid>/stat``: if the
+    process started *after* ``not_before`` it is a different process and
+    ``False`` is returned.  On other platforms (or if ``/proc`` is
+    unreadable) the check degrades gracefully to the plain signal check.
+    """
     try:
         os.kill(pid, 0)
-        return True
     except (ProcessLookupError, OSError):
         return False
+
+    if not_before is not None:
+        start = _proc_start_epoch(pid)
+        if start is not None and start > not_before + 2.0:
+            # Process started after the firework was launched — PID was reused.
+            return False
+
+    return True

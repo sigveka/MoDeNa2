@@ -177,7 +177,7 @@ Tests for these exist in `src/tests/c/test_siunits.c` but are wrapped in
 | `ErrorMetrics.py` | `AbsoluteError`, `RelativeError`, `NormalizedError` |
 | `Registry.py` | TOML config, model path resolution, binary search, lock file |
 | `Launchpad.py` | `ModenaLaunchPad` extending FireWorks `LaunchPad` |
-| `Runner.py` | Thin wrapper around `rapidfire` |
+| `Runner.py` | Multi-launcher workflow runner (`rapidfire`, `qlaunch`, `auto`); exposes `modena.run()`; escalation supervisor thread for `auto` mode |
 | `_logging.py` | Logger configuration; exposes `configure_logging()` |
 
 ### MongoDB connection

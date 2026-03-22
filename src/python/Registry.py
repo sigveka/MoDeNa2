@@ -94,9 +94,23 @@ def _find_project_config() -> 'Path | None':
 
 
 def _site_packages_in_prefix(prefix: str) -> list:
-    """Return all lib/pythonX.Y/site-packages dirs inside *prefix*."""
-    pattern = str(Path(prefix) / 'lib' / 'python*' / 'site-packages')
-    return _glob.glob(pattern)
+    """Return all pythonX.Y package directories inside *prefix*.
+
+    Checks four layout variants:
+    - lib/pythonX.Y/site-packages   (standard)
+    - lib/pythonX.Y/dist-packages   (Debian/Ubuntu system Python)
+    - local/lib/pythonX.Y/site-packages  (Debian/Ubuntu --prefix, some versions)
+    - local/lib/pythonX.Y/dist-packages  (Debian/Ubuntu --prefix, most versions)
+    """
+    results = []
+    for pattern in (
+        str(Path(prefix) / 'lib' / 'python*' / 'site-packages'),
+        str(Path(prefix) / 'lib' / 'python*' / 'dist-packages'),
+        str(Path(prefix) / 'local' / 'lib' / 'python*' / 'site-packages'),
+        str(Path(prefix) / 'local' / 'lib' / 'python*' / 'dist-packages'),
+    ):
+        results.extend(_glob.glob(pattern))
+    return results
 
 
 # --------------------------------------------------------------------------- #

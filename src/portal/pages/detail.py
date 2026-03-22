@@ -11,7 +11,7 @@ from modena_portal.components.parameter_table import make_parameter_table
 from modena_portal.components.fitdata_table import make_fitdata_table
 from modena_portal.components.fitdata_plot import make_fitdata_plot
 from modena_portal.components.dependency_graph import make_dependency_graph
-from modena_portal.data.queries import get_model, get_fitdata, save_documentation
+from modena_portal.data.queries import get_model, get_fitdata
 
 dash.register_page(__name__, path_template="/model/<model_id>", title="MoDeNa - Model Detail")
 

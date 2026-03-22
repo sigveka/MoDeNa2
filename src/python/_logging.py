@@ -75,12 +75,22 @@ def configure_logging(level: str = 'INFO', file: str = None) -> None:
     """
     effective_level = os.environ.get('MODENA_LOG_LEVEL', level).upper()
 
+    _VALID_LEVELS = {'DEBUG_VERBOSE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}
+    if effective_level not in _VALID_LEVELS:
+        # Warn before changing the level so the message is always visible.
+        logger.warning(
+            "Unrecognised log level %r — falling back to INFO. "
+            "Valid values: %s",
+            effective_level, ', '.join(sorted(_VALID_LEVELS)),
+        )
+        effective_level = 'INFO'
+
     # Resolve the numeric level; DEBUG_VERBOSE is not in logging's built-in
     # table so we check for it explicitly before falling back to getattr.
     if effective_level == 'DEBUG_VERBOSE':
         numeric = DEBUG_VERBOSE
     else:
-        numeric = getattr(logging, effective_level, logging.INFO)
+        numeric = getattr(logging, effective_level)  # always valid after the guard above
 
     logger.setLevel(numeric)
     _console_handler.setLevel(numeric)

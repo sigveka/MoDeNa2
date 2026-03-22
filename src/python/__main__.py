@@ -306,6 +306,108 @@ def _doctor(_args):
 
 
 # ------------------------------------------------------------------ #
+# install                                                             #
+# ------------------------------------------------------------------ #
+
+def _ensure_models_path_registered(prefix: Path) -> None:
+    """Add *prefix* to ~/.modena/config.toml [models] paths if not already there."""
+    from modena.Registry import _load_toml, _write_toml
+    config_path = Path.home() / '.modena' / 'config.toml'
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    data = _load_toml(config_path)
+    paths = data.setdefault('models', {}).setdefault('paths', [])
+    registered = {str(Path(p).expanduser().resolve()) for p in paths}
+    if str(prefix.resolve()) not in registered:
+        paths.append(str(prefix))
+        _write_toml(config_path, data)
+        print(f'[modena] Registered {prefix} in {config_path}')
+
+
+def _init_models(args):
+    """Run the initialisation workflow for registered surrogate models."""
+    import modena as _modena
+
+    all_models = list(_modena.SurrogateModel.get_instances())
+
+    if args.models == ['all']:
+        models = all_models
+    else:
+        by_id = {m._id: m for m in all_models}
+        missing = [mid for mid in args.models if mid not in by_id]
+        if missing:
+            for mid in missing:
+                print(f'[modena] ERROR: model not found: {mid}', file=sys.stderr)
+            sys.exit(1)
+        models = [by_id[mid] for mid in args.models]
+
+    if not models:
+        print('[modena] No models registered. Run "modena install" first.')
+        sys.exit(0)
+
+    print(f'[modena] Initialising {len(models)} model(s): '
+          + ', '.join(m._id for m in models))
+    njobs = 1 if args.sequential else args.jobs
+    run_kwargs = dict(njobs=njobs, launcher=args.launcher)
+    if args.launcher in ('qlaunch', 'auto'):
+        if args.qadapter is None:
+            print(f'[modena] ERROR: --qadapter is required with --launcher {args.launcher}',
+                  file=sys.stderr)
+            sys.exit(1)
+        run_kwargs['qadapter']    = args.qadapter
+        run_kwargs['fworker']     = args.fworker
+        run_kwargs['launch_dir']  = args.launch_dir
+    if args.launcher == 'auto':
+        run_kwargs['escalate_at'] = args.escalate_at
+    _modena.run(models, **run_kwargs)
+
+
+def _install_models(args):
+    """Install local model packages to the MoDeNa models directory."""
+    import subprocess
+    import tempfile
+    prefix = (
+        Path(args.prefix).expanduser().resolve()
+        if args.prefix
+        else Path.home() / '.modena' / 'models'
+    )
+    _ensure_models_path_registered(prefix)
+    for pkg_path in args.packages:
+        pkg = Path(pkg_path).resolve()
+        if not (pkg / 'pyproject.toml').is_file():
+            print(
+                f'[modena] ERROR: {pkg} has no pyproject.toml',
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(f'[modena] Installing {pkg.name} → {prefix}')
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            # Copy source to temp dir so pip/setuptools build artifacts
+            # (*.egg-info, build/) do not pollute the source tree.
+            import shutil
+            src_copy = tmp / pkg.name
+            shutil.copytree(pkg, src_copy)
+            wheel_dir = tmp / 'wheels'
+            wheel_dir.mkdir()
+            subprocess.run(
+                [sys.executable, '-m', 'pip', 'wheel',
+                 '--no-deps', '--wheel-dir', str(wheel_dir), str(src_copy)],
+                check=True,
+            )
+            wheels = list(wheel_dir.glob('*.whl'))
+            if not wheels:
+                print(f'[modena] ERROR: no wheel produced for {pkg.name}',
+                      file=sys.stderr)
+                sys.exit(1)
+            subprocess.run(
+                [sys.executable, '-m', 'pip', 'install',
+                 '--prefix', str(prefix), '--no-deps', str(wheels[0])],
+                check=True,
+            )
+    print(f'\n[modena] Done. Packages importable after next "import modena".')
+
+
+# ------------------------------------------------------------------ #
 # quickstart                                                          #
 # ------------------------------------------------------------------ #
 
@@ -487,7 +589,7 @@ def _main():
     )
     parser.add_argument('--version', action='version', version=vstring)
 
-    groups = parser.add_subparsers(dest='group', metavar='{fw,model,doctor,quickstart}')
+    groups = parser.add_subparsers(dest='group', metavar='{fw,model,install,doctor,quickstart}')
 
     # ---------------------------------------------------------------- #
     # modena fw                                                         #
@@ -579,6 +681,90 @@ def _main():
         help='Only check version consistency; do not restore DB',
     )
     p.set_defaults(func=_model_restore)
+
+    # ---------------------------------------------------------------- #
+    # modena init                                                       #
+    # ---------------------------------------------------------------- #
+    p = groups.add_parser(
+        'init',
+        help='Run the initialisation workflow for registered surrogate models',
+        description=(
+            'Run the initialisation workflow (exact simulations + surrogate '
+            'fitting) for all registered models, or for a specific subset.\n\n'
+            'Examples:\n'
+            '  modena init all\n'
+            "  modena init 'thermalDiffusion[material=Cu]'\n"
+            "  modena init 'dielectricFunction[material=Cu]' "
+            "'surfaceImpedance[material=Cu]'"
+        ),
+    )
+    p.add_argument(
+        'models', nargs='+', metavar='MODEL_ID',
+        help='"all" to initialise every registered model, '
+             'or one or more specific model IDs',
+    )
+    p.add_argument(
+        '--jobs', '-j', type=int, default=0, metavar='N',
+        help='Number of parallel worker processes / max HPC queue slots '
+             '(default: cpu_count for rapidfire, unlimited for qlaunch)',
+    )
+    p.add_argument(
+        '--sequential', action='store_true',
+        help='Run simulations sequentially in the current process '
+             '(rapidfire only, equivalent to --jobs 1)',
+    )
+    p.add_argument(
+        '--launcher', choices=['rapidfire', 'qlaunch', 'auto'],
+        default='rapidfire',
+        help='"rapidfire" (default): local workers only.  '
+             '"qlaunch": HPC queue only.  '
+             '"auto": local workers + HPC escalation when queue depth exceeds '
+             '--escalate-at.',
+    )
+    p.add_argument(
+        '--escalate-at', type=int, default=0, metavar='N', dest='escalate_at',
+        help='auto only: READY Firework count above which the supervisor '
+             'starts submitting to HPC (default: 0 — escalate immediately)',
+    )
+    p.add_argument(
+        '--qadapter', type=str, default=None, metavar='PATH',
+        help='Path to qadapter.yaml (required with --launcher qlaunch)',
+    )
+    p.add_argument(
+        '--fworker', type=str, default=None, metavar='PATH',
+        help='Path to fworker.yaml (qlaunch only, default: accept any firework)',
+    )
+    p.add_argument(
+        '--launch-dir', type=str, default='.', metavar='DIR',
+        help='Directory from which batch jobs are launched (qlaunch only)',
+    )
+    p.set_defaults(func=_init_models)
+
+    # ---------------------------------------------------------------- #
+    # modena install                                                    #
+    # ---------------------------------------------------------------- #
+    p = groups.add_parser(
+        'install',
+        help='Install model packages to the MoDeNa models directory',
+        description=(
+            'Install one or more local model packages to ~/.modena/models '
+            '(or --prefix) and register the path in ~/.modena/config.toml '
+            'so that "import modena" makes them importable automatically.\n\n'
+            'Packages are installed with --no-deps; framework dependencies '
+            '(modena, numpy, ...) are expected to be present already.\n\n'
+            'Install in dependency order when packages depend on each other:\n'
+            '  modena install dielectricFunction/ emiShielding/'
+        ),
+    )
+    p.add_argument(
+        'packages', nargs='+', metavar='PATH',
+        help='Path(s) to package directories containing pyproject.toml',
+    )
+    p.add_argument(
+        '--prefix', type=str, default=None, metavar='DIR',
+        help='Install prefix (default: ~/.modena/models)',
+    )
+    p.set_defaults(func=_install_models)
 
     # ---------------------------------------------------------------- #
     # modena doctor                                                     #

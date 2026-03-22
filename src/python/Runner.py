@@ -1,19 +1,161 @@
 """
 @file      MoDeNa workflow runner.
 @details   Provides ``modena.run()`` — a high-level wrapper around FireWorks
-           ``rapidfire`` that handles launchpad setup, workflow construction,
-           and progress reporting.
+           that handles launchpad setup, workflow construction, and progress
+           reporting.  Supports three launcher backends:
+
+           * ``'rapidfire'`` (default) — runs worker processes locally using
+             ``fireworks.core.rocket_launcher.rapidfire``.  Parallel workers
+             are spawned via ``multiprocessing``; ``njobs`` controls the count.
+
+           * ``'qlaunch'`` — submits each Firework as a batch job to an HPC
+             queue system (SLURM, PBS, SGE, …) via
+             ``fireworks.queue.queue_launcher``.  Requires a configured
+             ``qadapter``.  The queue scheduler manages parallelism; ``njobs``
+             caps the number of jobs held in the queue simultaneously (0 =
+             unlimited).
+
+           * ``'auto'`` — starts local ``rapidfire`` workers AND a supervisor
+             thread.  The supervisor watches the READY count; when it exceeds
+             ``escalate_at``, it submits the overflow to the HPC queue.
+             MongoDB's atomic claiming ensures each Firework is executed
+             exactly once regardless of which backend claims it first.  Use
+             this when a running macroscopic simulation (e.g. OpenFOAM) may
+             suddenly queue hundreds of exact-simulation Fireworks at runtime
+             (out-of-bounds expansion bursts).
+
 @author    MoDeNa Project
 @copyright 2014-2026, MoDeNa Project. GNU Public License.
 """
 
 from __future__ import annotations
 
+import logging
+import os
+import threading
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fireworks import Workflow
 
+_log = logging.getLogger('modena.runner')
+
+
+# ------------------------------------------------------------------ #
+# Worker helpers (module-level for multiprocessing pickling)          #
+# ------------------------------------------------------------------ #
+
+def _rapidfire_worker(lpad_dict: dict, strm_lvl: str,
+                      sleep_time: int, timeout: int | None) -> None:
+    """Target for parallel local worker processes.
+
+    Each worker independently claims and executes READY Fireworks from the
+    shared MongoDB launchpad until none remain.
+    """
+    from fireworks.core.rocket_launcher import rapidfire
+    from modena.Launchpad import ModenaLaunchPad
+    lpad = ModenaLaunchPad.from_dict(lpad_dict)
+    rf_kwargs: dict = {'sleep_time': sleep_time, 'strm_lvl': strm_lvl}
+    if timeout is not None:
+        rf_kwargs['timeout'] = timeout
+    rapidfire(lpad, **rf_kwargs)
+
+
+_SUPERVISOR_MAX_ERRORS = 5
+
+
+def _auto_supervisor(lpad_dict: dict, fworker_dict: dict | None,
+                     qadapter_path: str, launch_dir: str,
+                     escalate_at: int, sleep_time: int, strm_lvl: str,
+                     stop: threading.Event) -> None:
+    """Background thread for ``launcher='auto'``.
+
+    Polls the launchpad every ``sleep_time`` seconds.  Whenever the number of
+    READY Fireworks exceeds ``escalate_at``, submits one HPC job per overflow
+    Firework via ``launch_rocket_to_queue``.  Stops when ``stop`` is set.
+
+    MongoDB's atomic claiming ensures that a Firework submitted to the HPC
+    queue that has already been claimed by a local worker is simply skipped
+    (FireWorks handles this transparently).
+
+    After ``_SUPERVISOR_MAX_ERRORS`` consecutive failures the supervisor logs
+    at ERROR level and exits, leaving local workers running.  A transient
+    MongoDB blip resets the counter on the next successful poll.
+    """
+    from fireworks.queue.queue_launcher import launch_rocket_to_queue
+    from modena.Launchpad import ModenaLaunchPad
+
+    lpad = ModenaLaunchPad.from_dict(lpad_dict)
+    fworker = _resolve_fworker(fworker_dict)
+    qadapter = _resolve_qadapter(qadapter_path)
+
+    consecutive_errors = 0
+
+    while not stop.is_set():
+        try:
+            n_ready = len(lpad.get_fw_ids(query={'state': 'READY'}))
+            overflow = n_ready - escalate_at
+            if overflow > 0:
+                _log.info(
+                    'auto: %d READY > threshold %d — submitting %d HPC job(s)',
+                    n_ready, escalate_at, overflow,
+                )
+                for _ in range(overflow):
+                    if stop.is_set():
+                        break
+                    launch_rocket_to_queue(
+                        lpad, fworker, qadapter, launch_dir,
+                        strm_lvl=strm_lvl,
+                    )
+            consecutive_errors = 0   # successful poll resets the counter
+
+        except Exception as exc:
+            consecutive_errors += 1
+            if consecutive_errors >= _SUPERVISOR_MAX_ERRORS:
+                _log.error(
+                    'auto supervisor: %d consecutive errors — '
+                    'disabling HPC submission, local workers will continue. '
+                    'Last error: %s',
+                    consecutive_errors, exc, exc_info=True,
+                )
+                return
+            _log.warning(
+                'auto supervisor error (%d/%d, will retry): %s',
+                consecutive_errors, _SUPERVISOR_MAX_ERRORS, exc,
+            )
+
+        stop.wait(sleep_time)
+
+
+# ------------------------------------------------------------------ #
+# Resolver helpers                                                     #
+# ------------------------------------------------------------------ #
+
+def _resolve_fworker(fworker):
+    """Return a ``FWorker`` from a path, dict, existing instance, or ``None``."""
+    from fireworks.core.fworker import FWorker
+    if fworker is None:
+        return FWorker()
+    if isinstance(fworker, dict):
+        return FWorker.from_dict(fworker)
+    if isinstance(fworker, (str, Path)):
+        return FWorker.from_file(str(fworker))
+    return fworker
+
+
+def _resolve_qadapter(qadapter):
+    """Return a ``QueueAdapterBase`` from a path or existing instance."""
+    if isinstance(qadapter, (str, Path)):
+        from fireworks.queue.queue_adapter import load_queue_adapter
+        return load_queue_adapter(str(qadapter))
+    return qadapter
+
+
+# ------------------------------------------------------------------ #
+# Public API                                                           #
+# ------------------------------------------------------------------ #
 
 def run(
     wf_or_models,
@@ -23,67 +165,87 @@ def run(
     sleep_time: int = 0,
     timeout: int | None = None,
     name: str = 'modena_workflow',
+    njobs: int = 0,
+    launcher: str = 'rapidfire',
+    fworker=None,
+    qadapter=None,
+    launch_dir: str | Path = '.',
+    escalate_at: int = 0,
 ):
-    """Run a MoDeNa workflow using FireWorks rapidfire.
+    """Run a MoDeNa workflow.
 
     Accepts either a ready-made FireWorks ``Workflow`` (or ``Firework``) or a
     list of ``SurrogateModel`` instances.  In the latter case the method
-    assembles the standard initialisation workflow automatically (equivalent
-    to the boilerplate in every ``initModels`` script).
+    assembles the standard initialisation workflow automatically.
 
     Args:
         wf_or_models:
-            - A ``fireworks.Workflow`` to run as-is.
-            - A ``fireworks.Firework`` — wrapped in a single-FW Workflow.
-            - A list/iterable of ``SurrogateModel`` instances — the method
-              calls ``m.initialisationStrategy().workflow(m)`` for each one
-              and chains them from a shared root (the ``initModels`` pattern).
+            A ``Workflow``, a ``Firework``, or an iterable of
+            ``SurrogateModel`` instances.
         lpad:
-            A ``ModenaLaunchPad`` (or plain ``LaunchPad``) instance.  If
-            ``None`` (default), one is created from the active ``MODENA_URI``
-            environment variable.
+            A ``ModenaLaunchPad`` instance.  ``None`` creates one from
+            ``MODENA_URI``.
         reset:
-            Whether to reset the launchpad before adding the workflow.
-            Default ``True``.  Set to ``False`` to append to existing state.
+            Reset the launchpad before adding the workflow.  Default ``True``.
         sleep_time:
-            Seconds to sleep between rapidfire polling cycles.  Default 0
-            (no sleep between batches).  Use 1–5 for long-running workflows
-            to avoid a busy CPU spin.
+            Seconds between polling cycles (all launchers).  Default 0.
         timeout:
-            Wall-clock timeout in seconds passed to ``rapidfire``.  ``None``
-            means no limit.
+            Wall-clock timeout in seconds (``rapidfire`` and ``auto`` local
+            workers only).  ``None`` means no limit.
         name:
-            Workflow name used only when ``wf_or_models`` is a model list.
-            Ignored for Workflow/Firework inputs.
+            Workflow name when ``wf_or_models`` is a model list.
+        njobs:
+            ``'rapidfire'``: parallel local worker processes (0 = cpu_count,
+            1 = sequential).
+            ``'qlaunch'``: max simultaneous HPC queue slots (0 = unlimited).
+            ``'auto'``: local worker count (same semantics as ``'rapidfire'``);
+            HPC submission is managed by the supervisor thread.
+        launcher:
+            ``'rapidfire'`` — local workers only (default).
+            ``'qlaunch'``   — HPC queue only.
+            ``'auto'``      — local workers + HPC escalation supervisor.
+        fworker:
+            ``FWorker`` instance, path to ``fworker.yaml``, or ``None``
+            (creates a default FWorker).  Used by ``'qlaunch'`` and ``'auto'``.
+        qadapter:
+            ``QueueAdapterBase`` instance or path to ``qadapter.yaml``.
+            Required for ``'qlaunch'`` and ``'auto'``.
+        launch_dir:
+            Directory from which HPC batch scripts are written and submitted.
+            Used by ``'qlaunch'`` and ``'auto'``.  Default: current directory.
+        escalate_at:
+            ``'auto'`` only.  Number of READY Fireworks that must be queued
+            before the supervisor starts submitting to HPC.  For example,
+            ``escalate_at=8`` means up to 8 jobs run locally; any beyond 8
+            are off-loaded to the cluster.  Default 0 (escalate immediately
+            for any overflow beyond local workers).
 
     Returns:
-        The ``ModenaLaunchPad`` used (allows post-run inspection via
-        ``.status()`` or ``.state_counts()``).
+        The ``ModenaLaunchPad`` used.
 
-    Examples::
-
-        import modena
-        import flowRate  # registers the model
-
-        # Initialise all registered surrogate models:
-        lp = modena.run(list(modena.SurrogateModel.get_instances()))
-
-        # Run a simulation workflow:
-        from fireworks import Firework, Workflow
-        import twoTankPython
-        wf = Workflow([Firework(twoTankPython.m)], name='twoTanksPython')
-        modena.run(wf)
+    Raises:
+        ValueError: unknown ``launcher``.
+        ValueError: ``'qlaunch'`` or ``'auto'`` without a ``qadapter``.
     """
     from fireworks import Firework, Workflow
-    from fireworks.core.rocket_launcher import rapidfire
-    from modena.Launchpad import ModenaLaunchPad, ModenaConnectionError, _fw_strm_lvl
+    from modena.Launchpad import ModenaLaunchPad, _fw_strm_lvl
     from modena.SurrogateModel import SurrogateModel, EmptyFireTask
+
+    if launcher not in ('rapidfire', 'qlaunch', 'auto'):
+        raise ValueError(
+            f"launcher must be 'rapidfire', 'qlaunch', or 'auto', got {launcher!r}"
+        )
+    if launcher in ('qlaunch', 'auto') and qadapter is None:
+        raise ValueError(
+            f"launcher={launcher!r} requires a qadapter.  "
+            "Pass qadapter='path/to/qadapter.yaml' or a QueueAdapterBase instance."
+        )
 
     # ------------------------------------------------------------------ #
     # Resolve launchpad                                                    #
     # ------------------------------------------------------------------ #
     if lpad is None:
-        lpad = ModenaLaunchPad.from_modena_uri()  # raises ModenaConnectionError if unreachable
+        lpad = ModenaLaunchPad.from_modena_uri()
 
     # ------------------------------------------------------------------ #
     # Build workflow                                                       #
@@ -93,47 +255,115 @@ def run(
     elif isinstance(wf_or_models, Firework):
         wf = Workflow([wf_or_models])
     else:
-        # Assume iterable of SurrogateModel instances — initModels pattern
         models = list(wf_or_models)
         if not models:
-            print('[modena] run: no models provided — nothing to do.')
+            _log.info('run: no models provided — nothing to do.')
             return lpad
-        # Save each model to reset its DB entry to the current in-memory
-        # state (empty fitData, initial CFunction bounds, empty parameters).
-        # This mirrors what the old SurrogateModel.__init__ did implicitly —
-        # it always called save(), wiping any previously accumulated fitData.
-        # Now that __init__ only saves on first creation (to prevent subprocess
-        # auto-imports from overwriting fitted data), the initModels caller
-        # must explicitly reset here.
         for m in models:
             m.save()
         model_ids = ', '.join(m._id for m in models)
-        wf = Workflow([Firework([EmptyFireTask()],
-                                name=f'init root — {model_ids}')], name=name)
+        wf = Workflow(
+            [Firework([EmptyFireTask()], name=f'init root — {model_ids}')],
+            name=name,
+        )
         for m in models:
             wf.append_wf(m.initialisationStrategy().workflow(m), wf.root_fw_ids)
 
     # ------------------------------------------------------------------ #
-    # Reset, add, run                                                      #
+    # Reset and add                                                        #
     # ------------------------------------------------------------------ #
     if reset:
         lpad.reset('', require_password=False)
-
     lpad.add_wf(wf)
 
-    ready = lpad.get_fw_ids(query={'state': 'READY'})
-    waiting = lpad.get_fw_ids(query={'state': 'WAITING'})
-    print(
-        f'[modena] run: {len(ready)} READY, {len(waiting)} WAITING — '
-        f'starting rapidfire...',
-        flush=True,
-    )
+    n_ready   = len(lpad.get_fw_ids(query={'state': 'READY'}))
+    n_waiting = len(lpad.get_fw_ids(query={'state': 'WAITING'}))
+    strm_lvl  = _fw_strm_lvl()
 
-    rf_kwargs: dict = {'sleep_time': sleep_time, 'strm_lvl': _fw_strm_lvl()}
+    # ------------------------------------------------------------------ #
+    # Launch                                                               #
+    # ------------------------------------------------------------------ #
+    if launcher == 'qlaunch':
+        from fireworks.queue.queue_launcher import rapidfire as queue_rapidfire
+        _log.info(
+            'run: %d READY, %d WAITING — qlaunch (njobs_queue=%d, dir=%s)',
+            n_ready, n_waiting, njobs, launch_dir,
+        )
+        queue_rapidfire(
+            launchpad=lpad,
+            fworker=_resolve_fworker(fworker),
+            qadapter=_resolve_qadapter(qadapter),
+            launch_dir=str(launch_dir),
+            nlaunches=0,
+            njobs_queue=njobs,
+            sleep_time=sleep_time,
+            strm_lvl=strm_lvl,
+        )
+
+    elif launcher == 'auto':
+        if njobs == 0:
+            njobs = os.cpu_count() or 1
+
+        _log.info(
+            'run: %d READY, %d WAITING — auto '
+            '(%d local worker(s), escalate_at=%d, qadapter=%s)',
+            n_ready, n_waiting, njobs, escalate_at, qadapter,
+        )
+
+        # Supervisor thread watches queue depth and submits HPC jobs on burst.
+        # Serialise fworker to dict so the thread can reconstruct it cleanly
+        # without sharing mutable state with worker processes.
+        fw_dict = _resolve_fworker(fworker).to_dict()
+        stop    = threading.Event()
+        sv_sleep = max(sleep_time, 5)   # don't hammer MongoDB faster than 5 s
+        supervisor = threading.Thread(
+            target=_auto_supervisor,
+            args=(lpad.to_dict(), fw_dict, qadapter, str(launch_dir),
+                  escalate_at, sv_sleep, strm_lvl, stop),
+            daemon=True,
+            name='modena-auto-supervisor',
+        )
+        supervisor.start()
+
+        try:
+            _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout)
+        finally:
+            stop.set()
+            supervisor.join(timeout=10)
+
+    else:  # rapidfire
+        if njobs == 0:
+            njobs = os.cpu_count() or 1
+        _log.info(
+            'run: %d READY, %d WAITING — rapidfire (%d local worker(s))',
+            n_ready, n_waiting, njobs,
+        )
+        _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout)
+
+    _log.info('run: done. %s', lpad.state_summary())
+    return lpad
+
+
+def _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout):
+    """Start njobs local rapidfire workers and wait for them to finish."""
+    rf_kwargs: dict = {'sleep_time': sleep_time, 'strm_lvl': strm_lvl}
     if timeout is not None:
         rf_kwargs['timeout'] = timeout
 
-    rapidfire(lpad, **rf_kwargs)
-
-    print(f'[modena] run: done. {lpad.state_summary()}', flush=True)
-    return lpad
+    if njobs == 1:
+        from fireworks.core.rocket_launcher import rapidfire
+        rapidfire(lpad, **rf_kwargs)
+    else:
+        import multiprocessing
+        lpad_dict = lpad.to_dict()
+        workers = [
+            multiprocessing.Process(
+                target=_rapidfire_worker,
+                args=(lpad_dict, strm_lvl, sleep_time, timeout),
+            )
+            for _ in range(njobs)
+        ]
+        for w in workers:
+            w.start()
+        for w in workers:
+            w.join()

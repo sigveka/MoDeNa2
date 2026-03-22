@@ -14,21 +14,27 @@ workflow system from Python or the command line.
 3. [How Strategies map to FireWorks](#how-strategies-map-to-fireworks)
 4. [The backward-mapping loop](#the-backward-mapping-loop)
 5. [Running workflows with `modena.run()`](#running-workflows-with-modenarun)
-6. [Inspecting and managing the launchpad](#inspecting-and-managing-the-launchpad)
+6. [Launcher backends](#launcher-backends)
+   - [`rapidfire` — local workers](#rapidfire--local-workers-default)
+   - [`qlaunch` — HPC queue](#qlaunch--hpc-queue)
+   - [`auto` — adaptive escalation](#auto--adaptive-escalation)
+   - [Choosing a launcher](#choosing-a-launcher)
+7. [Inspecting and managing the launchpad](#inspecting-and-managing-the-launchpad)
    - [`modena.lpad()` — factory](#modenalpad-factory)
    - [`ModenaLaunchPad` methods](#modenalaunchpad-methods)
    - [Connection internals](#connection-internals)
    - [`defuse_orphans`](#defuse_orphansmax_age_seconds3600)
    - [Tracing workflow ancestry with `retrace_to_origin`](#tracing-workflow-ancestry-with-retrace_to_origin)
-7. [Firework naming](#firework-naming)
-8. [Verbosity and logging](#verbosity-and-logging)
-9. [Task serialization and `FW_config.yaml`](#task-serialization-and-fw_configyaml)
-10. [Command-line reference](#command-line-reference)
+8. [Firework naming](#firework-naming)
+9. [Verbosity and logging](#verbosity-and-logging)
+10. [Task serialization and `FW_config.yaml`](#task-serialization-and-fw_configyaml)
+11. [Command-line reference](#command-line-reference)
     - [`modena fw` — FireWorks launchpad](#modena-fw-fireworks-launchpad)
     - [`modena model` — surrogate model database](#modena-model-surrogate-model-database)
+    - [`modena init` — initialise surrogate models](#modena-init--initialise-surrogate-models)
     - [`modena doctor` — environment health check](#modena-doctor-environment-health-check)
     - [`modena quickstart` — usage guide](#modena-quickstart-usage-guide)
-11. [Common pitfalls](#common-pitfalls)
+12. [Common pitfalls](#common-pitfalls)
 
 ---
 
@@ -185,6 +191,12 @@ modena.run(
     sleep_time=0,
     timeout=None,
     name='modena_workflow',
+    njobs=0,
+    launcher='rapidfire',
+    fworker=None,
+    qadapter=None,
+    launch_dir='.',
+    escalate_at=0,
 )
 ```
 
@@ -193,9 +205,15 @@ modena.run(
 | `wf_or_models` | — | A `Workflow`, a `Firework`, or a list of `SurrogateModel` instances. |
 | `lpad` | `None` | LaunchPad to use.  Created from `MODENA_URI` if not provided. |
 | `reset` | `True` | Reset the launchpad before adding the workflow. |
-| `sleep_time` | `0` | Seconds to sleep between rapidfire polling cycles. |
-| `timeout` | `None` | Wall-clock timeout in seconds.  `None` = no limit. |
+| `sleep_time` | `0` | Seconds to sleep between polling cycles. |
+| `timeout` | `None` | Wall-clock timeout in seconds (`rapidfire` and `auto` only). |
 | `name` | `'modena_workflow'` | Workflow name when building from a model list. |
+| `njobs` | `0` | Local worker count (`rapidfire`/`auto`: 0 = cpu_count, 1 = sequential); HPC queue cap (`qlaunch`: 0 = unlimited). |
+| `launcher` | `'rapidfire'` | Launcher backend: `'rapidfire'`, `'qlaunch'`, or `'auto'`. |
+| `fworker` | `None` | `FWorker` instance or path to `fworker.yaml` (`qlaunch`/`auto` only). |
+| `qadapter` | `None` | `QueueAdapterBase` instance or path to `qadapter.yaml` (required for `qlaunch`/`auto`). |
+| `launch_dir` | `'.'` | Directory from which HPC batch scripts are submitted (`qlaunch`/`auto` only). |
+| `escalate_at` | `0` | READY Firework count above which the supervisor starts submitting to HPC (`auto` only). |
 
 Returns the `ModenaLaunchPad` used, allowing post-run inspection:
 
@@ -203,6 +221,237 @@ Returns the `ModenaLaunchPad` used, allowing post-run inspection:
 lp = modena.run(wf)
 print(lp.state_summary())
 ```
+
+---
+
+## Launcher backends
+
+`modena.run()` supports three launcher backends selected via the `launcher`
+parameter.  All three share the same MongoDB launchpad as coordination point:
+every Firework is claimed atomically, so mixed deployments (local workers
+**and** HPC jobs running simultaneously) never execute the same Firework twice.
+
+### `rapidfire` — local workers (default)
+
+Worker processes are spawned on the local machine.  Each worker polls MongoDB,
+claims a READY Firework, executes it, and repeats until the queue is empty.
+`njobs` controls the worker count (0 = `os.cpu_count()`; 1 = sequential in
+the calling process).
+
+```mermaid
+flowchart TD
+    run["modena.run(launcher='rapidfire', njobs=N)"]
+    run -->|"spawn N processes"| workers
+
+    subgraph workers ["Local machine — N worker processes"]
+        W1["Worker 1\nrpidfire()"]
+        W2["Worker 2\nrapidfire()"]
+        WN["Worker N\nrapidfire()"]
+    end
+
+    workers -->|"claim READY"| lpad[("MongoDB\nLaunchPad")]
+    lpad -->|"Firework"| workers
+    workers -->|"write result"| lpad
+    lpad -->|"unblock children"| lpad
+```
+
+**When to use:** development, small initialisation runs, or any workflow where
+all exact simulations fit comfortably on the local machine.
+
+```python
+# 8 local workers
+modena.run(models, njobs=8)
+
+# sequential — useful for debugging exact tasks
+modena.run(models, njobs=1)
+```
+
+---
+
+### `qlaunch` — HPC queue
+
+Each READY Firework is submitted as an independent batch job to the cluster
+scheduler (SLURM, PBS, SGE, …).  The scheduler allocates nodes; the job runs
+`rlaunch singleshot` which claims one Firework from MongoDB, executes it, and
+exits.  `njobs` caps the number of jobs held in the queue simultaneously
+(0 = unlimited).
+
+```mermaid
+flowchart TD
+    run["modena.run(launcher='qlaunch')"]
+    run -->|"rapidfire loop\n(nlaunches=0)"| ql["fireworks\nqueue_launcher"]
+    ql -->|"sbatch / qsub"| sched[("Cluster scheduler\nSLURM / PBS / SGE")]
+    sched -->|"allocate node"| node["HPC node\nrlaunch singleshot"]
+    node -->|"claim READY"| lpad[("MongoDB\nLaunchPad")]
+    lpad -->|"Firework"| node
+    node -->|"write result"| lpad
+    lpad -->|"unblock children"| lpad
+    run -->|"poll until\nno READY remain"| lpad
+```
+
+**When to use:** large initialisation runs (hundreds of expensive exact
+simulations), or any workflow where local CPUs are insufficient.
+
+Requires a `qadapter.yaml` that describes the cluster queue system.
+A minimal SLURM example:
+
+```yaml
+# qadapter.yaml
+_fw_name: CommonAdapter
+_fw_q_type: SLURM
+rocket_launch: rlaunch singleshot
+nodes: 1
+walltime: "04:00:00"
+queue: compute
+```
+
+```python
+# Submit all simulations to SLURM, max 64 in queue at once
+modena.run(models,
+           launcher='qlaunch',
+           qadapter='qadapter.yaml',
+           njobs=64)
+```
+
+```bash
+modena init all \
+  --launcher qlaunch \
+  --qadapter qadapter.yaml \
+  --jobs 64
+```
+
+---
+
+### `auto` — adaptive escalation
+
+Starts local `rapidfire` workers **and** a supervisor thread.  The supervisor
+polls the READY count every few seconds.  When the count exceeds `escalate_at`,
+it submits one HPC job per overflow Firework.  Local workers and HPC jobs
+compete for claims; MongoDB's atomic claiming ensures no double-execution.
+
+This is the right mode when a long-running macroscopic simulation (e.g.
+OpenFOAM) is running in the workflow and may suddenly trigger large bursts of
+exact simulations through out-of-bounds events.
+
+```mermaid
+flowchart TD
+    run["modena.run(launcher='auto',\n  njobs=8, escalate_at=8)"]
+
+    run -->|"spawn 8 processes"| local
+    run -->|"start daemon thread"| sv
+
+    subgraph local ["Local machine — 8 workers"]
+        W1["Worker 1"] & W2["Worker 2"] & WN["Worker N"]
+    end
+
+    subgraph sv ["Supervisor thread (every 5 s)"]
+        poll["n_ready = len(READY FWs)"]
+        check{"n_ready > 8?"}
+        submit["submit (n_ready − 8)\nHPC jobs"]
+        poll --> check
+        check -->|yes| submit
+        check -->|no| poll
+        submit --> poll
+    end
+
+    local -->|"claim READY"| lpad[("MongoDB\nLaunchPad")]
+    sv    -->|"sbatch / qsub"| sched[("Cluster\nscheduler")]
+    sched -->|"allocate node"| hpc["HPC node\nrlaunch singleshot"]
+    hpc   -->|"claim READY"| lpad
+
+    lpad -->|"Firework"| local
+    lpad -->|"Firework"| hpc
+    local -->|"write result"| lpad
+    hpc   -->|"write result"| lpad
+```
+
+#### Out-of-bounds burst scenario
+
+The sequence below illustrates how `auto` handles a real OpenFOAM + LAMMPS
+run where the surrogate is initially trained but then encounters a large
+unexplored region mid-simulation.
+
+```mermaid
+sequenceDiagram
+    participant OF  as OpenFOAM<br/>(BackwardMappingScriptTask)
+    participant LM  as libmodena
+    participant DB  as MongoDB LaunchPad
+    participant LW  as Local workers (8×)
+    participant SV  as Supervisor thread
+    participant HPC as HPC cluster
+
+    OF  ->>  LM  : modena_model_call(T=350K)
+    LM  -->> OF  : k = 385 W/(m·K)   [in bounds]
+
+    note over OF : simulation advances ...
+
+    OF  ->>  LM  : modena_model_call(T=1500K)
+    LM  -->> DB  : queue 1 OOB exact-sim FW
+    LM  -->> OF  : exit(200)
+
+    DB  -->> LW  : READY=1   [local workers claim it quickly]
+
+    note over OF : more time steps, broader OOB region ...
+
+    OF  ->>  LM  : modena_model_call(T=1800K, …×100)
+    LM  -->> DB  : queue 100 exact-sim FWs
+    LM  -->> OF  : exit(200)
+
+    LW  ->>  DB  : claim 8 FWs (all workers busy)
+    SV  ->>  DB  : poll → READY=92 > escalate_at=8
+    SV  ->>  HPC : submit 92 SLURM jobs
+    HPC ->>  DB  : claim remaining 92 FWs (atomic, no double-claim)
+
+    note over LW,HPC : local workers and HPC jobs run in parallel
+
+    LW  -->> DB  : 8 results written
+    HPC -->> DB  : 92 results written
+
+    DB  -->> DB  : unblock fitting FW
+    DB  -->> DB  : fitting completes → surrogate updated
+
+    DB  -->> OF  : re-queue simulation FW (resume after OOB)
+    OF  ->>  LM  : modena_model_call(T=1800K)
+    LM  -->> OF  : k = 218 W/(m·K)   [in bounds — surrogate now covers T=1800K]
+```
+
+```python
+modena.run(
+    wf,
+    launcher='auto',
+    njobs=8,
+    escalate_at=8,
+    qadapter='qadapter.yaml',
+    launch_dir='/scratch/modena',
+)
+```
+
+```bash
+modena init all \
+  --launcher auto \
+  --jobs 8 \
+  --escalate-at 8 \
+  --qadapter qadapter.yaml \
+  --launch-dir /scratch/modena
+```
+
+---
+
+### Choosing a launcher
+
+| Situation | Launcher | Key parameters |
+|---|---|---|
+| Development / debugging | `rapidfire` | `njobs=1` |
+| Small initialisation (< ~20 expensive sims) | `rapidfire` | `njobs=cpu_count` |
+| Large batch initialisation (100s of sims) | `qlaunch` | `njobs=<queue cap>` |
+| Long macroscopic run with rare OOB events | `rapidfire` | default |
+| Long macroscopic run with potential OOB bursts | `auto` | `escalate_at=njobs` |
+| Cluster-only deployment (no local compute) | `qlaunch` | `njobs=0` |
+
+**Key insight:** all three launchers are interchangeable from the workflow's
+perspective.  The Fireworks and their dependencies are identical in all cases;
+only who executes them changes.  You can switch launcher between runs without
+touching the model or workflow code.
 
 ---
 
@@ -510,6 +759,47 @@ modena quickstart           — Usage guide
 | `modena model freeze [-o FILE]` | Snapshot model parameters and package versions to a lock file. |
 | `modena model restore [-i FILE]` | Restore model parameters from a lock file. |
 | `modena model restore --verify-only` | Check version consistency only; do not write to DB. |
+
+### `modena init` — initialise surrogate models
+
+```bash
+modena init all                        # initialise every registered model
+modena init 'thermalDiffusion[material=Cu]'   # one specific model
+modena init 'modelA' 'modelB'          # subset by ID
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--jobs N` / `-j N` | `0` (cpu_count) | Worker count (`rapidfire`/`auto`) or queue cap (`qlaunch`). |
+| `--sequential` | off | Run one simulation at a time (equivalent to `--jobs 1`). |
+| `--launcher` | `rapidfire` | `rapidfire`, `qlaunch`, or `auto`. |
+| `--qadapter PATH` | — | Path to `qadapter.yaml` (required for `qlaunch`/`auto`). |
+| `--fworker PATH` | — | Path to `fworker.yaml` (optional; accepts any FW by default). |
+| `--launch-dir DIR` | `.` | Directory from which batch scripts are submitted. |
+| `--escalate-at N` | `0` | READY count threshold for HPC escalation (`auto` only). |
+
+Examples:
+
+```bash
+# Sequential — easy to debug exact tasks
+modena init all --sequential
+
+# 4 local workers
+modena init all --jobs 4
+
+# All simulations go to SLURM
+modena init all \
+  --launcher qlaunch \
+  --qadapter qadapter.yaml
+
+# Local workers for small jobs; HPC for bursts > 8 READY
+modena init all \
+  --launcher auto \
+  --jobs 8 \
+  --escalate-at 8 \
+  --qadapter qadapter.yaml \
+  --launch-dir /scratch/modena
+```
 
 ### `modena doctor` — environment health check
 
