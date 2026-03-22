@@ -340,6 +340,27 @@ def run(
         )
         _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout)
 
+    # After all workers have joined, any firework still in RUNNING state has a
+    # dead worker process (ping failed, worker crashed, or the launchpad was
+    # reset concurrently).  Warn and automatically re-queue so the workflow can
+    # continue without manual intervention.
+    n_stuck = len(lpad.get_fw_ids(query={'state': 'RUNNING'}))
+    if n_stuck:
+        _log.warning(
+            'run: %d firework(s) stuck in RUNNING after all workers exited '
+            '(likely cause: launchpad was reset while a worker was finishing, '
+            'or a worker crashed before sending the completion ping). '
+            'Attempting automatic recovery via defuse_orphans()...',
+            n_stuck,
+        )
+        recovered = lpad.defuse_orphans(max_age_seconds=0)
+        if recovered:
+            _log.warning(
+                'run: %d firework(s) re-queued. '
+                'Re-run modena.run() (with reset=False) to execute them.',
+                recovered,
+            )
+
     _log.info('run: done. %s', lpad.state_summary())
     return lpad
 

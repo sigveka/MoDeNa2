@@ -323,6 +323,23 @@ def _ensure_models_path_registered(prefix: Path) -> None:
         print(f'[modena] Registered {prefix} in {config_path}')
 
 
+def _build_run_kwargs(args) -> dict:
+    """Build modena.run() kwargs from the common launcher CLI args."""
+    njobs = 1 if args.sequential else args.jobs
+    run_kwargs = dict(njobs=njobs, launcher=args.launcher)
+    if args.launcher in ('qlaunch', 'auto'):
+        if args.qadapter is None:
+            print(f'[modena] ERROR: --qadapter is required with --launcher {args.launcher}',
+                  file=sys.stderr)
+            sys.exit(1)
+        run_kwargs['qadapter']   = args.qadapter
+        run_kwargs['fworker']    = args.fworker
+        run_kwargs['launch_dir'] = args.launch_dir
+    if args.launcher == 'auto':
+        run_kwargs['escalate_at'] = args.escalate_at
+    return run_kwargs
+
+
 def _init_models(args):
     """Run the initialisation workflow for registered surrogate models."""
     import modena as _modena
@@ -346,19 +363,49 @@ def _init_models(args):
 
     print(f'[modena] Initialising {len(models)} model(s): '
           + ', '.join(m._id for m in models))
-    njobs = 1 if args.sequential else args.jobs
-    run_kwargs = dict(njobs=njobs, launcher=args.launcher)
-    if args.launcher in ('qlaunch', 'auto'):
-        if args.qadapter is None:
-            print(f'[modena] ERROR: --qadapter is required with --launcher {args.launcher}',
-                  file=sys.stderr)
-            sys.exit(1)
-        run_kwargs['qadapter']    = args.qadapter
-        run_kwargs['fworker']     = args.fworker
-        run_kwargs['launch_dir']  = args.launch_dir
-    if args.launcher == 'auto':
-        run_kwargs['escalate_at'] = args.escalate_at
-    _modena.run(models, **run_kwargs)
+    _modena.run(models, **_build_run_kwargs(args))
+
+
+def _model_refit(args):
+    """Re-run parameter fitting on a model's existing fitData."""
+    import modena as _modena
+    from modena.SurrogateModel import BackwardMappingModel
+    from modena.Strategy import ParameterRefitting
+    from fireworks import Firework, Workflow
+
+    try:
+        m = _modena.SurrogateModel.objects.get(_id=args.id)
+    except _modena.SurrogateModel.DoesNotExist:
+        print(f'[modena] ERROR: model "{args.id}" not found.', file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(m, BackwardMappingModel):
+        print(
+            f'[modena] ERROR: "{args.id}" is a {type(m).__name__}, '
+            f'not a BackwardMappingModel — only backward-mapping models '
+            f'have a parameter fitting strategy.',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    m.reload('fitData')
+    if not m.fitData:
+        print(
+            f'[modena] ERROR: model "{args.id}" has no fit data. '
+            f'Run "modena init {args.id}" first to collect training samples.',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    n = len(next(iter(m.fitData.values())))
+    print(f'[modena] Re-fitting "{args.id}" on {n} existing sample(s).')
+
+    wf = Workflow(
+        [Firework(ParameterRefitting(surrogateModelId=m._id),
+                  name=f'{m._id} — refit')],
+        name=f'refit {m._id}',
+    )
+    _modena.run(wf, **_build_run_kwargs(args))
 
 
 def _install_models(args):
@@ -581,6 +628,48 @@ def _quickstart(_args):
 # Entry point                                                         #
 # ------------------------------------------------------------------ #
 
+def _add_launcher_args(p) -> None:
+    """Add --jobs, --sequential, --launcher, --qadapter, --fworker,
+    --launch-dir, and --escalate-at to an ArgumentParser subcommand."""
+    p.add_argument(
+        '--jobs', '-j', type=int, default=0, metavar='N',
+        help='Number of parallel worker processes / max HPC queue slots '
+             '(default: cpu_count for rapidfire, unlimited for qlaunch)',
+    )
+    p.add_argument(
+        '--sequential', action='store_true',
+        help='Run sequentially in the current process '
+             '(rapidfire only, equivalent to --jobs 1)',
+    )
+    p.add_argument(
+        '--launcher', choices=['rapidfire', 'qlaunch', 'auto'],
+        default='rapidfire',
+        help='"rapidfire" (default): local workers only.  '
+             '"qlaunch": HPC queue only.  '
+             '"auto": local workers + HPC escalation when queue depth exceeds '
+             '--escalate-at.',
+    )
+    p.add_argument(
+        '--escalate-at', type=int, default=0, metavar='N', dest='escalate_at',
+        help='auto only: READY Firework count above which the supervisor '
+             'starts submitting to HPC (default: 0)',
+    )
+    p.add_argument(
+        '--qadapter', type=str, default=None, metavar='PATH',
+        help='Path to qadapter.yaml (required with --launcher qlaunch or auto)',
+    )
+    p.add_argument(
+        '--fworker', type=str, default=None, metavar='PATH',
+        help='Path to fworker.yaml (qlaunch/auto only, '
+             'default: accept any firework)',
+    )
+    p.add_argument(
+        '--launch-dir', type=str, default='.', metavar='DIR',
+        dest='launch_dir',
+        help='Directory from which batch jobs are submitted (qlaunch/auto only)',
+    )
+
+
 def _main():
     """Console script entry point for the ``modena`` command."""
     parser = ArgumentParser(
@@ -667,6 +756,29 @@ def _main():
     )
     p.set_defaults(func=_model_freeze)
 
+    # modena model refit
+    p = model_sub.add_parser(
+        'refit',
+        help='Re-run parameter fitting on a model\'s existing training data',
+        description=(
+            'Re-fit the surrogate parameters for a specific BackwardMappingModel '
+            'using the fitData already stored in MongoDB — without re-running '
+            'any exact simulations.\n\n'
+            'Use this when you want to:\n'
+            '  - Retry fitting after adjusting the acceptance threshold\n'
+            '  - Apply a different fitting strategy or optimizer\n'
+            '  - Recover from a failed fitting step without re-collecting data\n\n'
+            'The model must already have training data '
+            '(run "modena init" first if not).\n\n'
+            'Examples:\n'
+            "  modena model refit 'thermalDiffusion[material=Cu]'\n"
+            "  modena model refit flowRate --sequential"
+        ),
+    )
+    p.add_argument('id', type=str, help='Model ID (e.g. thermalDiffusion[material=Cu])')
+    _add_launcher_args(p)
+    p.set_defaults(func=_model_refit)
+
     # modena model restore
     p = model_sub.add_parser(
         'restore',
@@ -703,41 +815,7 @@ def _main():
         help='"all" to initialise every registered model, '
              'or one or more specific model IDs',
     )
-    p.add_argument(
-        '--jobs', '-j', type=int, default=0, metavar='N',
-        help='Number of parallel worker processes / max HPC queue slots '
-             '(default: cpu_count for rapidfire, unlimited for qlaunch)',
-    )
-    p.add_argument(
-        '--sequential', action='store_true',
-        help='Run simulations sequentially in the current process '
-             '(rapidfire only, equivalent to --jobs 1)',
-    )
-    p.add_argument(
-        '--launcher', choices=['rapidfire', 'qlaunch', 'auto'],
-        default='rapidfire',
-        help='"rapidfire" (default): local workers only.  '
-             '"qlaunch": HPC queue only.  '
-             '"auto": local workers + HPC escalation when queue depth exceeds '
-             '--escalate-at.',
-    )
-    p.add_argument(
-        '--escalate-at', type=int, default=0, metavar='N', dest='escalate_at',
-        help='auto only: READY Firework count above which the supervisor '
-             'starts submitting to HPC (default: 0 — escalate immediately)',
-    )
-    p.add_argument(
-        '--qadapter', type=str, default=None, metavar='PATH',
-        help='Path to qadapter.yaml (required with --launcher qlaunch)',
-    )
-    p.add_argument(
-        '--fworker', type=str, default=None, metavar='PATH',
-        help='Path to fworker.yaml (qlaunch only, default: accept any firework)',
-    )
-    p.add_argument(
-        '--launch-dir', type=str, default='.', metavar='DIR',
-        help='Directory from which batch jobs are launched (qlaunch only)',
-    )
+    _add_launcher_args(p)
     p.set_defaults(func=_init_models)
 
     # ---------------------------------------------------------------- #

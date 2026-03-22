@@ -1931,6 +1931,42 @@ class ParameterFitting(FireTaskBase):
         return action
 
 
+@explicit_serialize
+class ParameterRefitting(FireTaskBase):
+    """Re-run parameter fitting using fitData already stored in MongoDB.
+
+    Unlike ``ParameterFitting``, this task does **not** merge new simulation
+    data from ``fw_spec`` — it loads the model's existing ``fitData`` directly
+    from the database and feeds it straight to the parameter fitting strategy.
+
+    Use this when you want to refit a surrogate on its existing training data,
+    e.g. after changing the fitting strategy, the acceptance criterion, or the
+    parameter bounds.
+
+    Launched via::
+
+        modena model refit <model_id>
+    """
+
+    def __init__(self, *args, **kwargs):
+        FireTaskBase.__init__(self, *args, **kwargs)
+
+    def run_task(self, fw_spec):
+        model = modena.SurrogateModel.load(self['surrogateModelId'])
+        _log.info('Re-fitting model %s on existing fitData', model._id)
+
+        model.reload('fitData')
+        if not model.fitData:
+            raise RuntimeError(
+                f'Model {model._id!r} has no fitData in the database. '
+                f'Run "modena init {model._id}" first to collect training samples.'
+            )
+        model.nSamples = len(next(iter(model.fitData.values())))
+
+        _log.info('Re-fitting %s on %d existing sample(s)', model._id, model.nSamples)
+        return model.parameterFittingStrategy().newPointsFWAction(model)
+
+
 class OutOfBounds(Exception):
     def __init__(self, message, model, returnCode=None):
         self.model      = model
