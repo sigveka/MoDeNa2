@@ -28,10 +28,12 @@
 import modena
 from modena import BackwardMappingModel, CFunction, ModenaFireTask
 import modena.Strategy as Strategy
-from modena.ErrorMetrics import RelativeError
+from modena.utils import load_model_config, build_strategy
 from fireworks import FWAction
 from fireworks.utilities.fw_utilities import explicit_serialize
 from fireworks import FireTaskBase
+
+_CFG = load_model_config(__file__)
 
 
 @explicit_serialize
@@ -101,33 +103,9 @@ void mixtureDensity_N2O2Ar
                + parameters[14] * x_O2 * x_O2;
 }
 ''',
-    inputs={
-        'T':    {'min': 250.0, 'max': 350.0},   # temperature, K
-        'p':    {'min': 1e5,   'max': 2e6},     # pressure, Pa
-        'x_N2': {'min': 0.70,  'max': 0.85},   # nitrogen mole fraction
-        'x_O2': {'min': 0.14,  'max': 0.25},   # oxygen mole fraction
-        # x_Ar is derived — not an independent input
-    },
-    outputs={
-        'rho': {'min': 0.0, 'max': 200.0, 'argPos': 0},   # mass density, kg/m³
-    },
-    parameters={
-        'a0':    {'min': -1e5, 'max': 1e5, 'argPos':  0},
-        'aT':    {'min': -1e5, 'max': 1e5, 'argPos':  1},
-        'ap':    {'min': -1e5, 'max': 1e5, 'argPos':  2},
-        'aN2':   {'min': -1e5, 'max': 1e5, 'argPos':  3},
-        'aO2':   {'min': -1e5, 'max': 1e5, 'argPos':  4},
-        'aTT':   {'min': -1e5, 'max': 1e5, 'argPos':  5},
-        'aTp':   {'min': -1e5, 'max': 1e5, 'argPos':  6},
-        'aTN2':  {'min': -1e5, 'max': 1e5, 'argPos':  7},
-        'aTO2':  {'min': -1e5, 'max': 1e5, 'argPos':  8},
-        'app':   {'min': -1e5, 'max': 1e5, 'argPos':  9},
-        'apN2':  {'min': -1e5, 'max': 1e5, 'argPos': 10},
-        'apO2':  {'min': -1e5, 'max': 1e5, 'argPos': 11},
-        'aN2N2': {'min': -1e5, 'max': 1e5, 'argPos': 12},
-        'aN2O2': {'min': -1e5, 'max': 1e5, 'argPos': 13},
-        'aO2O2': {'min': -1e5, 'max': 1e5, 'argPos': 14},
-    },
+    inputs=_CFG.surrogate.inputs_dict(),
+    outputs=_CFG.surrogate.outputs_dict(),
+    parameters=_CFG.surrogate.parameters_dict(),
 )
 
 
@@ -205,38 +183,10 @@ class MixtureDensityValidationTask(FireTaskBase):
         return FWAction()
 
 
-_COMPOSITION_GROUP = {
-    'free': ['x_N2', 'x_O2'],
-    'dependent': 'x_Ar',
-    'dependentBounds': {'min': 0.005, 'max': 0.08},
-}
-
 m = BackwardMappingModel(
     _id='mixtureDensity[fluid=N2O2Ar]',
     surrogateFunction=f,
     exactTask=MixtureDensityExactSim(),
     substituteModels=[],
-    initialisationStrategy=Strategy.ExpandedCASTROSampling(
-        compositionGroup=_COMPOSITION_GROUP,
-        nNewPoints=30,
-        seed=42,
-    ),
-    outOfBoundsStrategy=Strategy.ExtendSpaceExpandedCASTROSampling(
-        compositionGroup=_COMPOSITION_GROUP,
-        nNewPoints=4,
-    ),
-    parameterFittingStrategy=Strategy.NonLinFitWithErrorContol(
-        crossValidation=Strategy.Holdout(testDataPercentage=0.2),
-        acceptanceCriterion=Strategy.MaxError(
-            threshold=0.01,              # 1 % relative error
-            metric=RelativeError(),
-        ),
-        optimizer=Strategy.TrustRegionReflective(),
-        improveErrorStrategy=Strategy.ExpandedCASTROSampling(
-            compositionGroup=_COMPOSITION_GROUP,
-            nNewPoints=6,
-            seed=None,
-        ),
-    ),
-    nonConvergenceStrategy=Strategy.SkipPoint(),
+    **build_strategy(_CFG.strategy),
 )

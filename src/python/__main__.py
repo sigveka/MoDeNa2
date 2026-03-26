@@ -306,6 +306,144 @@ def _doctor(_args):
 
 
 # ------------------------------------------------------------------ #
+# sweep                                                               #
+# ------------------------------------------------------------------ #
+
+def _sweep(args):
+    """Evaluate a surrogate over a parameter sweep and write a CSV file."""
+    import csv
+    import itertools
+
+    import numpy as np
+    import modena
+
+    model = modena.load(args.model_id)
+
+    # Parse --param name=min:max:n
+    sweep: dict[str, np.ndarray] = {}
+    for spec in args.param:
+        try:
+            name, rng = spec.split('=', 1)
+            lo, hi, n = rng.split(':')
+            sweep[name] = np.linspace(float(lo), float(hi), int(n))
+        except ValueError:
+            print(
+                f'[modena] ERROR: --param {spec!r} must be name=min:max:n '
+                f'(e.g. omega_eV=0.5:6.0:40)',
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    # Parse --fix name=value
+    fixed: dict[str, float] = {}
+    for spec in (args.fix or []):
+        try:
+            name, val = spec.split('=', 1)
+            fixed[name] = float(val)
+        except ValueError:
+            print(
+                f'[modena] ERROR: --fix {spec!r} must be name=value '
+                f'(e.g. d_nm=100)',
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    # Cartesian product over all sweep axes (single axis is the common case)
+    names  = list(sweep)
+    points = list(itertools.product(*[sweep[n] for n in names]))
+
+    # Evaluate surrogate at each point
+    rows: list[dict] = []
+    for pt in points:
+        inp    = {**fixed, **dict(zip(names, pt))}
+        result = model(inp)
+        rows.append({**inp, **result})
+
+    # Determine output file name
+    safe_id = (
+        args.model_id
+        .replace('[', '_').replace(']', '')
+        .replace('=', '_').replace(' ', '_')
+    )
+    out_file = args.out or f'{safe_id}_sweep.csv'
+
+    # Write CSV
+    fieldnames = list(rows[0].keys())
+    with open(out_file, 'w', newline='') as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f'[modena] Wrote {len(rows)} row(s) → {out_file}')
+
+
+# ------------------------------------------------------------------ #
+# simulate                                                            #
+# ------------------------------------------------------------------ #
+
+def _simulate(args):
+    """Run a simulation workflow: read target and kwargs from modena.toml [simulate]."""
+    import importlib
+    import modena as _modena
+    from modena.Registry import _find_project_config, _load_toml
+    from modena.config_schema import SimulateConfig
+
+    # Load [simulate] from the nearest modena.toml (provides defaults for both
+    # target and kwargs; CLI positional arg overrides target only).
+    proj = _find_project_config()
+    data = _load_toml(proj) if proj else {}
+    try:
+        cfg = SimulateConfig.model_validate(data.get('simulate', {}))
+    except Exception as exc:
+        print(f'[modena] ERROR: invalid [simulate] section in modena.toml: {exc}',
+              file=sys.stderr)
+        sys.exit(1)
+
+    target = args.target or cfg.target   # CLI overrides toml
+
+    if target is None:
+        print(
+            '[modena] ERROR: no target specified. '
+            'Pass "package.ClassName" or set [simulate] target in modena.toml.',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    parts = target.rsplit('.', 1)
+    if len(parts) != 2:
+        print(
+            f'[modena] ERROR: target must be "package.ClassName", got {target!r}',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    package_name, class_name = parts
+
+    try:
+        module = importlib.import_module(package_name)
+    except ImportError as exc:
+        print(f'[modena] ERROR: cannot import {package_name!r}: {exc}', file=sys.stderr)
+        sys.exit(1)
+
+    cls = getattr(module, class_name, None)
+    if cls is None:
+        print(
+            f'[modena] ERROR: {package_name!r} has no attribute {class_name!r}',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    try:
+        instance = cls(**(cfg.kwargs or {}))
+    except Exception as exc:
+        print(f'[modena] ERROR: could not instantiate {target}: {exc}', file=sys.stderr)
+        sys.exit(1)
+
+    from fireworks import Firework, Workflow
+    wf = Workflow([Firework(instance, name=f'simulation {class_name}')], name='simulation')
+    _modena.run(wf, **_build_run_kwargs(args))
+
+
+# ------------------------------------------------------------------ #
 # install                                                             #
 # ------------------------------------------------------------------ #
 
@@ -656,12 +794,13 @@ def _add_launcher_args(p) -> None:
     )
     p.add_argument(
         '--qadapter', type=str, default=None, metavar='PATH',
-        help='Path to qadapter.yaml (required with --launcher qlaunch or auto)',
+        help='Path to qadapter.yaml (required with --launcher qlaunch or auto '
+             'unless QUEUEADAPTER_LOC is set in FW_config.yaml)',
     )
     p.add_argument(
         '--fworker', type=str, default=None, metavar='PATH',
-        help='Path to fworker.yaml (qlaunch/auto only, '
-             'default: accept any firework)',
+        help='Path to fworker.yaml.  Falls back to FWORKER_LOC in '
+             'FW_config.yaml, then a default catch-all worker.',
     )
     p.add_argument(
         '--launch-dir', type=str, default='.', metavar='DIR',
@@ -678,7 +817,7 @@ def _main():
     )
     parser.add_argument('--version', action='version', version=vstring)
 
-    groups = parser.add_subparsers(dest='group', metavar='{fw,model,install,doctor,quickstart}')
+    groups = parser.add_subparsers(dest='group', metavar='{fw,model,init,install,sweep,simulate,doctor,quickstart}')
 
     # ---------------------------------------------------------------- #
     # modena fw                                                         #
@@ -843,6 +982,67 @@ def _main():
         help='Install prefix (default: ~/.modena/models)',
     )
     p.set_defaults(func=_install_models)
+
+    # ---------------------------------------------------------------- #
+    # modena sweep                                                      #
+    # ---------------------------------------------------------------- #
+    p = groups.add_parser(
+        'sweep',
+        help='Evaluate a surrogate over a parameter sweep and write CSV',
+        description=(
+            'Load a trained surrogate model and evaluate it over a grid of '
+            'input values, writing all inputs and outputs to a CSV file.\n\n'
+            'Examples:\n'
+            "  modena sweep 'surfaceImpedance[material=Cu]' "
+            '--param omega_eV=0.5:6.0:40 --fix d_nm=100 --out Zs_spectrum.csv\n'
+            "  modena sweep 'structuralSE[geometry=enclosure]' "
+            '--param omega_eV=0.5:6.0:40 --out SE_3d_spectrum.csv\n'
+            "  modena sweep flowRate --param D=0.005:0.02:20 "
+            '--param rho0=1.0:5.0:10'
+        ),
+    )
+    p.add_argument('model_id', metavar='MODEL_ID',
+                   help='Surrogate model ID (e.g. flowRate)')
+    p.add_argument(
+        '--param', metavar='name=min:max:n', action='append', default=[],
+        help='Swept parameter spec (repeat for multiple axes; '
+             'cartesian product is evaluated)',
+    )
+    p.add_argument(
+        '--fix', metavar='name=value', action='append', default=None,
+        help='Fixed input value (may be repeated)',
+    )
+    p.add_argument(
+        '--out', metavar='FILE', default=None,
+        help='Output CSV file (default: <model_id>_sweep.csv)',
+    )
+    p.set_defaults(func=_sweep)
+
+    # ---------------------------------------------------------------- #
+    # modena simulate                                                   #
+    # ---------------------------------------------------------------- #
+    p = groups.add_parser(
+        'simulate',
+        help='Run a simulation workflow for a model class',
+        description=(
+            'Instantiate a BackwardMappingScriptTask subclass and run it as a '
+            'FireWorks workflow.\n\n'
+            'The target class is resolved by importing the package and calling '
+            'the class, so find_binary() is invoked automatically.\n\n'
+            'The target may be omitted if [simulate] target is set in modena.toml.\n\n'
+            'Examples:\n'
+            '  modena simulate "twoTank.TwoTankModel"\n'
+            '  modena simulate   # reads target from modena.toml'
+        ),
+    )
+    p.add_argument(
+        'target', nargs='?', default=None,
+        metavar='PACKAGE.CLASS',
+        help='Model class as "package.ClassName" '
+             '(overrides [simulate] target in modena.toml)',
+    )
+    _add_launcher_args(p)
+    p.set_defaults(func=_simulate)
 
     # ---------------------------------------------------------------- #
     # modena doctor                                                     #

@@ -36,9 +36,9 @@ License
 """
 
 from modena.Strategy import BackwardMappingScriptTask
-import os
+from modena.Registry import ModelRegistry
 
 # Source code in src/twoTanksMacroscopicProblemCxx.C
 m = BackwardMappingScriptTask(
-    script=os.path.dirname(os.path.abspath(__file__))+'/bin/twoTanksMacroscopicProblemCxx'
+    script=ModelRegistry().find_binary('twoTanksMacroscopicProblemCxx', caller_file=__file__)
 )

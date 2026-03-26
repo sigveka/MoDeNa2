@@ -67,7 +67,7 @@ class ErrorMetricBase(defaultdict, FWSerializable):
 
     def aggregate(self, residuals) -> float:
         """Reduce a sequence of residuals to a scalar (default: max |r|)."""
-        return max(abs(r) for r in residuals)
+        return max((abs(r) for r in residuals), default=0.0)
 
     @serialize_fw
     @recursive_serialize

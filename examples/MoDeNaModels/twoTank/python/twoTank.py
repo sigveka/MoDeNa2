@@ -35,21 +35,47 @@ License
 @ingroup   twoTank
 """
 
-from modena.Strategy import BackwardMappingScriptTask
-from os.path import abspath, dirname, join
+import logging
 
-exe = str(join(dirname(abspath(__file__)),'bin','twoTanksMacroscopicProblem'))
+from modena.Strategy import BackwardMappingScriptTask
 
 # Source code in src/twoTanksMacroscopicProblem.C
 
 class TwoTankModel(BackwardMappingScriptTask):
-    """
+    """Macroscopic two-tank simulation task.
+
+    Demonstrates passing simulation parameters from ``modena.toml`` through
+    to the compiled C binary via ``[simulate.kwargs]``:
+
+    .. code-block:: toml
+
+        [simulate]
+        target = "twoTank.TwoTankModel"
+
+        [simulate.kwargs]
+        end_time = 10.0
+
+    Args:
+        end_time: Simulation end time in seconds (default: 5.5).  Forwarded
+            as ``--end-time`` to the binary.
+        **kwargs: Any additional keyword arguments are stored in the FireWorks
+            task dict and passed through to the parent class.
     """
     _fw_name = '{{twoTank.TwoTankModel}}'
+    optional_params = None  # allow arbitrary kwargs through to the task dict
 
-    def __init__(self, *args, **kwargs):
-        super(TwoTankModel, self).__init__(script=exe)
+    def __init__(self, end_time=None, **kwargs):
+        cmd = [self.find_binary('twoTanksMacroscopicProblem')]
 
+        if end_time is not None:
+            cmd += ['--end-time', str(end_time)]
+
+        # Pass --verbose when modena is running at DEBUG level or below so the
+        # binary prints the model's input/output/parameter names.
+        if logging.getLogger('modena').isEnabledFor(logging.DEBUG):
+            cmd.append('--verbose')
+
+        super().__init__(script=cmd, **kwargs)
 
 
 m = TwoTankModel()

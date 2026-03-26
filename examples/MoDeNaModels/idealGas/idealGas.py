@@ -37,6 +37,9 @@ License
 
 import modena
 from modena import ForwardMappingModel, CFunction
+from modena.utils import load_model_config
+
+_CFG = load_model_config(__file__)
 
 
 f = CFunction(
@@ -58,22 +61,14 @@ void idealGas
     outputs[0] = p0/R/T0;
 }
 ''',
-    # These are global bounds for the function
-    inputs={
-        'p0': { 'min': 0, 'max': 9e99 },
-        'T0': { 'min': 0, 'max': 9e99 },
-    },
-    outputs={
-        'rho0': { 'min': 9e99, 'max': -9e99, 'argPos': 0 },
-    },
-    parameters={
-        'R': { 'min': 0.0, 'max': 9e99, 'argPos': 0 }
-    },
+    inputs=_CFG.surrogate.inputs_dict(),
+    outputs=_CFG.surrogate.outputs_dict(),
+    parameters=_CFG.surrogate.parameters_dict(),
 )
 
 m = ForwardMappingModel(
     _id= 'idealGas',
     surrogateFunction= f,
     substituteModels= [ ],
-    parameters= [ 287.0 ],
+    parameters= _CFG.parameters,
 )

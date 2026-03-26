@@ -1006,8 +1006,8 @@ class SurrogateModel(DynamicDocument):
                     )),
                     name
                 )
-            except ArgPosNotFound:
-                raise Exception(f'Unable to expand indices in {name}')
+            except ArgPosNotFound as e:
+                raise ArgPosNotFound(f'Unable to expand indices in {name}') from e
 
         return ret
 
@@ -1029,8 +1029,8 @@ class SurrogateModel(DynamicDocument):
                     ) + ']',
                     name
                 )
-            except ArgPosNotFound:
-                raise Exception(f'Unable to expand indices in {name}')
+            except ArgPosNotFound as e:
+                raise ArgPosNotFound(f'Unable to expand indices in {name}') from e
 
         return ret
 
@@ -1206,6 +1206,8 @@ class SurrogateModel(DynamicDocument):
             for v in self.outputs.values():
                 v.min = 9e99
                 v.max = -9e99
+
+            return
 
         for k, v in self.inputs.items():
             v.min = min(self.fitData[k])
@@ -1399,6 +1401,34 @@ class SurrogateModel(DynamicDocument):
         #print(self.fitData)
         self.nSamples = len(next(iter(self.fitData.values())))
 
+
+    def append_fit_data_point(self, point: dict) -> None:
+        """Atomically append one simulation result to fitData in MongoDB.
+
+        Uses a single ``$push`` so concurrent workers writing in parallel
+        cannot interleave partial records — each complete data point lands
+        atomically.  Only keys that are recognised inputs or outputs of
+        this model are written; values added by substitute models are
+        silently ignored.
+
+        Args:
+            point: dict mapping variable names to float values after one
+                   simulation (inputs + outputs, as populated by task()).
+        """
+        push_ops = {}
+        for k, v in point.items():
+            if k in self.inputs or k in self.outputs:
+                push_ops[f'fitData.{k}'] = float(v)
+        if not push_ops:
+            _log.warning(
+                'append_fit_data_point: no recognised keys in point %s '
+                'for model %s', list(point), self._id,
+            )
+            return
+        type(self)._get_collection().update_one(
+            {'_id': self._id},
+            {'$push': push_ops},
+        )
 
     def initialisationStrategy(self):
         """

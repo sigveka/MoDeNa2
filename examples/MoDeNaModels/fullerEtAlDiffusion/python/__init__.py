@@ -37,14 +37,12 @@ Contributors
 '''
 
 import modena
-from os.path import abspath, dirname, join
 from .fullerEtAlDiffusion import f, m, species
-
-exe = str(join(dirname(abspath(__file__)),'bin','fullerEtAlDiffusionTest'))
+from modena.Registry import ModelRegistry
 
 # Define 'macroscopic' code to run
 SIMULATION = modena.BackwardMappingScriptTask(
-        script= exe
+    script=ModelRegistry().find_binary('fullerEtAlDiffusionTest', caller_file=__file__)
 )
 
 

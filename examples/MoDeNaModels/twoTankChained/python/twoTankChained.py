@@ -35,10 +35,10 @@ License
 @ingroup   twoTank
 """
 
-from pathlib import Path
 from modena.Strategy import BackwardMappingScriptTask
+from modena.Registry import ModelRegistry
 
 # Source code in src/twoTanksMacroscopicProblem.C
 m = BackwardMappingScriptTask(
-    script=str(Path(__file__).resolve().parent / 'bin' / 'twoTanksMacroscopicProblem')
+    script=ModelRegistry().find_binary('twoTanksMacroscopicProblem', caller_file=__file__)
 )

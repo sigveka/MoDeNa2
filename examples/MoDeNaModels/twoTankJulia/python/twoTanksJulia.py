@@ -36,9 +36,9 @@ License
 """
 
 from modena.Strategy import BackwardMappingScriptTask
-import os
+from modena.Registry import ModelRegistry
 
 # Installed by src/CMakeLists.txt alongside the Python package files.
 m = BackwardMappingScriptTask(
-    script=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin', 'twoTanksMacroscopicProblemJulia')
+    script=ModelRegistry().find_binary('twoTanksMacroscopicProblemJulia', caller_file=__file__)
 )

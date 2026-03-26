@@ -247,8 +247,6 @@ def _cv_fold_worker(proxy, train_list, optimizer_dict, metric_dict,
 
     Returns the fitted parameter list for this fold.
     """
-    from fireworks.utilities.fw_serializers import load_object
-
     optimizer = load_object(optimizer_dict)
     metric    = load_object(metric_dict) if metric_dict is not None else None
 
@@ -1879,7 +1877,14 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
                         proxy, list(train_idx), optimizer_dict, metric_dict,
                         min_parameters, max_parameters, init_parameters,
                     )
-            fold_params = [futures_map[i].result() for i in range(n_folds)]
+            fold_params = []
+            for i in range(n_folds):
+                try:
+                    fold_params.append(futures_map[i].result())
+                except Exception as exc:
+                    raise RuntimeError(
+                        f'CV fold {i} worker raised an exception: {exc}'
+                    ) from exc
         else:
             fold_params = [_fit_serial(train_idx) for train_idx, _ in fold_splits]
 
@@ -1920,7 +1925,7 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
             _log.debug('old parameters = [%s]', ', '.join(f'{k:g}' for k in model.parameters))
 
             # Refit on full dataset after CV acceptance
-            new_parameters = _fit(list(range(model.nSamples)))
+            new_parameters = _fit_serial(list(range(model.nSamples)))
             _log.info('new parameters = [%s]', ', '.join(f'{k:g}' for k in new_parameters))
 
             model.parameters = new_parameters
@@ -2117,7 +2122,12 @@ class ParameterFitting(FireTaskBase):
         """
         model = modena.SurrogateModel.load(self['surrogateModelId'])
         _log.info('Performing parameter fitting for model %s', model._id)
-        model.updateFitDataFromFwSpec(fw_spec)
+        # Simulation results were written directly to MongoDB by each exact
+        # task (append_fit_data_point), so reload fitData from the database.
+        model.reload('fitData')
+        model.nSamples = (
+            len(next(iter(model.fitData.values()))) if model.fitData else 0
+        )
         action = model.parameterFittingStrategy().newPointsFWAction(model)
         # When fitting succeeds (no detours needed), push the model ID into
         # fw_spec so the upstream BackwardMappingScriptTask can tell freeze()
@@ -2428,7 +2438,12 @@ class ModenaFireTask(FireTaskBase):
                 lambda: self.task(fw_spec),
                 'Model'
             )
-            return FWAction(mod_spec=[{'_push': self['point']}])
+            # Write the simulation result (inputs + outputs) directly to
+            # MongoDB using an atomic $push so parallel workers never
+            # corrupt each other's data and no simulation data ever
+            # enters a FireWorks Firework document.
+            _model.append_fit_data_point(self['point'])
+            return FWAction()
 
         except ModifyWorkflow as e:
             return e.args[0]

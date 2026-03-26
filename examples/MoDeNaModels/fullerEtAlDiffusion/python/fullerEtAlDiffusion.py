@@ -37,6 +37,9 @@ License
 
 from modena import CFunction, IndexSet, ForwardMappingModel
 import modena.Strategy as Strategy
+from modena.utils import load_model_config
+
+_CFG = load_model_config(__file__)
 
 species = IndexSet(
     name= 'species',
@@ -45,19 +48,9 @@ species = IndexSet(
 
 
 f = CFunction(
-    inputs={
-        'T': { 'min': 0, 'max': 9e99 },
-        'p': { 'min': 0, 'max': 9e99 },
-    },
-    outputs={
-        'D[A]': { 'min': 0, 'max': 9e99, 'argPos': 0 },
-    },
-    parameters={
-        'W[A]': { 'min': 0, 'max': 9e99, 'argPos': 0 },
-        'V[A]': { 'min': 0, 'max': 9e99, 'argPos': 1 },
-        'W[B]': { 'min': 0, 'max': 9e99, 'argPos': 2 },
-        'V[B]': { 'min': 0, 'max': 9e99, 'argPos': 3 },
-    },
+    inputs=_CFG.surrogate.inputs_dict(),
+    outputs=_CFG.surrogate.outputs_dict(),
+    parameters=_CFG.surrogate.parameters_dict(),
     indices={
         'A': species,
         'B': species,
@@ -90,5 +83,5 @@ m = ForwardMappingModel(
     _id= 'fullerEtAlDiffusion[A=H2O,B=N2]',
     surrogateFunction= f,
     substituteModels= [ ],
-    parameters= [ 16, 9.44, 14, 11.38 ],
+    parameters= _CFG.parameters,
 )

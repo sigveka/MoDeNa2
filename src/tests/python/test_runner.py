@@ -41,7 +41,7 @@ class TestRunBasic:
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire'):
+        with patch('modena.Runner.rapidfire'):
             result = run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
         assert result is lp
 
@@ -50,7 +50,7 @@ class TestRunBasic:
         from modena.Runner import run
         lp = _make_lpad()
         wf = Workflow([Firework([])])
-        with patch('fireworks.core.rocket_launcher.rapidfire'):
+        with patch('modena.Runner.rapidfire'):
             run(wf, lpad=lp, reset=False, njobs=1)
         lp.add_wf.assert_called_once_with(wf)
 
@@ -58,7 +58,7 @@ class TestRunBasic:
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
+        with patch('modena.Runner.rapidfire') as mock_rf:
             run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
         mock_rf.assert_called_once()
 
@@ -68,7 +68,7 @@ class TestRunBasic:
         from modena.Runner import run
         lp = _make_lpad()
         with caplog.at_level(logging.INFO, logger='modena.runner'):
-            with patch('fireworks.core.rocket_launcher.rapidfire'):
+            with patch('modena.Runner.rapidfire'):
                 run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
         assert 'done' in caplog.text.lower()
 
@@ -83,7 +83,7 @@ class TestRunWithFirework:
         from fireworks import Firework
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire'):
+        with patch('modena.Runner.rapidfire'):
             run(Firework([]), lpad=lp, reset=False, njobs=1)
         lp.add_wf.assert_called_once()
 
@@ -98,7 +98,7 @@ class TestRunReset:
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire'):
+        with patch('modena.Runner.rapidfire'):
             run(Workflow([Firework([])]), lpad=lp, reset=True, njobs=1)
         lp.reset.assert_called_once_with('', require_password=False)
 
@@ -106,7 +106,7 @@ class TestRunReset:
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire'):
+        with patch('modena.Runner.rapidfire'):
             run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
         lp.reset.assert_not_called()
 
@@ -151,7 +151,7 @@ class TestRunRapidfireKwargs:
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
+        with patch('modena.Runner.rapidfire') as mock_rf:
             run(Workflow([Firework([])]), lpad=lp, reset=False, sleep_time=5, njobs=1)
         _, kwargs = mock_rf.call_args
         assert kwargs.get('sleep_time') == 5
@@ -160,7 +160,7 @@ class TestRunRapidfireKwargs:
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
+        with patch('modena.Runner.rapidfire') as mock_rf:
             run(Workflow([Firework([])]), lpad=lp, reset=False, timeout=120, njobs=1)
         _, kwargs = mock_rf.call_args
         assert kwargs.get('timeout') == 120
@@ -169,7 +169,7 @@ class TestRunRapidfireKwargs:
         from fireworks import Firework, Workflow
         from modena.Runner import run
         lp = _make_lpad()
-        with patch('fireworks.core.rocket_launcher.rapidfire') as mock_rf:
+        with patch('modena.Runner.rapidfire') as mock_rf:
             run(Workflow([Firework([])]), lpad=lp, reset=False, timeout=None, njobs=1)
         _, kwargs = mock_rf.call_args
         assert 'timeout' not in kwargs

@@ -38,6 +38,8 @@ through the MoDeNa interface library.
 @ingroup    twoTank
 */
 
+#include <cstdlib>
+#include <cstring>
 #include <stdio.h>
 #include <iostream>
 #include "modena.h"
@@ -47,6 +49,26 @@ using namespace std;
 int
 main(int argc, char *argv[])
 {
+    // ------------------------------------------------------------------ //
+    // Parse command-line arguments
+    //   --end-time <seconds>   simulation end time (default 5.5)
+    //   --verbose              print model input/output/parameter names
+    // ------------------------------------------------------------------ //
+    double tend = 5.5;
+    bool   verbose = false;
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--end-time") == 0 && i + 1 < argc)
+        {
+            tend = atof(argv[++i]);
+        }
+        else if (strcmp(argv[i], "--verbose") == 0)
+        {
+            verbose = true;
+        }
+    }
+
     printf("Starting simulation\n");
 
     const double D = 0.01;
@@ -59,7 +81,6 @@ main(int argc, char *argv[])
 
     double t = 0.0;
     const double deltat = 1e-3;
-    const double tend = 5.5;
 
     double m0 = p0*V0/287.1/T;
     double m1 = p1*V1/287.1/T;
@@ -70,7 +91,6 @@ main(int argc, char *argv[])
 
     // Instantiate a model
     modena_model_t *model = modena_model_new("flowRate");
-    printf("Starting simulation\n");
 
     if(modena_error_occurred())
     {
@@ -81,25 +101,29 @@ main(int argc, char *argv[])
     modena_inputs_t *inputs = modena_inputs_new(model);
     modena_outputs_t *outputs = modena_outputs_new(model);
 
-    cout << "inputs:" << endl;
-    const char** iNames = modena_model_inputs_names(model);
-    for(int i=0; i<modena_model_inputs_size(model); i++)
+    // Print input/output/parameter names when --verbose is set
+    if(verbose)
     {
-        cout << iNames[i] << endl;
-    }
+        cout << "inputs:" << endl;
+        const char** iNames = modena_model_inputs_names(model);
+        for(int i=0; i<modena_model_inputs_size(model); i++)
+        {
+            cout << "  " << iNames[i] << endl;
+        }
 
-    cout << "outputs:" << endl;
-    const char** oNames = modena_model_outputs_names(model);
-    for(int i=0; i<modena_model_outputs_size(model); i++)
-    {
-        cout << oNames[i] << endl;
-    }
+        cout << "outputs:" << endl;
+        const char** oNames = modena_model_outputs_names(model);
+        for(int i=0; i<modena_model_outputs_size(model); i++)
+        {
+            cout << "  " << oNames[i] << endl;
+        }
 
-    cout << "parameters:" << endl;
-    const char** pNames = modena_model_parameters_names(model);
-    for(int i=0; i<modena_model_parameters_size(model); i++)
-    {
-        cout << pNames[i] << endl;
+        cout << "parameters:" << endl;
+        const char** pNames = modena_model_parameters_names(model);
+        for(int i=0; i<modena_model_parameters_size(model); i++)
+        {
+            cout << "  " << pNames[i] << endl;
+        }
     }
 
     size_t Dpos = modena_model_inputs_argPos(model, "D");

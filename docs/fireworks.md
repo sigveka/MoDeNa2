@@ -19,22 +19,23 @@ workflow system from Python or the command line.
    - [`qlaunch` — HPC queue](#qlaunch--hpc-queue)
    - [`auto` — adaptive escalation](#auto--adaptive-escalation)
    - [Choosing a launcher](#choosing-a-launcher)
-7. [Inspecting and managing the launchpad](#inspecting-and-managing-the-launchpad)
+7. [FireWorks standard config files](#fireworks-standard-config-files)
+8. [Inspecting and managing the launchpad](#inspecting-and-managing-the-launchpad)
    - [`modena.lpad()` — factory](#modenalpad-factory)
    - [`ModenaLaunchPad` methods](#modenalaunchpad-methods)
    - [Connection internals](#connection-internals)
    - [`defuse_orphans`](#defuse_orphansmax_age_seconds3600)
    - [Tracing workflow ancestry with `retrace_to_origin`](#tracing-workflow-ancestry-with-retrace_to_origin)
-8. [Firework naming](#firework-naming)
-9. [Verbosity and logging](#verbosity-and-logging)
-10. [Task serialization and `FW_config.yaml`](#task-serialization-and-fw_configyaml)
-11. [Command-line reference](#command-line-reference)
+9. [Firework naming](#firework-naming)
+10. [Verbosity and logging](#verbosity-and-logging)
+11. [Task serialization and `FW_config.yaml`](#task-serialization-and-fw_configyaml)
+12. [Command-line reference](#command-line-reference)
     - [`modena fw` — FireWorks launchpad](#modena-fw-fireworks-launchpad)
     - [`modena model` — surrogate model database](#modena-model-surrogate-model-database)
     - [`modena init` — initialise surrogate models](#modena-init--initialise-surrogate-models)
     - [`modena doctor` — environment health check](#modena-doctor-environment-health-check)
     - [`modena quickstart` — usage guide](#modena-quickstart-usage-guide)
-12. [Common pitfalls](#common-pitfalls)
+13. [Common pitfalls](#common-pitfalls)
 
 ---
 
@@ -162,23 +163,200 @@ is needed.  The loop is entirely managed by FireWorks and `libmodena`.
 
 ## Running workflows with `modena.run()`
 
-`modena.run()` is the recommended entry point for both initialisation and
-simulation workflows.  It handles LaunchPad setup, workflow construction, and
-progress reporting.
+`modena.run()` is the recommended Python entry point for all three MoDeNa
+workflow operations.  It handles LaunchPad setup, workflow construction, and
+progress reporting.  Every operation also has an equivalent CLI form via
+`modena init`, `modena model refit`, and `modena fw run`.
 
+### Operation 1 — surrogate initialisation
+
+Run exact simulations and fit the surrogate for the first time.
+
+**Python:**
 ```python
 import modena
+import flowRate        # importing registers the model in MongoDB
 
-# Initialise all registered surrogate models
-import flowRate  # registers the model
+# Initialise one specific model
+modena.run([flowRate.m])
+
+# Initialise all registered models
 modena.run(list(modena.SurrogateModel.get_instances()))
 
-# Run a simulation workflow
+# With HPC — 4 local workers, overflow to SLURM beyond 4 READY
+modena.run([flowRate.m],
+           launcher='auto', njobs=4, escalate_at=4,
+           qadapter='qadapter.yaml')
+```
+
+**CLI (bash `initModels` script):**
+```bash
+#!/bin/bash
+python3 -m modena init flowRate
+
+# Multiple models in dependency order
+python3 -m modena init idealGas flowRate
+
+# With HPC
+python3 -m modena init flowRate \
+  --launcher auto --jobs 4 --escalate-at 4 \
+  --qadapter qadapter.yaml
+```
+
+### Operation 2 — re-fit surrogate parameters
+
+Re-run parameter fitting on existing training data — no new exact simulations.
+Use this after adjusting fitting strategy, acceptance threshold, or optimizer.
+
+**Python:**
+```python
+import modena
+from modena.Strategy import ParameterRefitting
 from fireworks import Firework, Workflow
-import mySimulation
-wf = Workflow([Firework(mySimulation.m)], name='mySimulation')
+
+model = modena.load('flowRate')
+
+wf = Workflow(
+    [Firework(ParameterRefitting(), name='flowRate — refit')],
+    name='refit',
+)
+modena.run(wf, reset=True)
+```
+
+**CLI:**
+```bash
+python3 -m modena model refit flowRate
+
+# Sequential (useful for debugging the fitting step)
+python3 -m modena model refit flowRate --sequential
+
+# With 4 parallel CV fold workers
+python3 -m modena model refit flowRate --jobs 4
+```
+
+### Operation 3 — run the macroscopic simulation
+
+Run the full simulation workflow (the C/Fortran/Python application that calls
+`modena_model_call` at runtime).  When the surrogate goes out-of-bounds,
+FireWorks inserts an extra fitting Firework automatically and re-queues the
+simulation — the backward-mapping loop.
+
+#### Model definition (`twoTank.py`)
+
+The macroscopic simulation is wrapped in a `BackwardMappingScriptTask` subclass.
+`find_binary()` resolves the executable at runtime via the paths configured in
+`modena.toml` (see §7 [FireWorks standard config files](#fireworks-standard-config-files)),
+falling back to a `bin/` directory alongside the package file:
+
+```python
+from modena.Strategy import BackwardMappingScriptTask
+
+class TwoTankModel(BackwardMappingScriptTask):
+    _fw_name = '{{twoTank.TwoTankModel}}'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(script=self.find_binary('twoTanksMacroscopicProblem'))
+
+m = TwoTankModel()
+```
+
+Export both `m` and the task class from `__init__.py`:
+
+```python
+# twoTank/__init__.py
+from .twoTank import m, TwoTankModel
+```
+
+`_fw_name = '{{twoTank.TwoTankModel}}'` is required for FireWorks
+serialisation: when a rocket process deserialises the Firework from MongoDB it
+resolves `{{twoTank.TwoTankModel}}` by importing `twoTank` and calling
+`getattr(twoTank, 'TwoTankModel')`.  The class must therefore be exported at
+the package top level (see [FireTask serialisation](#firetask-serialisation)).
+
+When no custom behaviour is needed (plain binary, no MoDeNa-specific hooks),
+`BackwardMappingScriptTask` can also be instantiated directly:
+
+```python
+from modena.Strategy import BackwardMappingScriptTask
+from modena.Registry import ModelRegistry
+
+m = BackwardMappingScriptTask(
+    script=ModelRegistry().find_binary('mySimBinary', caller_file=__file__)
+)
+```
+
+#### Python workflow script (`workflow`)
+
+```python
+#!/usr/bin/env python3
+import modena
+import twoTank
+from fireworks import Firework, Workflow
+
+wf = Workflow([Firework(twoTank.m)], name='simulation')
 modena.run(wf)
 ```
+
+The `workflow` file has no `.py` extension (convention), but is valid Python.
+It can be run directly or via the `modena` CLI:
+
+```bash
+python3 workflow               # run directly
+python3 -m modena fw run --py workflow   # equivalent, via CLI
+```
+
+Launcher options (`njobs`, `launcher`, `qadapter`, …) are passed as keyword
+arguments to `modena.run()` inside the script — **not** on the `modena fw run`
+command line (which has no launcher flags):
+
+```python
+# workflow with HPC escalation
+wf = Workflow([Firework(twoTank.m)], name='simulation')
+modena.run(wf, launcher='auto', njobs=4, escalate_at=4,
+           qadapter='qadapter.yaml')
+```
+
+**CLI — run the Python workflow script:**
+```bash
+# Standard invocation from the example directory
+python3 -m modena fw run --py workflow
+
+# modena.toml in the current directory registers the installed models,
+# so twoTank is auto-imported when the script calls `import modena`.
+```
+
+**CLI — wrap a bare binary with `--script`:**
+
+Use `--script` when the binary is a plain executable and you do not want to
+write a `workflow` Python file.  `--script` generates a `workflow.yaml`
+wrapping the command in a `BackwardMappingScriptTask` — it does **not** run
+the workflow automatically:
+
+```bash
+python3 -m modena fw run --script './twoTanksMacroscopicProblem'
+# Writes workflow.yaml; prints:
+#   [modena] Generated workflow.yaml
+#   [modena] Run with: lpad add workflow.yaml && rlaunch rapidfire
+
+# Inspect or edit workflow.yaml, then run:
+lpad add workflow.yaml
+rlaunch rapidfire
+```
+
+**CLI — add a hand-written YAML workflow:**
+```bash
+python3 -m modena fw run --workflow my_simulation.yaml
+# Equivalent to: lpad add my_simulation.yaml && rlaunch rapidfire
+```
+
+**Summary — when to use each approach:**
+
+| Approach | Run command | Notes |
+|---|---|---|
+| Python `workflow` script | `python3 -m modena fw run --py workflow` | Recommended; full control over launcher options |
+| Python `workflow` script | `python3 workflow` | Equivalent; useful in CI or shell scripts |
+| Plain binary | `modena fw run --script './binary'` then `lpad add` + `rlaunch` | No Python file needed; YAML can be edited before run |
+| Pre-built YAML | `modena fw run --workflow sim.yaml` | Use with hand-crafted or `--script`-generated YAML |
 
 ### Signature
 
@@ -188,7 +366,7 @@ modena.run(
     *,
     lpad=None,
     reset=True,
-    sleep_time=0,
+    sleep_time=1,
     timeout=None,
     name='modena_workflow',
     njobs=0,
@@ -205,13 +383,13 @@ modena.run(
 | `wf_or_models` | — | A `Workflow`, a `Firework`, or a list of `SurrogateModel` instances. |
 | `lpad` | `None` | LaunchPad to use.  Created from `MODENA_URI` if not provided. |
 | `reset` | `True` | Reset the launchpad before adding the workflow. |
-| `sleep_time` | `0` | Seconds to sleep between polling cycles. |
+| `sleep_time` | `1` | Seconds to sleep between polling cycles.  Must be ≥ 1; FireWorks treats 0 as falsy and substitutes its own 60-second default, causing workers to hang for up to a minute after the workflow completes. |
 | `timeout` | `None` | Wall-clock timeout in seconds (`rapidfire` and `auto` only). |
 | `name` | `'modena_workflow'` | Workflow name when building from a model list. |
 | `njobs` | `0` | Local worker count (`rapidfire`/`auto`: 0 = cpu_count, 1 = sequential); HPC queue cap (`qlaunch`: 0 = unlimited). |
 | `launcher` | `'rapidfire'` | Launcher backend: `'rapidfire'`, `'qlaunch'`, or `'auto'`. |
-| `fworker` | `None` | `FWorker` instance or path to `fworker.yaml` (`qlaunch`/`auto` only). |
-| `qadapter` | `None` | `QueueAdapterBase` instance or path to `qadapter.yaml` (required for `qlaunch`/`auto`). |
+| `fworker` | `None` | `FWorker` instance, path to `fworker.yaml`, or `None`.  Applies to all launchers.  Resolution order: explicit argument → `FWORKER_LOC` in `FW_config.yaml` → default catch-all worker. |
+| `qadapter` | `None` | `QueueAdapterBase` instance, path to `qadapter.yaml`, or `None`.  Required for `qlaunch`/`auto`.  Resolution order: explicit argument → `QUEUEADAPTER_LOC` in `FW_config.yaml` → error. |
 | `launch_dir` | `'.'` | Directory from which HPC batch scripts are submitted (`qlaunch`/`auto` only). |
 | `escalate_at` | `0` | READY Firework count above which the supervisor starts submitting to HPC (`auto` only). |
 
@@ -452,6 +630,98 @@ modena init all \
 perspective.  The Fireworks and their dependencies are identical in all cases;
 only who executes them changes.  You can switch launcher between runs without
 touching the model or workflow code.
+
+---
+
+## FireWorks standard config files
+
+MoDeNa follows FireWorks' documented configuration file conventions for worker
+and queue adapter settings, using the same resolution order as
+`LaunchPad.auto_load()`.
+
+### How `FW_config.yaml` is discovered
+
+FireWorks searches for `FW_config.yaml` in:
+
+1. The current working directory (`./FW_config.yaml`)
+2. `~/.fireworks/FW_config.yaml`
+
+Any keys set there override FireWorks' built-in defaults.  MoDeNa respects the
+following keys:
+
+| Key | Purpose | MoDeNa uses? |
+|---|---|---|
+| `FWORKER_LOC` | Path to `my_fworker.yaml` | Yes — auto-discovered when `fworker=None` |
+| `QUEUEADAPTER_LOC` | Path to `my_qadapter.yaml` | Yes — auto-discovered when `qadapter=None` |
+| `LAUNCHPAD_LOC` | Path to `my_launchpad.yaml` | **No** — MoDeNa uses `MODENA_URI` instead |
+| `RAPIDFIRE_SLEEP_SECS` | Default polling interval | Overridden — MoDeNa passes `sleep_time=1` |
+| `ADD_USER_PACKAGES` | Extra modules to import in rockets | Yes (standard FireWorks) |
+
+### FWorker resolution order
+
+When `fworker=None` is passed to `modena.run()` (or `--fworker` is omitted from
+the CLI), the resolution is:
+
+1. `FWORKER_LOC` in `FW_config.yaml` — load the named file
+2. Default `FWorker()` — accepts any Firework on any machine
+
+This applies to **all launchers**, including `rapidfire`.  A `FWorker` with a
+`category` or `query` filter can restrict which Fireworks a set of workers will
+claim.
+
+### qadapter resolution order
+
+When `qadapter=None` is passed to `modena.run()` (or `--qadapter` is omitted),
+the resolution is:
+
+1. `QUEUEADAPTER_LOC` in `FW_config.yaml` — load the named file
+2. Error — a qadapter is required for `qlaunch` and `auto`
+
+### Example: project-level `FW_config.yaml`
+
+Drop this file in your run directory and `modena init --launcher auto` will
+pick up the worker and adapter automatically — no CLI flags needed:
+
+```yaml
+# FW_config.yaml  (project run directory)
+ADD_USER_PACKAGES:
+    - modena
+
+FWORKER_LOC:      my_fworker.yaml
+QUEUEADAPTER_LOC: my_qadapter.yaml
+```
+
+```yaml
+# my_fworker.yaml
+name: cluster-worker
+category: ''
+query: '{}'
+```
+
+```yaml
+# my_qadapter.yaml
+_fw_name: CommonAdapter
+_fw_q_type: SLURM
+rocket_launch: rlaunch singleshot
+nodes: 1
+walltime: "04:00:00"
+queue: compute
+```
+
+With these files in place:
+
+```bash
+# No --qadapter or --fworker needed; FW_config.yaml supplies them
+modena init flowRate --launcher auto --jobs 4 --escalate-at 4
+```
+
+### Note on `LAUNCHPAD_LOC`
+
+FireWorks' own tools (`lpad`, `rlaunch`) read the MongoDB connection from
+`my_launchpad.yaml` via `LAUNCHPAD_LOC`.  MoDeNa does **not** use this file —
+it constructs its own `ModenaLaunchPad` from `MODENA_URI`.  If you use both
+MoDeNa and raw FireWorks CLI tools, keep `my_launchpad.yaml` in sync with
+`MODENA_URI`.
 
 ---
 
@@ -732,11 +1002,15 @@ Commands are grouped into four categories:
 ```
 modena fw        <command>   — FireWorks launchpad operations
 modena model     <command>   — Surrogate model database operations
+modena init      <model_id>  — Run initialisation workflow
+modena install   <path>      — Install a model package
 modena doctor               — Environment health check
 modena quickstart           — Usage guide
 ```
 
 ### `modena fw` — FireWorks launchpad
+
+#### Inspection and management
 
 | Command | Description |
 |---|---|
@@ -746,9 +1020,75 @@ modena quickstart           — Usage guide
 | `modena fw rerun <fw_id>` | Re-queue a specific FIZZLED or COMPLETED firework. |
 | `modena fw orphans` | Re-queue RUNNING/RESERVED fireworks whose process has died. |
 | `modena fw orphans --max-age <s>` | Use a custom age threshold in seconds (default 3600). |
-| `modena fw run --script <name>` | Wrap a shell script as a `BackwardMappingScriptTask` and generate a workflow YAML. |
-| `modena fw run --workflow <file>` | Add a FireWorks YAML file to the launchpad and launch it. |
-| `modena fw run --py <file>` | Execute a Python workflow script directly. |
+
+#### `modena fw run` — launch a macroscopic simulation
+
+`modena fw run` runs or prepares the simulation workflow.  Three mutually
+exclusive modes are available.  Note that `modena fw run` has **no launcher
+flags** (`--launcher`, `--jobs`, etc.) — those must be passed inside the
+`workflow` Python script or via `FW_config.yaml`.
+
+**`--py FILE`** — load and execute a Python workflow script.  The script is
+run in the current process; any `modena.run()` call inside it launches the
+workers.  This is the recommended approach when the model package ships a
+`workflow` file.
+
+```bash
+# Run from the example directory so modena.toml registers the models
+python3 -m modena fw run --py workflow
+
+# The workflow file controls launcher options internally:
+#   modena.run(wf, launcher='auto', njobs=4, escalate_at=4, qadapter='...')
+```
+
+The `workflow` script (no `.py` extension by convention) is identical to
+what you would run with `python3 workflow` directly:
+
+```python
+#!/usr/bin/env python3
+import modena
+import twoTank
+from fireworks import Firework, Workflow
+
+wf = Workflow([Firework(twoTank.m)], name='simulation')
+modena.run(wf)               # launcher options go here, not on the CLI
+```
+
+`twoTank` is auto-imported by modena's registry when `import modena` runs,
+so `import twoTank` finds it without requiring it to be on `PYTHONPATH`.
+Binary lookup uses `find_binary()` in the model definition (see
+[Operation 3](#operation-3--run-the-macroscopic-simulation)).
+
+**`--script CMD`** — wrap a bare command in a `BackwardMappingScriptTask` and
+write a `workflow.yaml`.  This mode **only generates the YAML** — it does not
+run the workflow.  Inspect or edit the file, then submit manually:
+
+```bash
+python3 -m modena fw run --script './twoTanksMacroscopicProblem'
+# Writes workflow.yaml, prints:
+#   [modena] Generated workflow.yaml
+#   [modena] Run with: lpad add workflow.yaml && rlaunch rapidfire
+
+lpad add workflow.yaml
+rlaunch rapidfire
+```
+
+The generated task sets `defuse_bad_rc: true`, so exit code 200 from
+`libmodena` (out-of-bounds) inserts a fitting Firework automatically.
+
+**`--workflow FILE`** — add a YAML workflow to the launchpad and launch it
+with `rlaunch rapidfire`.  Useful for hand-crafted workflows or YAML files
+generated by `--script`:
+
+```bash
+python3 -m modena fw run --workflow my_simulation.yaml
+# Equivalent to: lpad add my_simulation.yaml && rlaunch rapidfire
+```
+
+Note: `--workflow` bypasses `modena.run()` and calls `rlaunch rapidfire`
+directly, so it does not benefit from the post-run orphan detection or the
+`sleep_time=1` default.  Use `--py` with a `modena.run(wf)` script for
+production runs.
 
 ### `modena model` — surrogate model database
 
@@ -759,6 +1099,7 @@ modena quickstart           — Usage guide
 | `modena model freeze [-o FILE]` | Snapshot model parameters and package versions to a lock file. |
 | `modena model restore [-i FILE]` | Restore model parameters from a lock file. |
 | `modena model restore --verify-only` | Check version consistency only; do not write to DB. |
+| `modena model refit <id>` | Re-fit surrogate parameters using the training data already stored in MongoDB (no exact simulations re-run). Accepts all `--jobs`/`--launcher` flags. |
 
 ### `modena init` — initialise surrogate models
 
@@ -773,9 +1114,9 @@ modena init 'modelA' 'modelB'          # subset by ID
 | `--jobs N` / `-j N` | `0` (cpu_count) | Worker count (`rapidfire`/`auto`) or queue cap (`qlaunch`). |
 | `--sequential` | off | Run one simulation at a time (equivalent to `--jobs 1`). |
 | `--launcher` | `rapidfire` | `rapidfire`, `qlaunch`, or `auto`. |
-| `--qadapter PATH` | — | Path to `qadapter.yaml` (required for `qlaunch`/`auto`). |
-| `--fworker PATH` | — | Path to `fworker.yaml` (optional; accepts any FW by default). |
-| `--launch-dir DIR` | `.` | Directory from which batch scripts are submitted. |
+| `--qadapter PATH` | — | Path to `qadapter.yaml` (required for `qlaunch`/`auto` unless `QUEUEADAPTER_LOC` is set in `FW_config.yaml`). |
+| `--fworker PATH` | — | Path to `fworker.yaml`.  Applies to all launchers.  Falls back to `FWORKER_LOC` in `FW_config.yaml`, then a default catch-all worker. |
+| `--launch-dir DIR` | `.` | Directory from which batch scripts are submitted (`qlaunch`/`auto` only). |
 | `--escalate-at N` | `0` | READY count threshold for HPC escalation (`auto` only). |
 
 Examples:
@@ -800,6 +1141,70 @@ modena init all \
   --qadapter qadapter.yaml \
   --launch-dir /scratch/modena
 ```
+
+### `modena install` — install a model package
+
+```bash
+modena install path/to/myModel/
+modena install dielectricFunction/ emiShielding/   # dependency order
+modena install myModel/ --prefix /opt/modena/models
+```
+
+Installs a local model package (identified by its `pyproject.toml`) to
+`~/.modena/models` (or `--prefix`) and registers the path in
+`~/.modena/config.toml` so that `import modena` auto-imports it at startup.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--prefix DIR` | `~/.modena/models` | Install destination directory. |
+
+**Prerequisites:** The package directory must contain a `pyproject.toml`.
+Framework dependencies (modena, numpy, scipy, etc.) must already be installed;
+`modena install` passes `--no-deps` to pip.
+
+**Install order matters** when packages depend on each other — install
+lower-level packages first.
+
+### `modena model refit` — re-fit surrogate parameters
+
+Re-runs parameter fitting for a `BackwardMappingModel` using the training data
+already stored in MongoDB — without re-running any exact simulations.
+
+Use this when you want to:
+- Retry fitting after adjusting the acceptance threshold or optimizer
+- Apply a different fitting strategy
+- Recover from a failed fitting step without re-collecting data
+
+The model must already have training data (`modena init` must have been run at
+least once).
+
+**CLI:**
+```bash
+modena model refit 'thermalDiffusion[material=Cu]'
+modena model refit flowRate --sequential
+modena model refit myModel --jobs 4
+```
+
+Accepts the same `--jobs` / `--launcher` / `--qadapter` /
+`--fworker` / `--launch-dir` / `--escalate-at` flags as `modena init`.
+
+**Python:**
+```python
+import modena
+from modena.Strategy import ParameterRefitting
+from fireworks import Firework, Workflow
+
+wf = Workflow(
+    [Firework(ParameterRefitting(), name='flowRate — refit')],
+    name='refit',
+)
+modena.run(wf, reset=True)
+```
+
+`ParameterRefitting` is an `@explicit_serialize` FireTask; it loads the
+model's `fitData` from MongoDB and delegates to the model's
+`parameterFittingStrategy`.  Unlike `modena init`, it does not run any
+exact simulation Fireworks first.
 
 ### `modena doctor` — environment health check
 
@@ -859,22 +1264,35 @@ modena model restore -i experiment_01.lock
 
 # Verify the environment is set up correctly
 modena doctor
+
+# Re-fit a model after adjusting the acceptance threshold
+modena model refit 'thermalDiffusion[material=Cu]'
+
+# Install a model package
+modena install examples/MoDeNaModels/thermalDiffusion/
 ```
 
 ---
 
 ## Common pitfalls
 
-### `rapidfire` hangs silently
+### `rapidfire` hangs for ~60 seconds after the workflow completes
 
-**Symptom**: `initModels` or `workflow` appears to do nothing for a long time.
+**Symptom**: `modena init` finishes all work (all "Rocket finished" messages
+appear) but the process does not return to the shell for about 60 seconds.
 
-**Cause**: Before MoDeNa 3, `rapidfire` was called without `sleep_time=0`.
-The default is 60 seconds — `rapidfire` polls every minute, causing a
-seemingly frozen process between firework batches.
+**Cause**: FireWorks' `rapidfire` treats `sleep_time=0` as falsy and silently
+substitutes its own default of 60 seconds
+(`sleep_time = sleep_time if sleep_time else RAPIDFIRE_SLEEP_SECS`).
+Workers that found no READY Fireworks on startup sleep for 60 seconds before
+waking up, checking again, finding nothing, and exiting.  A secondary effect
+is that these workers also miss the window to pick up Fireworks that become
+READY while they are sleeping, forcing all work onto a single worker
+(sequential execution even when `njobs > 1`).
 
-**Fix**: Always use `modena.run()`, which passes `sleep_time=0`.  If calling
-`rapidfire` directly, always pass `sleep_time=0`.
+**Fix**: Always use `modena.run()`, which passes `sleep_time=1`.  Workers then
+wake up within 1 second and the process exits within 1 second of the workflow
+completing.  Do **not** pass `sleep_time=0` directly to FireWorks' `rapidfire`.
 
 ### Workflow stalls with RUNNING/RESERVED fireworks
 

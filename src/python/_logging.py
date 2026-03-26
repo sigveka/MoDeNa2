@@ -104,6 +104,15 @@ def configure_logging(level: str = 'INFO', file: str = None) -> None:
     logging.getLogger('fireworks').setLevel(fw_numeric)
 
     if file:
+        # Remove any existing FileHandlers added by a previous configure_logging()
+        # call so that repeated calls don't accumulate duplicate handlers.
+        for _log_name in ('modena', 'fireworks'):
+            _lg = logging.getLogger(_log_name)
+            for _h in list(_lg.handlers):
+                if isinstance(_h, logging.FileHandler):
+                    _lg.removeHandler(_h)
+                    _h.close()
+
         fh = logging.FileHandler(file, mode='a')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logging.Formatter(

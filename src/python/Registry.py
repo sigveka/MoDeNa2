@@ -350,7 +350,7 @@ class ModelRegistry:
             for sp in _site_packages_in_prefix(prefix):
                 for di in _glob.glob(str(Path(sp) / '*.dist-info')):
                     name, version = _read_dist_info(di)
-                    if name and version:
+                    if name and version and name.upper() != 'UNKNOWN':
                         packages[name] = version
         self._packages = packages
         return packages

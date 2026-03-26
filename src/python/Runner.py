@@ -31,14 +31,22 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing
 import os
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from fireworks import Workflow
+from fireworks import Firework, Workflow
+from fireworks.core.fworker import FWorker
+from fireworks.core.rocket_launcher import rapidfire
+from fireworks.fw_config import FWORKER_LOC, QUEUEADAPTER_LOC
+from fireworks.queue.queue_launcher import launch_rocket_to_queue
+from fireworks.utilities.fw_serializers import load_object_from_file as _fw_load_qadapter
+from fireworks.queue.queue_launcher import rapidfire as queue_rapidfire
+
+from modena.Launchpad import ModenaLaunchPad, _fw_strm_lvl
+from modena.SurrogateModel import SurrogateModel, EmptyFireTask
 
 _log = logging.getLogger('modena.runner')
 
@@ -54,8 +62,6 @@ def _rapidfire_worker(lpad_dict: dict, strm_lvl: str,
     Each worker independently claims and executes READY Fireworks from the
     shared MongoDB launchpad until none remain.
     """
-    from fireworks.core.rocket_launcher import rapidfire
-    from modena.Launchpad import ModenaLaunchPad
     lpad = ModenaLaunchPad.from_dict(lpad_dict)
     rf_kwargs: dict = {'sleep_time': sleep_time, 'strm_lvl': strm_lvl}
     if timeout is not None:
@@ -84,9 +90,6 @@ def _auto_supervisor(lpad_dict: dict, fworker_dict: dict | None,
     at ERROR level and exits, leaving local workers running.  A transient
     MongoDB blip resets the counter on the next successful poll.
     """
-    from fireworks.queue.queue_launcher import launch_rocket_to_queue
-    from modena.Launchpad import ModenaLaunchPad
-
     lpad = ModenaLaunchPad.from_dict(lpad_dict)
     fworker = _resolve_fworker(fworker_dict)
     qadapter = _resolve_qadapter(qadapter_path)
@@ -134,9 +137,17 @@ def _auto_supervisor(lpad_dict: dict, fworker_dict: dict | None,
 # ------------------------------------------------------------------ #
 
 def _resolve_fworker(fworker):
-    """Return a ``FWorker`` from a path, dict, existing instance, or ``None``."""
-    from fireworks.core.fworker import FWorker
+    """Return a ``FWorker`` from a path, dict, existing instance, or ``None``.
+
+    Resolution order (mirrors FireWorks' own ``LaunchPad.auto_load`` pattern):
+
+    1. Explicit argument — path string, dict, or ``FWorker`` instance.
+    2. ``FWORKER_LOC`` from ``FW_config.yaml`` (FireWorks standard config).
+    3. Default ``FWorker()`` — accepts any Firework.
+    """
     if fworker is None:
+        if FWORKER_LOC:
+            return FWorker.from_file(FWORKER_LOC)
         return FWorker()
     if isinstance(fworker, dict):
         return FWorker.from_dict(fworker)
@@ -146,10 +157,19 @@ def _resolve_fworker(fworker):
 
 
 def _resolve_qadapter(qadapter):
-    """Return a ``QueueAdapterBase`` from a path or existing instance."""
+    """Return a ``QueueAdapterBase`` from a path, existing instance, or ``None``.
+
+    Resolution order (mirrors FireWorks' own ``LaunchPad.auto_load`` pattern):
+
+    1. Explicit argument — path string or ``QueueAdapterBase`` instance.
+    2. ``QUEUEADAPTER_LOC`` from ``FW_config.yaml`` (FireWorks standard config).
+    3. ``None`` — caller must check and raise if a qadapter is required.
+    """
     if isinstance(qadapter, (str, Path)):
-        from fireworks.queue.queue_adapter import load_queue_adapter
-        return load_queue_adapter(str(qadapter))
+        return _fw_load_qadapter(str(qadapter))
+    if qadapter is None:
+        if QUEUEADAPTER_LOC:
+            return _fw_load_qadapter(QUEUEADAPTER_LOC)
     return qadapter
 
 
@@ -162,7 +182,7 @@ def run(
     *,
     lpad=None,
     reset: bool = True,
-    sleep_time: int = 0,
+    sleep_time: int = 1,
     timeout: int | None = None,
     name: str = 'modena_workflow',
     njobs: int = 0,
@@ -188,7 +208,10 @@ def run(
         reset:
             Reset the launchpad before adding the workflow.  Default ``True``.
         sleep_time:
-            Seconds between polling cycles (all launchers).  Default 0.
+            Seconds between polling cycles (all launchers).  Default 1.
+            FireWorks treats 0 as falsy and substitutes its own 60-second
+            default, which causes workers to hang for up to a minute after
+            the workflow completes.  Values ≥ 1 are passed through directly.
         timeout:
             Wall-clock timeout in seconds (``rapidfire`` and ``auto`` local
             workers only).  ``None`` means no limit.
@@ -227,18 +250,20 @@ def run(
         ValueError: unknown ``launcher``.
         ValueError: ``'qlaunch'`` or ``'auto'`` without a ``qadapter``.
     """
-    from fireworks import Firework, Workflow
-    from modena.Launchpad import ModenaLaunchPad, _fw_strm_lvl
-    from modena.SurrogateModel import SurrogateModel, EmptyFireTask
-
     if launcher not in ('rapidfire', 'qlaunch', 'auto'):
         raise ValueError(
             f"launcher must be 'rapidfire', 'qlaunch', or 'auto', got {launcher!r}"
         )
+
+    # Resolve fworker and qadapter before validation so that values set in
+    # FW_config.yaml (FWORKER_LOC / QUEUEADAPTER_LOC) are honoured.
+    fworker  = _resolve_fworker(fworker)
+    qadapter = _resolve_qadapter(qadapter)
     if launcher in ('qlaunch', 'auto') and qadapter is None:
         raise ValueError(
             f"launcher={launcher!r} requires a qadapter.  "
-            "Pass qadapter='path/to/qadapter.yaml' or a QueueAdapterBase instance."
+            "Pass qadapter='path/to/qadapter.yaml', a QueueAdapterBase "
+            "instance, or set QUEUEADAPTER_LOC in FW_config.yaml."
         )
 
     # ------------------------------------------------------------------ #
@@ -284,15 +309,14 @@ def run(
     # Launch                                                               #
     # ------------------------------------------------------------------ #
     if launcher == 'qlaunch':
-        from fireworks.queue.queue_launcher import rapidfire as queue_rapidfire
         _log.info(
             'run: %d READY, %d WAITING — qlaunch (njobs_queue=%d, dir=%s)',
             n_ready, n_waiting, njobs, launch_dir,
         )
         queue_rapidfire(
             launchpad=lpad,
-            fworker=_resolve_fworker(fworker),
-            qadapter=_resolve_qadapter(qadapter),
+            fworker=fworker,
+            qadapter=qadapter,
             launch_dir=str(launch_dir),
             nlaunches=0,
             njobs_queue=njobs,
@@ -313,7 +337,7 @@ def run(
         # Supervisor thread watches queue depth and submits HPC jobs on burst.
         # Serialise fworker to dict so the thread can reconstruct it cleanly
         # without sharing mutable state with worker processes.
-        fw_dict = _resolve_fworker(fworker).to_dict()
+        fw_dict = fworker.to_dict()
         stop    = threading.Event()
         sv_sleep = max(sleep_time, 5)   # don't hammer MongoDB faster than 5 s
         supervisor = threading.Thread(
@@ -372,10 +396,8 @@ def _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout):
         rf_kwargs['timeout'] = timeout
 
     if njobs == 1:
-        from fireworks.core.rocket_launcher import rapidfire
         rapidfire(lpad, **rf_kwargs)
     else:
-        import multiprocessing
         lpad_dict = lpad.to_dict()
         workers = [
             multiprocessing.Process(

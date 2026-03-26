@@ -39,9 +39,12 @@ import subprocess
 import modena
 from modena import BackwardMappingModel, CFunction, ModenaFireTask
 import modena.Strategy as Strategy
+from modena.utils import load_model_config, build_strategy
 from fireworks.utilities.fw_utilities import explicit_serialize
 from jinja2 import Template
 import idealGas
+
+_CFG = load_model_config(__file__)
 
 
 # ********************************* Class ********************************** #
@@ -102,21 +105,9 @@ void two_tank_flowRate
     outputs[0] = M_PI*pow(D, 2.0)*P1*sqrt(P0*rho0*p0);
 }
 ''',
-    # These are global bounds for the function
-    inputs={
-        'D': { 'min': 0, 'max': 9e99 },
-        'T0': { 'min': 0, 'max': 9e99 },
-        'rho0': { 'min': 0, 'max': 9e99 },
-        'p0': { 'min': 0, 'max': 9e99 },
-        'p1Byp0': { 'min': 0, 'max': 1.0 },
-    },
-    outputs={
-        'flowRate': { 'min': 9e99, 'max': -9e99, 'argPos': 0 },
-    },
-    parameters={
-        'param0': { 'min': 0.0, 'max': 10.0, 'argPos': 0 },
-        'param1': { 'min': 0.0, 'max': 10.0, 'argPos': 1 },
-    },
+    inputs=_CFG.surrogate.inputs_dict(),
+    outputs=_CFG.surrogate.outputs_dict(),
+    parameters=_CFG.surrogate.parameters_dict(),
 )
 
 m = BackwardMappingModel(
@@ -124,27 +115,5 @@ m = BackwardMappingModel(
     surrogateFunction= f,
     exactTask= FlowRateExactSim(),
     substituteModels= [ idealGas.m ],
-    initialisationStrategy= Strategy.InitialPoints(
-        initialPoints=
-        {
-            'D': [0.01, 0.01, 0.01, 0.01],
-            'T0': [300, 300, 300, 300],
-            'p0': [2.8e5, 3.2e5, 2.8e5, 3.2e5],
-            'p1Byp0': [0.03, 0.03, 0.04, 0.04],
-        },
-    ),
-    outOfBoundsStrategy= Strategy.ExtendSpaceStochasticSampling(
-        nNewPoints= 4,
-        sampler= Strategy.LatinHypercube(),
-    ),
-    parameterFittingStrategy= Strategy.NonLinFitWithErrorContol(
-        crossValidation= Strategy.Holdout(testDataPercentage=0.2),
-        acceptanceCriterion= Strategy.MaxError(threshold=0.05),
-        optimizer= Strategy.TrustRegionReflective(),
-        improveErrorStrategy= Strategy.StochasticSampling(
-            nNewPoints= 2,
-            sampler= Strategy.LatinHypercube(),
-        ),
-        maxIterations= 5 # Currently not used
-    ),
+    **build_strategy(_CFG.strategy),
 )

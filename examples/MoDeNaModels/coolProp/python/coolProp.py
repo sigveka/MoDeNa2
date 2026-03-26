@@ -12,10 +12,12 @@
 import modena
 from modena import BackwardMappingModel, CFunction, ModenaFireTask
 import modena.Strategy as Strategy
-from modena.ErrorMetrics import RelativeError
+from modena.utils import load_model_config, build_strategy
 from fireworks import FWAction
 from fireworks.utilities.fw_utilities import explicit_serialize
 from fireworks import FireTaskBase
+
+_CFG = load_model_config(__file__)
 
 
 @explicit_serialize
@@ -64,25 +66,9 @@ void density_CO2
                + parameters[9] * P * P * P;
 }
 ''',
-    inputs={
-        'T': {'min': 250.0, 'max': 350.0},   # K
-        'P': {'min': 1e5,   'max': 2e6},      # Pa (below CO2 critical: 7.377 MPa)
-    },
-    outputs={
-        'rho': {'min': 0.0, 'max': 200.0, 'argPos': 0},  # kg/m³
-    },
-    parameters={
-        'a00': {'min': -1e10, 'max': 1e10, 'argPos': 0},
-        'a10': {'min': -1e10, 'max': 1e10, 'argPos': 1},
-        'a01': {'min': -1e10, 'max': 1e10, 'argPos': 2},
-        'a20': {'min': -1e10, 'max': 1e10, 'argPos': 3},
-        'a11': {'min': -1e10, 'max': 1e10, 'argPos': 4},
-        'a02': {'min': -1e10, 'max': 1e10, 'argPos': 5},
-        'a30': {'min': -1e10, 'max': 1e10, 'argPos': 6},
-        'a21': {'min': -1e10, 'max': 1e10, 'argPos': 7},
-        'a12': {'min': -1e10, 'max': 1e10, 'argPos': 8},
-        'a03': {'min': -1e10, 'max': 1e10, 'argPos': 9},
-    },
+    inputs=_CFG.surrogate.inputs_dict(),
+    outputs=_CFG.surrogate.outputs_dict(),
+    parameters=_CFG.surrogate.parameters_dict(),
 )
 
 @explicit_serialize
@@ -145,27 +131,5 @@ m = BackwardMappingModel(
     surrogateFunction=f,
     exactTask=CoolPropExactSim(),
     substituteModels=[],
-    initialisationStrategy=Strategy.InitialPoints(
-        initialPoints={
-            # 3 × 3 grid covering the training domain
-            'T': [260.0, 260.0, 260.0, 305.0, 305.0, 305.0, 350.0, 350.0, 350.0],
-            'P': [1e5,   1e6,   2e6,   1e5,   1e6,   2e6,   1e5,   1e6,   2e6],
-        },
-    ),
-    outOfBoundsStrategy=Strategy.ExtendSpaceStochasticSampling(
-        nNewPoints=4,
-        sampler=Strategy.LatinHypercube(),
-    ),
-    parameterFittingStrategy=Strategy.NonLinFitWithErrorContol(
-        crossValidation=Strategy.Holdout(testDataPercentage=0.2),
-        acceptanceCriterion=Strategy.MaxError(
-            threshold=0.02,          # 2 % relative error
-            metric=RelativeError(),
-        ),
-        optimizer=Strategy.TrustRegionReflective(),
-        improveErrorStrategy=Strategy.StochasticSampling(
-            nNewPoints=4,
-            sampler=Strategy.LatinHypercube(),
-        ),
-    ),
+    **build_strategy(_CFG.strategy),
 )

@@ -28,15 +28,17 @@
 import modena
 from modena import BackwardMappingModel, CFunction, ModenaFireTask
 import modena.Strategy as Strategy
-from modena.ErrorMetrics import RelativeError
+from modena.utils import load_model_config, build_strategy
 from fireworks import FWAction
 from fireworks.utilities.fw_utilities import explicit_serialize
 from fireworks import FireTaskBase
 
+_CFG = load_model_config(__file__)
+_sim = _CFG.simulation or {}
 
 # Fixed evaluation conditions for this composition-only surrogate
-_T_FIXED = 300.0   # K
-_P_FIXED = 1e5     # Pa
+_T_FIXED = _sim.get('T_fixed', 300.0)   # K
+_P_FIXED = _sim.get('P_fixed', 1.0e5)   # Pa
 
 
 @explicit_serialize
@@ -94,22 +96,9 @@ void mixtureViscosity_N2O2Ar
                + parameters[5] * x_O2 * x_O2;
 }
 ''',
-    inputs={
-        'x_N2': {'min': 0.70, 'max': 0.85},   # nitrogen mole fraction
-        'x_O2': {'min': 0.14, 'max': 0.25},   # oxygen mole fraction
-        # x_Ar is derived — not an independent input
-    },
-    outputs={
-        'eta': {'min': 0.0, 'max': 1e-3, 'argPos': 0},   # dynamic viscosity, Pa·s
-    },
-    parameters={
-        'a00': {'min': -1e-4, 'max': 1e-4, 'argPos': 0},
-        'a10': {'min': -1e-4, 'max': 1e-4, 'argPos': 1},
-        'a01': {'min': -1e-4, 'max': 1e-4, 'argPos': 2},
-        'a20': {'min': -1e-4, 'max': 1e-4, 'argPos': 3},
-        'a11': {'min': -1e-4, 'max': 1e-4, 'argPos': 4},
-        'a02': {'min': -1e-4, 'max': 1e-4, 'argPos': 5},
-    },
+    inputs=_CFG.surrogate.inputs_dict(),
+    outputs=_CFG.surrogate.outputs_dict(),
+    parameters=_CFG.surrogate.parameters_dict(),
 )
 
 
@@ -184,31 +173,5 @@ m = BackwardMappingModel(
     surrogateFunction=f,
     exactTask=MixtureViscosityExactSim(),
     substituteModels=[],
-    initialisationStrategy=Strategy.CASTROSampling(
-        compositionGroup={
-            'free': ['x_N2', 'x_O2'],
-            'dependent': 'x_Ar',
-            'dependentBounds': {'min': 0.005, 'max': 0.08},
-        },
-        nNewPoints=20,
-        seed=42,
-    ),
-    outOfBoundsStrategy=Strategy.ForbidOutOfBounds(),
-    parameterFittingStrategy=Strategy.NonLinFitWithErrorContol(
-        crossValidation=Strategy.Holdout(testDataPercentage=0.2),
-        acceptanceCriterion=Strategy.MaxError(
-            threshold=0.005,             # 0.5 % relative error
-            metric=RelativeError(),
-        ),
-        optimizer=Strategy.TrustRegionReflective(),
-        improveErrorStrategy=Strategy.CASTROSampling(
-            compositionGroup={
-                'free': ['x_N2', 'x_O2'],
-                'dependent': 'x_Ar',
-                'dependentBounds': {'min': 0.005, 'max': 0.08},
-            },
-            nNewPoints=5,
-            seed=None,
-        ),
-    ),
+    **build_strategy(_CFG.strategy),
 )
