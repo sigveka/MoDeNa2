@@ -1,49 +1,25 @@
-@ingroup ex_twoTank
+# twoTanksChained
 
-TWO TANKS EXAMPLE:
-==================
+Demonstrates **chained surrogate models**: the flow-rate surrogate itself
+depends on an ideal-gas surrogate (`flowRate_idealGas → flowRate`), showing
+how MoDeNa handles multi-level model hierarchies.
 
-The discharge of air from one tank into another through a nozzle. The
-problem only makes sense, if you think of the flow through the nozzle as a
-much more complex problem which you have to solve with - let's say 3D CFD. So
-the two tanks are the macroscopic and the nozzle is the microscopic problem.
-This is also a backward mapping problem if you assume that the range of
-inputs is unknown a-priori. twoTanksMacroscopicProblem uses the MoDeNa
-interface library to embed an even simpler model for the flow rate. While
-twoTanksFullProblem implements it fully integrated.
+**Macroscopic solver:** `twoTanksMacroscopicProblem` (C)
+**Surrogate models:** `flowRate_idealGas`, `flowRate` (chained, backward mapping)
 
-TODO:
-The example specific sources should be moved into the example, but this requires
-building (and finding) the execuables here.
+See [`../twoTanks/README.md`](../twoTanks/README.md) for a full explanation of
+the model-definition philosophy and how `modena.toml` connects the surrogate
+definition to the macroscopic solver task.
 
+## How to run
 
-How to run?
------------
+```bash
+# 1. Compile and install model packages
+./buildModels
 
-# Make sure `PYTHONPATH` and `LD_LIBRARY_PATH` are set
-# TODO:
-# Make this easier to use
+# 2. Initialise surrogates in the database
+./initModels
 
-    export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}:${HOME}/lib/pkgconfig:/usr/local/lib/pkgconfig"
-    export PYTHONPATH="${PYTHONPATH:-}:${HOME}/lib/python3.10/site-packages:${PWD}/models/lib/python3.10/site-packages"
-    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:${HOME}/lib/python3.10/site-packages:${HOME}/lib:/usr/local/lib"
-
-# Compile project specific sources, i.e. "models":
-
-    flowRate="../models/flowRate_idealGas/src"
-    twoTank="../models/twoTank/src"
-    cmake -H${flowRate} -B${flowRate} && make --directory=${flowRate}
-    cmake -H${twoTank} -B${twoTank} && make --directory${twoTank}
-
-# Append path to the models directory to "PYTHONPATH":
-    export PYTHONPATH="${PYTHONPATH}:../models"
-
-# Initialise the model in the database
-    ./initModel
-
-# Start the workflow
-    ./workflow
-
-# Run again to see that no fitting is done on the second start
-    ./workflow
-
+# 3. Run the simulation
+./workflow
+```

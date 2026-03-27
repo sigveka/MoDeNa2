@@ -447,8 +447,8 @@ examples/
 ├── myExample/
 │   ├── modena.toml         # tells MoDeNa where the model package is installed
 │   ├── FW_config.yaml      # FireWorks config — ADD_USER_PACKAGES: [modena]
-│   ├── initModels          # Python script: initialise and fit the surrogate
-│   └── workflow            # Python script: run the simulation
+│   ├── initModels          # bash script: initialise and fit the surrogate
+│   └── workflow            # bash script: run the simulation
 │
 └── MoDeNaModels/
     └── myModel/
@@ -468,29 +468,38 @@ The example scripts at the project root tie everything together:
 
 ### `initModels`
 
-```python
-#!/usr/bin/env python3
-import modena
-import myModel  # noqa: F401 — registers the model via SurrogateModel.get_instances()
-
-modena.run(list(modena.SurrogateModel.get_instances()))
+```bash
+#!/bin/bash
+python3 -m modena init myModel
 ```
 
-`modena.run()` handles everything: it creates a `ModenaLaunchPad` from
-`MODENA_URI`, resets the launchpad, constructs the initialisation workflow from
-all registered models (one sub-workflow per model chained from a shared root),
-adds it to the launchpad, and runs `rapidfire` until all Fireworks complete.
+`modena init` imports the named model package, resets the launchpad, constructs
+the initialisation workflow from all registered models, and runs `rapidfire`
+until complete.  Pass multiple model IDs to initialise several at once:
+
+```bash
+python3 -m modena init flowRate myModel
+```
 
 ### `workflow`
 
-```python
-#!/usr/bin/env python3
-import modena
-from fireworks import Firework, Workflow
-import myModel
+```bash
+#!/bin/bash
+set -euo pipefail
+python3 -m modena simulate
+echo "Workflow complete."
+```
 
-wf = Workflow([Firework(myModel.m)], name='mySimulation')
-modena.run(wf)
+`modena simulate` reads `[simulate] target` from `modena.toml`, instantiates
+the declared task class, and runs the backward-mapping loop via `rapidfire`.
+Declare the target in `modena.toml`:
+
+```toml
+[simulate]
+target = "myModel.MySimModel"
+
+[simulate.kwargs]        # optional — forwarded to MySimModel.__init__
+end_time = 10.0
 ```
 
 ### `FW_config.yaml`

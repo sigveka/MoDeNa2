@@ -36,4 +36,4 @@ Authors
 Contributors
 '''
 
-from .twoTanksJulia import m
+from .twoTanksJulia import m, TwoTankJuliaModel

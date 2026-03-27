@@ -36,9 +36,20 @@ License
 """
 
 from modena.Strategy import BackwardMappingScriptTask
-from modena.Registry import ModelRegistry
 
-# Source code in src/twoTanksMacroscopicProblem.C
-m = BackwardMappingScriptTask(
-    script=ModelRegistry().find_binary('twoTanksMacroscopicProblemFortran', caller_file=__file__)
-)
+
+class TwoTankFortranModel(BackwardMappingScriptTask):
+    """Macroscopic two-tank Fortran simulation task."""
+
+    _fw_name = '{{twoTankFortran.TwoTankFortranModel}}'
+    optional_params = None
+
+    def __init__(self, *args, **kwargs):
+        if args and isinstance(args[0], dict):
+            super().__init__(*args, **kwargs)
+            return
+        # Source code in src/twoTanksMacroscopicProblemFortran.f90
+        super().__init__(script=self.find_binary('twoTanksMacroscopicProblemFortran'), **kwargs)
+
+
+m = TwoTankFortranModel()

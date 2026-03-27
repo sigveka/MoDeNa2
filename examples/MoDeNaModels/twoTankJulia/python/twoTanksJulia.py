@@ -36,9 +36,20 @@ License
 """
 
 from modena.Strategy import BackwardMappingScriptTask
-from modena.Registry import ModelRegistry
 
-# Installed by src/CMakeLists.txt alongside the Python package files.
-m = BackwardMappingScriptTask(
-    script=ModelRegistry().find_binary('twoTanksMacroscopicProblemJulia', caller_file=__file__)
-)
+
+class TwoTankJuliaModel(BackwardMappingScriptTask):
+    """Macroscopic two-tank Julia simulation task."""
+
+    _fw_name = '{{twoTankJulia.TwoTankJuliaModel}}'
+    optional_params = None
+
+    def __init__(self, *args, **kwargs):
+        if args and isinstance(args[0], dict):
+            super().__init__(*args, **kwargs)
+            return
+        # Installed by src/CMakeLists.txt alongside the Python package files.
+        super().__init__(script=self.find_binary('twoTanksMacroscopicProblemJulia'), **kwargs)
+
+
+m = TwoTankJuliaModel()

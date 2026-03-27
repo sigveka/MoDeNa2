@@ -16,6 +16,9 @@ class TwoTankPythonModel(BackwardMappingScriptTask):
     _fw_name = '{{twoTankPython.TwoTankPythonModel}}'
 
     def __init__(self, *args, **kwargs):
+        if args and isinstance(args[0], dict):
+            super().__init__(*args, **kwargs)
+            return
         super().__init__(script=self.find_binary('twoTanksSim.py'))
 
 

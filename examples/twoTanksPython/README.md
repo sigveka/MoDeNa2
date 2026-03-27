@@ -1,9 +1,10 @@
-# twoTanksCxx
+# twoTanksPython
 
 Same two-tank problem as `twoTanks`, but with the macroscopic solver written
-in **C++** using the MoDeNa C++ wrapper (`modena::Model`).
+in **pure Python** (`twoTanksSim.py`), launched as a subprocess by FireWorks.
+Useful for prototyping: no compilation step required for the solver itself.
 
-**Macroscopic solver:** `twoTanksMacroscopicProblemCxx` (C++)
+**Macroscopic solver:** `twoTanksSim.py` (Python subprocess)
 **Surrogate model:** `flowRate` (polynomial, backward mapping)
 
 See [`../twoTanks/README.md`](../twoTanks/README.md) for a full explanation of
@@ -13,7 +14,7 @@ definition to the macroscopic solver task.
 ## How to run
 
 ```bash
-# 1. Compile and install model packages
+# 1. Install model packages
 ./buildModels
 
 # 2. Initialise surrogate in the database

@@ -1,0 +1,15 @@
+[logging]
+  level = "DEBUG" # WARNING
+  file  = "modena.log"
+
+[models]
+  paths = ["./models"]
+
+[surrogate_functions]
+  lib_dir = "../"
+
+[simulate]
+  target = "twoTank.TwoTankModel"
+
+[simulate.kwargs]
+  end_time = 5.5   # simulation end time in seconds

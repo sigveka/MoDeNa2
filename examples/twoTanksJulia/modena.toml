@@ -1,0 +1,6 @@
+# Configuration file specifying the models should be searched for locally
+[models]
+paths = ["./models"]
+
+[simulate]
+target = "twoTankJulia.TwoTankJuliaModel"

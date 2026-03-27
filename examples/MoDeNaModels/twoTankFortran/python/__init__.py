@@ -36,4 +36,4 @@ Authors
 Contributors
 '''
 
-from .twoTankFortran import m
+from .twoTankFortran import m, TwoTankFortranModel

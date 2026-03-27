@@ -35,13 +35,26 @@ License
 @ingroup   twoTanksR
 """
 
-from modena.Strategy import BackwardMappingScriptTask
 import os
+from modena.Strategy import BackwardMappingScriptTask
 
-# Installed by src/CMakeLists.txt alongside the Python package files.
-m = BackwardMappingScriptTask(
-    script=os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        'bin', 'twoTanksMacroscopicProblemR'
-    )
-)
+
+class TwoTankRModel(BackwardMappingScriptTask):
+    """Macroscopic two-tank R simulation task."""
+
+    _fw_name = '{{twoTankR.TwoTankRModel}}'
+    optional_params = None
+
+    def __init__(self, *args, **kwargs):
+        if args and isinstance(args[0], dict):
+            super().__init__(*args, **kwargs)
+            return
+        # Installed by src/CMakeLists.txt alongside the Python package files.
+        script = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'bin', 'twoTanksMacroscopicProblemR'
+        )
+        super().__init__(script=script, **kwargs)
+
+
+m = TwoTankRModel()

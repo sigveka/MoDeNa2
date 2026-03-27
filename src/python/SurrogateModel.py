@@ -1299,15 +1299,18 @@ class SurrogateModel(DynamicDocument):
     @classmethod
     def exceptionLoad(cls, surrogateModelId):
         """
-        @brief  Return exception when a surrogate function is not instantiated
-        @todo   Finding the 'unintialised' models using this method will fail
-                eventually fail when running in parallel. Need to pass id of
-                calling FireTask. However, this requires additional code in the
-                library as well as cooperation of the recipie
-        @return (int) error code
+        @brief  Return exception when a surrogate model is not in the database.
+
+        Writes a raw marker document (no ``_cls`` field) so that
+        :meth:`loadFromModule` can identify which model needs initialisation
+        after the binary exits with return code 201.
+
+        @return (int) error code 201
         """
         collection = cls._get_collection()
-        collection.update(
+        # replace_one with upsert creates a minimal document that deliberately
+        # lacks the MongoEngine '_cls' field, used as a marker by loadFromModule.
+        collection.replace_one(
             { '_id': surrogateModelId },
             { '_id': surrogateModelId },
             upsert=True
@@ -1538,20 +1541,43 @@ class SurrogateModel(DynamicDocument):
     @classmethod
     def loadFromModule(cls):
         """
-        @brief   Import surrogate model Python module
+        @brief   Find the in-memory model instance for the model marked by
+                 :meth:`exceptionLoad` and return it so the caller can build
+                 an initialisation workflow.
+
+        Reads the marker document written by :meth:`exceptionLoad` (a raw
+        MongoDB document without a ``_cls`` field), imports the model package
+        by the base name of the model ID, then searches all
+        :meth:`get_instances` (both Forward and Backward mapping models) for
+        the exact ``_id`` match.
         """
         collection = cls._get_collection()
         doc = collection.find_one({ '_cls': { '$exists': False}})
-        #modName = re.search('(.*)(\[.*\])?', doc['_id']).group(1)
-        modName = re.search(r'(\w+)(|\[.*\])', doc['_id']).group(1)
-        _log.info('%s', modName)
-        # TODO:
-        # Give a better name to the variable a model is imported from
+        if doc is None:
+            raise RuntimeError(
+                'loadFromModule: no marker document found — '
+                'exceptionLoad may have failed'
+            )
+        model_id = doc['_id']
+        # Strip any [key=value] index suffix to get the importable package name.
+        mod_name = re.search(r'^(\w+)', model_id).group(1)
+        _log.info('loadFromModule: importing %r for model %r', mod_name, model_id)
         try:
-            mod = __import__(modName)
-            return next((m for m in modena.BackwardMappingModel.get_instances() if m._id == modName))
+            __import__(mod_name)
         except ImportError:
-            _log.error("MoDeNa framework error: could not find '%s'", modName)
+            _log.error("loadFromModule: cannot import package %r", mod_name)
+            raise
+        # Search all registered model instances (Forward and Backward).
+        instance = next(
+            (m for m in cls.get_instances() if m._id == model_id),
+            None,
+        )
+        if instance is None:
+            raise RuntimeError(
+                f"loadFromModule: model {model_id!r} not found in get_instances() "
+                f"after importing {mod_name!r}"
+            )
+        return instance
 
 
     @classmethod

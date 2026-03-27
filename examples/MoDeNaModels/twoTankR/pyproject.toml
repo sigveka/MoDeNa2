@@ -1,0 +1,14 @@
+[build-system]
+requires      = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name            = "twoTankR"
+version         = "1.0.0"
+requires-python = ">=3.9"
+dependencies    = ["modena"]
+
+[tool.scikit-build]
+# CMake installs all files (Python + R script) to SKBUILD_PLATLIB_DIR.
+# Disable automatic Python package discovery to avoid double-installation.
+wheel.packages = []

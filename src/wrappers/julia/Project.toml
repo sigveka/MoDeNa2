@@ -1,0 +1,9 @@
+name = "Modena"
+uuid = "b7e7b2c8-3f4a-4d5e-8a9b-1c2d3e4f5a6b"
+version = "1.0.0"
+
+[deps]
+Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+
+[compat]
+julia = "1.6"

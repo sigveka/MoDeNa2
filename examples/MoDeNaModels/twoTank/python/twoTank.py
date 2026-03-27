@@ -36,6 +36,7 @@ License
 """
 
 import logging
+import shlex
 
 from modena.Strategy import BackwardMappingScriptTask
 
@@ -64,7 +65,15 @@ class TwoTankModel(BackwardMappingScriptTask):
     _fw_name = '{{twoTank.TwoTankModel}}'
     optional_params = None  # allow arbitrary kwargs through to the task dict
 
-    def __init__(self, end_time=None, **kwargs):
+    def __init__(self, *args, **kwargs):
+        if args and isinstance(args[0], dict):
+            # Deserialization path: FireTaskBase.from_dict calls cls(m_dict).
+            # Pass the stored dict straight through — do not build a new cmd.
+            super().__init__(*args, **kwargs)
+            return
+
+        # Fresh construction path: TwoTankModel() or TwoTankModel(end_time=5.5).
+        end_time = kwargs.pop('end_time', None)
         cmd = [self.find_binary('twoTanksMacroscopicProblem')]
 
         if end_time is not None:
@@ -75,7 +84,11 @@ class TwoTankModel(BackwardMappingScriptTask):
         if logging.getLogger('modena').isEnabledFor(logging.DEBUG):
             cmd.append('--verbose')
 
-        super().__init__(script=cmd, **kwargs)
+        # ScriptTask treats a list as multiple independent shell commands
+        # (each element is passed to subprocess.Popen separately with shell=True).
+        # Join into one shell-safe string so the binary and its arguments run
+        # as a single command.
+        super().__init__(script=shlex.join(cmd), **kwargs)
 
 
 m = TwoTankModel()

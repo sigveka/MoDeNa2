@@ -1,1 +1,1 @@
-from .twoTanksR import m  # noqa: F401
+from .twoTanksR import m, TwoTankRModel  # noqa: F401

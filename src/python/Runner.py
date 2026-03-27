@@ -31,8 +31,6 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing
-import os
 import threading
 import time
 from pathlib import Path
@@ -54,20 +52,6 @@ _log = logging.getLogger('modena.runner')
 # ------------------------------------------------------------------ #
 # Worker helpers (module-level for multiprocessing pickling)          #
 # ------------------------------------------------------------------ #
-
-def _rapidfire_worker(lpad_dict: dict, strm_lvl: str,
-                      sleep_time: int, timeout: int | None) -> None:
-    """Target for parallel local worker processes.
-
-    Each worker independently claims and executes READY Fireworks from the
-    shared MongoDB launchpad until none remain.
-    """
-    lpad = ModenaLaunchPad.from_dict(lpad_dict)
-    rf_kwargs: dict = {'sleep_time': sleep_time, 'strm_lvl': strm_lvl}
-    if timeout is not None:
-        rf_kwargs['timeout'] = timeout
-    rapidfire(lpad, **rf_kwargs)
-
 
 _SUPERVISOR_MAX_ERRORS = 5
 
@@ -218,15 +202,14 @@ def run(
         name:
             Workflow name when ``wf_or_models`` is a model list.
         njobs:
-            ``'rapidfire'``: parallel local worker processes (0 = cpu_count,
-            1 = sequential).
-            ``'qlaunch'``: max simultaneous HPC queue slots (0 = unlimited).
-            ``'auto'``: local worker count (same semantics as ``'rapidfire'``);
-            HPC submission is managed by the supervisor thread.
+            ``'qlaunch'`` only: max simultaneous HPC queue slots (0 =
+            unlimited).  Ignored for ``'rapidfire'`` and ``'auto'`` — for
+            local parallelism launch additional ``rapidfire`` workers externally
+            against the same launchpad.
         launcher:
-            ``'rapidfire'`` — local workers only (default).
+            ``'rapidfire'`` — single local worker (default).
             ``'qlaunch'``   — HPC queue only.
-            ``'auto'``      — local workers + HPC escalation supervisor.
+            ``'auto'``      — single local worker + HPC escalation supervisor.
         fworker:
             ``FWorker`` instance, path to ``fworker.yaml``, or ``None``
             (creates a default FWorker).  Used by ``'qlaunch'`` and ``'auto'``.
@@ -325,18 +308,14 @@ def run(
         )
 
     elif launcher == 'auto':
-        if njobs == 0:
-            njobs = os.cpu_count() or 1
-
         _log.info(
-            'run: %d READY, %d WAITING — auto '
-            '(%d local worker(s), escalate_at=%d, qadapter=%s)',
-            n_ready, n_waiting, njobs, escalate_at, qadapter,
+            'run: %d READY, %d WAITING — auto (escalate_at=%d, qadapter=%s)',
+            n_ready, n_waiting, escalate_at, qadapter,
         )
 
         # Supervisor thread watches queue depth and submits HPC jobs on burst.
         # Serialise fworker to dict so the thread can reconstruct it cleanly
-        # without sharing mutable state with worker processes.
+        # without sharing mutable state with the supervisor thread.
         fw_dict = fworker.to_dict()
         stop    = threading.Event()
         sv_sleep = max(sleep_time, 5)   # don't hammer MongoDB faster than 5 s
@@ -350,19 +329,17 @@ def run(
         supervisor.start()
 
         try:
-            _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout)
+            _run_rapidfire(lpad, strm_lvl, sleep_time, timeout)
         finally:
             stop.set()
             supervisor.join(timeout=10)
 
     else:  # rapidfire
-        if njobs == 0:
-            njobs = os.cpu_count() or 1
         _log.info(
-            'run: %d READY, %d WAITING — rapidfire (%d local worker(s))',
-            n_ready, n_waiting, njobs,
+            'run: %d READY, %d WAITING — rapidfire',
+            n_ready, n_waiting,
         )
-        _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout)
+        _run_rapidfire(lpad, strm_lvl, sleep_time, timeout)
 
     # After all workers have joined, any firework still in RUNNING state has a
     # dead worker process (ping failed, worker crashed, or the launchpad was
@@ -389,24 +366,9 @@ def run(
     return lpad
 
 
-def _run_rapidfire_workers(lpad, njobs, strm_lvl, sleep_time, timeout):
-    """Start njobs local rapidfire workers and wait for them to finish."""
+def _run_rapidfire(lpad, strm_lvl, sleep_time, timeout):
+    """Run rapidfire in the current process until no READY fireworks remain."""
     rf_kwargs: dict = {'sleep_time': sleep_time, 'strm_lvl': strm_lvl}
     if timeout is not None:
         rf_kwargs['timeout'] = timeout
-
-    if njobs == 1:
-        rapidfire(lpad, **rf_kwargs)
-    else:
-        lpad_dict = lpad.to_dict()
-        workers = [
-            multiprocessing.Process(
-                target=_rapidfire_worker,
-                args=(lpad_dict, strm_lvl, sleep_time, timeout),
-            )
-            for _ in range(njobs)
-        ]
-        for w in workers:
-            w.start()
-        for w in workers:
-            w.join()
+    rapidfire(lpad, **rf_kwargs)

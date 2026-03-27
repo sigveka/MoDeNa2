@@ -362,7 +362,7 @@ class InitialisationStrategy(StrategyBaseClass):
             for sm in model.substituteModels:
                 wf.append_wf(
                     sm.initialisationStrategy().workflow(sm),
-                    []
+                    wf.root_fw_ids
                 )
             return wf
 
@@ -967,11 +967,7 @@ class InitialData(InitialisationStrategy):
         model.updateMinMax()
         model.save()
 
-        wf = Workflow( [], name='initialising to dataset')
-        wf.append_wf( model.parameterFittingStrategy().workflow(model),
-                      wf.leaf_fw_ids)
-
-        return wf
+        return model.parameterFittingStrategy().workflow(model)
 
 
 @explicit_serialize
@@ -2197,7 +2193,9 @@ class TerminateWorkflow(Exception):
 
 
 class ModifyWorkflow(Exception):
-    pass
+    def __init__(self, action):
+        self.action = action
+        super().__init__(action)
 
 
 class FatalModelError(Exception):
@@ -2360,7 +2358,10 @@ class ModenaFireTask(FireTaskBase):
             op()
 
         except OutOfBounds as e:
-            model = e.model
+            # Reload the model from MongoDB so that outsidePoint reflects what
+            # the C library wrote just before exiting, not a potentially stale
+            # in-memory value from earlier in this task's lifetime.
+            model = modena.SurrogateModel.load(e.model._id)
             _log.info('%s out-of-bounds, executing outOfBoundsStrategy for model %s',
                       text, model._id)
 
@@ -2381,6 +2382,13 @@ class ModenaFireTask(FireTaskBase):
             model = e.model
             _log.info('%s is not initialised, executing initialisationStrategy for model %s',
                       text, model._id)
+
+            # Persist the model to MongoDB before building the workflow.
+            # The init workflow's exact tasks call SurrogateModel.load(modelId)
+            # at runtime — if the model was only found in-memory (via
+            # loadFromModule / get_instances) and never saved, that lookup
+            # would raise DoesNotExist and the init detour would abort.
+            model.save()
 
             # Continue with exact tasks, parameter estimation and (finally) this
             # task in order to resume normal operation
@@ -2446,7 +2454,7 @@ class ModenaFireTask(FireTaskBase):
             return FWAction()
 
         except ModifyWorkflow as e:
-            return e.args[0]
+            return e.action
 
         except Exception as e:
             _log.debug('Exact simulation exception for model %s',
@@ -2574,7 +2582,11 @@ class BackwardMappingScriptTask(ModenaFireTask, ScriptTask):
             ModelRegistry().freeze(model_ids=fitted_models)
 
         except ModifyWorkflow as e:
-            return e.args[0]
+            return e.action
+
+        except TerminateWorkflow as e:
+            _log.error('Macroscopic simulation terminated: %s', e)
+            return FWAction(defuse_workflow=True)
 
         except Exception as e:
             _log.error('Macroscopic simulation failed: %s', e, exc_info=True)
@@ -2623,7 +2635,7 @@ class BackwardMappingScriptTask(ModenaFireTask, ScriptTask):
 #             print(term.green + 'Success - We are done' + term.normal)
 # 
 #         except ModifyWorkflow as e:
-#             return e.args[0]
+#             return e.action
 # 
 #         except Exception as e:
 #             print(term.red + e.args[0] + term.normal)

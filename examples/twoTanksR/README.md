@@ -1,11 +1,10 @@
-# twoTanksAutoInit
+# twoTanksR
 
-Same two-tank problem as `twoTanks`, but demonstrates **automatic
-initialisation**: the surrogate is initialised on the first out-of-bounds
-event rather than by a separate `initModels` step.
+Same two-tank problem as `twoTanks`, but with the macroscopic solver written
+in **R** using the MoDeNa R wrapper.
 
-**Macroscopic solver:** `twoTanksMacroscopicProblem` (C)
-**Surrogate model:** `flowRate` (polynomial, backward mapping, auto-init)
+**Macroscopic solver:** `twoTanksMacroscopicProblemR` (R)
+**Surrogate model:** `flowRate` (polynomial, backward mapping)
 
 See [`../twoTanks/README.md`](../twoTanks/README.md) for a full explanation of
 the model-definition philosophy and how `modena.toml` connects the surrogate

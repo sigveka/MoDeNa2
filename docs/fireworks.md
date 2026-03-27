@@ -253,9 +253,14 @@ from modena.Strategy import BackwardMappingScriptTask
 
 class TwoTankModel(BackwardMappingScriptTask):
     _fw_name = '{{twoTank.TwoTankModel}}'
+    optional_params = None  # allow arbitrary kwargs through to the task dict
 
     def __init__(self, *args, **kwargs):
-        super().__init__(script=self.find_binary('twoTanksMacroscopicProblem'))
+        if args and isinstance(args[0], dict):
+            # Deserialisation path: FireTaskBase.from_dict calls cls(m_dict).
+            super().__init__(*args, **kwargs)
+            return
+        super().__init__(script=self.find_binary('twoTanksMacroscopicProblem'), **kwargs)
 
 m = TwoTankModel()
 ```
@@ -273,56 +278,56 @@ resolves `{{twoTank.TwoTankModel}}` by importing `twoTank` and calling
 `getattr(twoTank, 'TwoTankModel')`.  The class must therefore be exported at
 the package top level (see [FireTask serialisation](#firetask-serialisation)).
 
-When no custom behaviour is needed (plain binary, no MoDeNa-specific hooks),
-`BackwardMappingScriptTask` can also be instantiated directly:
+#### Bash workflow script (`workflow`)
 
-```python
-from modena.Strategy import BackwardMappingScriptTask
-from modena.Registry import ModelRegistry
+The recommended pattern is a short bash script that delegates to the
+`modena simulate` CLI:
 
-m = BackwardMappingScriptTask(
-    script=ModelRegistry().find_binary('mySimBinary', caller_file=__file__)
-)
+```bash
+#!/bin/bash
+set -euo pipefail
+python3 -m modena simulate
+echo "Workflow complete."
 ```
 
-#### Python workflow script (`workflow`)
+`modena simulate` reads `[simulate] target` from `modena.toml` to find the
+task class, instantiates it, wraps it in a `Workflow`, and runs `rapidfire`
+until complete.  Declare the target in `modena.toml`:
+
+```toml
+[simulate]
+target = "twoTank.TwoTankModel"
+```
+
+The target class is resolved as `package.ClassName`: `modena simulate` imports
+`twoTank` and calls `TwoTankModel()`.  The class must therefore be exported at
+the package top level.
+
+**Optional: pass a target on the command line** (overrides `modena.toml`):
+
+```bash
+python3 -m modena simulate twoTank.TwoTankModel
+```
+
+**Optional: Python workflow script**
+
+For cases that need custom launcher options or a programmatic workflow graph,
+the Python API is still available:
 
 ```python
 #!/usr/bin/env python3
 import modena
-import twoTank
 from fireworks import Firework, Workflow
+import twoTank
 
 wf = Workflow([Firework(twoTank.m)], name='simulation')
 modena.run(wf)
 ```
 
-The `workflow` file has no `.py` extension (convention), but is valid Python.
-It can be run directly or via the `modena` CLI:
+Run it via:
 
 ```bash
-python3 workflow               # run directly
-python3 -m modena fw run --py workflow   # equivalent, via CLI
-```
-
-Launcher options (`njobs`, `launcher`, `qadapter`, …) are passed as keyword
-arguments to `modena.run()` inside the script — **not** on the `modena fw run`
-command line (which has no launcher flags):
-
-```python
-# workflow with HPC escalation
-wf = Workflow([Firework(twoTank.m)], name='simulation')
-modena.run(wf, launcher='auto', njobs=4, escalate_at=4,
-           qadapter='qadapter.yaml')
-```
-
-**CLI — run the Python workflow script:**
-```bash
-# Standard invocation from the example directory
 python3 -m modena fw run --py workflow
-
-# modena.toml in the current directory registers the installed models,
-# so twoTank is auto-imported when the script calls `import modena`.
 ```
 
 **CLI — wrap a bare binary with `--script`:**

@@ -36,4 +36,4 @@ Authors
 Contributors
 '''
 
-from .twoTankMatlab import m
+from .twoTankMatlab import m, TwoTankMatlabModel

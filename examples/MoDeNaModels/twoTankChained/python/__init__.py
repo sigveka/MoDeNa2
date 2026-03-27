@@ -36,4 +36,4 @@ Authors
 Contributors
 '''
 
-from .twoTankChained import m
+from .twoTankChained import m, TwoTankChainedModel

@@ -1,0 +1,26 @@
+# Ideal gas density — ForwardMappingModel
+# rho = p0 / (R * T0)  where R is the specific gas constant.
+#
+# bounds: effectively unbounded inputs/outputs (physics-valid domain).
+# parameters: [R] — specific gas constant (J/(kg·K)).
+
+[surrogate]
+
+[surrogate.inputs.p0]
+min = 0.0
+max = 9.0e99
+
+[surrogate.inputs.T0]
+min = 0.0
+max = 9.0e99
+
+[surrogate.outputs.rho0]
+min = -9.0e99
+max = 9.0e99
+
+[surrogate.parameters.R]
+min = 0.0
+max = 9.0e99
+
+# Initial parameter values for ForwardMappingModel (R = 287 J/(kg·K) for dry air)
+parameters = [287.0]
