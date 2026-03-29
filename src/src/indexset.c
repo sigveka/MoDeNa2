@@ -41,15 +41,6 @@ modena_index_set_t *modena_index_set_new
     const char *indexSetId
 )
 {
-    // Initialize the Python Interpreter
-    if(!Py_IsInitialized())
-    {
-        Py_Initialize();
-    }
-
-    // Initialize this module
-    PyInit_libmodena();
-
     PyObject *args = PyTuple_New(0);
     PyObject *kw = Py_BuildValue("{s:s}", "indexSetId", indexSetId);
 
@@ -76,7 +67,7 @@ modena_index_set_t *modena_index_set_new
                 indexSetId
             );
             if(!pRet){ Modena_PyErr_Print(); }
-            int ret = PyInt_AsLong(pRet);
+            int ret = PyLong_AsLong(pRet);
             Py_DECREF(pRet);
 
             modena_error_code = ret;
@@ -105,7 +96,7 @@ size_t modena_index_set_get_index
         name
     );
     if(!pRet){ Modena_PyErr_Print(); }
-    size_t ret = PyInt_AsSsize_t(pRet);
+    size_t ret = PyLong_AsSsize_t(pRet);
     Py_DECREF(pRet);
 
     return ret;
@@ -132,6 +123,7 @@ const char* modena_index_set_get_name
      * leak; one allocation per get_name call). */
     PyObject *pBytes = PyUnicode_AsEncodedString(pRet, "UTF-8", "strict");
     Py_DECREF(pRet);
+    if(!pBytes){ Modena_PyErr_Print(); }
     const char* ret = strdup(PyBytes_AsString(pBytes));
     Py_DECREF(pBytes);
 
@@ -158,7 +150,7 @@ size_t modena_index_set_iterator_end
         "()"
     );
     if(!pRet){ Modena_PyErr_Print(); }
-    size_t ret = PyInt_AsSsize_t(pRet);
+    size_t ret = PyLong_AsSsize_t(pRet);
     Py_DECREF(pRet);
 
     return ret;

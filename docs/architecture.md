@@ -87,37 +87,87 @@ flowchart TD
 
 If `./workflow` runs before `./initModels`, the model exists in MongoDB but
 has zero fitted parameters.  libmodena detects this and returns exit code 202
-instead of 200, triggering a one-time initialisation detour:
+instead of 200, triggering a one-time initialisation detour.
+
+### Model identification — the UUID stamp
+
+A naive approach — scanning MongoDB for any model with empty parameters — is
+wrong: unrelated models from other projects may also be uninitialised in the
+same database.  Instead, `BackwardMappingScriptTask` generates a per-launch
+UUID and injects it as `MODENA_LAUNCH_ID` into the subprocess environment.
+When `exceptionParametersNotValid` is called inside the subprocess via Python
+embedding, it stamps that UUID onto the failing model's document.  The parent
+rocket queries by UUID and initialises only that specific model.
 
 ```mermaid
 sequenceDiagram
+    participant bst as BackwardMappingScriptTask
     participant App as C application
     participant lib as libmodena
+    participant emb as modena (subprocess)
     participant DB  as MongoDB
     participant FW  as FireWorks
-    participant py  as modena
+
+    bst ->> bst : uuid4() → MODENA_LAUNCH_ID
+    bst ->> App : ScriptTask — launch subprocess\n(MODENA_LAUNCH_ID in env)
 
     App ->> lib : modena_model_new("flowRate")
     lib ->> DB  : load surrogate + parameters
     DB -->> lib : parameters = [] (not yet fitted)
+    lib ->> emb : exceptionParametersNotValid("flowRate")
+    emb ->> DB  : $set flowRate._pending_init_launch_id = UUID
+    emb -->> lib : return 202
     lib -->> App : NULL, exit code 202
-    App -->> FW  : process exits with code 202
+    App -->> bst : subprocess exits 202
 
-    FW  ->>  py  : handleReturnCode(202)
-    py  ->>  DB  : find model with empty parameters
-    py  ->>  FW  : build initialisation detour workflow
-    FW  ->>  FW  : insert detour, re-queue App after
+    bst ->> DB  : find where _pending_init_launch_id = UUID
+    DB -->> bst : flowRate document
+    bst ->> DB  : $unset flowRate._pending_init_launch_id
+    bst ->> FW  : FWAction(detours=[init flowRate → resume bst])
+    FW  ->>  FW : run init detour — exact sims → fit → save parameters
 
-    Note over FW,py: Detour runs first
-    FW  ->>  py  : run exact simulations
-    FW  ->>  py  : fit surrogate, save parameters
+    Note over FW,bst: Original task retried after detour
+    FW  ->> bst : re-run BackwardMappingScriptTask
+    bst ->> App : launch subprocess (new UUID in env)
+    App ->> lib : modena_model_new("flowRate")
+    lib ->> DB  : load surrogate + parameters
+    DB -->> lib : parameters = [P0, P1] (fitted)
+    lib -->> App : model ready — simulation proceeds
+```
 
-    Note over FW,App: Original simulation retried
-    FW  ->>  App : restart macroscopic solver
-    App ->>  lib : modena_model_new("flowRate")
-    lib ->>  DB  : load surrogate + parameters
-    DB -->>  lib : parameters = [P0, P1] (fitted)
-    lib -->> App : model ready
+### handleReturnCode(202) — precise path vs fallback
+
+When `MODENA_LAUNCH_ID` is set the UUID stamp is used for precise
+identification.  If the subprocess crashes before stamping (or is launched
+outside `BackwardMappingScriptTask`), a fallback scan is used with a warning.
+
+```mermaid
+flowchart TD
+    rc([handleReturnCode\nreturnCode = 202])
+    lid{launch_id\navailable?}
+    qdb[Query MongoDB:\nmodel where\n_pending_init_launch_id = UUID]
+    found{model\nfound?}
+    clear[Clear UUID marker\nfrom model document]
+    precise([ParametersNotValid\nexact model only])
+    warn[/WARNING: cannot identify\nexact model — falling back/]
+    scan[Scan MongoDB:\nall models where\nparameters = \[\]]
+    nomod{any\nfound?}
+    term([TerminateWorkflow\ndefuse])
+    fallback([ParametersNotValid\nall uninitialized models\nmay include unrelated ones])
+
+    rc --> lid
+    lid -- Yes --> qdb --> found
+    found -- Yes --> clear --> precise
+    found -- No  --> warn
+    lid  -- No  --> warn
+    warn --> scan --> nomod
+    nomod -- Yes --> fallback
+    nomod -- No  --> term
+
+    style precise  fill:#388e3c,color:#fff,stroke:#2e7d32
+    style fallback fill:#ef6c00,color:#fff,stroke:#e65100
+    style term     fill:#c62828,color:#fff,stroke:#b71c1c
+    style warn     stroke:#f57c00,stroke-width:2px
 ```
 
 ---
@@ -209,6 +259,6 @@ graph TD
 | `return 0` | `libmodena` | application | surrogate evaluated successfully |
 | `return 100` | `libmodena` | application | surrogate was just retrained — retry this time step |
 | `exit(200)` | application | FireWorks | query was out of bounds — trigger OOB training loop |
-| `exit(202)` | application | FireWorks | model has no parameters yet — trigger initialisation detour |
+| `exit(202)` | application | FireWorks | model has no parameters yet — trigger initialisation detour; failing model identified via `MODENA_LAUNCH_ID` UUID stamped on MongoDB document |
 | `minMax()` tuple | Python | C (by position) | input/output bounds and parameter count — positional, do not reorder |
 | `argPos` | MongoDB | C arrays | index mapping input/output names → `double[]` array positions |

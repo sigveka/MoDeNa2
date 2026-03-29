@@ -59,12 +59,17 @@ class ModenaLaunchPad(LaunchPad):
                 reachable within ``server_selection_timeout_ms`` milliseconds.
         """
         from modena.SurrogateModel import MODENA_URI
+        # FireWorks uri_mode=True passes the URI directly to MongoClient but
+        # does NOT extract the database name from it — name= must be supplied
+        # separately or LaunchPad.__init__ raises ValueError.
+        _, database = MODENA_URI.rsplit('/', 1)
         # Use uri_mode=True so FireWorks passes the URI directly to MongoClient.
         # This avoids the FireWorks LaunchPad always injecting username=None and
         # authSource=<dbname> as explicit kwargs, which can trigger unintended
         # authentication handshakes in some PyMongo/MongoDB combinations.
         lp = cls(
             host=MODENA_URI,
+            name=database,
             uri_mode=True,
             strm_lvl=_fw_strm_lvl(),
             mongoclient_kwargs={

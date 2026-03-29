@@ -195,7 +195,28 @@ MOD_INIT(libmodena)
         else if (strcmp(env, "DEBUG_VERBOSE") == 0)   modena_log_level = MODENA_LOG_DEBUG_VERBOSE;
     }
 
-    // Initialize the Python Interpreter
+    // Initialize the Python Interpreter.
+    //
+    // NOTE: venvs are intentionally NOT supported here.
+    //
+    // Py_Initialize() starts the embedded interpreter using the compiled-in
+    // Python prefix. It does NOT detect an active venv ($VIRTUAL_ENV) — that
+    // discovery only happens when a Python *executable* is launched, not when
+    // the interpreter is embedded in a C library.
+    //
+    // If the modena Python package were installed into a venv, this import
+    // below would fail silently because the venv's site-packages is not on
+    // sys.path. Instead, modena is installed by cmake to
+    // $CMAKE_INSTALL_PREFIX/lib/pythonX.Y/site-packages and the user sets
+    // PYTHONPATH to include that directory. Third-party dependencies
+    // (fireworks, mongoengine, etc.) are installed via pip install --user to
+    // ~/.local/lib/pythonX.Y/site-packages, which site.py adds automatically
+    // even in embedded mode.
+    //
+    // If you are tempted to add Py_SetProgramName() here to activate a venv:
+    // the user would then need to activate the venv before running ANY C
+    // binary that links against libmodena, and forgetting to do so causes a
+    // silent import failure. PYTHONPATH is simpler and more robust.
     if(!Py_IsInitialized())
     {
         Py_Initialize();
@@ -233,8 +254,17 @@ MOD_INIT(libmodena)
         MOD_ADD_OBJECT(module,"modena_function_t",  modena_function_tType)
         MOD_ADD_OBJECT(module,"modena_model_t",     modena_model_tType)
 
-    if(!modena_DoesNotExist)
+    /* Re-entrancy guard: import_helper() inside modena/__init__.py loads
+     * libmodena.so as a Python extension, which calls PyInit_libmodena()
+     * again before the first invocation has finished setting modena_DoesNotExist.
+     * Without this guard both invocations would enter the import block
+     * (modena_DoesNotExist is still NULL during the first import), triggering
+     * two full modena.__init__ runs and two ModelRegistry.load() calls.
+     */
+    static _Thread_local int _libmodena_import_running = 0;
+    if(!modena_DoesNotExist && !_libmodena_import_running)
     {
+        _libmodena_import_running = 1;
         PyObject *pName;
         pName = PyUnicode_FromString("modena.SurrogateModel");
         if(!pName){ Modena_PyErr_Print(); }
@@ -289,6 +319,7 @@ MOD_INIT(libmodena)
         if(!modena_OutOfBounds){ Modena_PyErr_Print(); }
 
         Py_DECREF(pModule);
+        _libmodena_import_running = 0;
     }
     return MOD_SUCCESS_VAL(module);
 

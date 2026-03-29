@@ -1321,8 +1321,23 @@ class SurrogateModel(DynamicDocument):
     @classmethod
     def exceptionParametersNotValid(cls, surrogateModelId):
         """
-        @brief Return error code implying SurrogateModel parameters are invalid
+        @brief Return error code implying SurrogateModel parameters are invalid.
+
+        If ``MODENA_LAUNCH_ID`` is set in the environment (a UUID injected by
+        ``BackwardMappingScriptTask.task()`` before launching the subprocess),
+        stamp that UUID onto the failing model's MongoDB document.  The parent
+        rocket then queries by UUID to identify the exact model — no file
+        system required.
         """
+        import os as _os
+        launch_id = _os.environ.get('MODENA_LAUNCH_ID')
+        if launch_id:
+            try:
+                cls.objects(_id=surrogateModelId).update_one(
+                    __raw__={'$set': {'_pending_init_launch_id': launch_id}}
+                )
+            except Exception:
+                pass
         return 202
 
 
@@ -1581,13 +1596,17 @@ class SurrogateModel(DynamicDocument):
 
 
     @classmethod
-    def loadParametersNotValid(cls) -> 'SurrogateModel | None':
+    def loadParametersNotValid(cls) -> 'list[SurrogateModel]':
         """
-        @brief   Method importing a surrogate model module.
+        Return ALL surrogate models whose ``parameters`` list is empty.
+
+        Returning all uninitialized models (not just the first) ensures that
+        a single 202 detour initializes every model that will be needed,
+        regardless of the order MongoDB returns documents.
         """
-        return cls.objects(
+        return list(cls.objects(
             __raw__={'parameters': {'$size': 0}}
-        ).exclude('fitData').first()
+        ).exclude('fitData'))
 
 
     @classmethod
@@ -1799,7 +1818,7 @@ class BackwardMappingModel(SurrogateModel):
             if outsideValue > v['max']:
                 if outsideValue > inputsMinMax[k].max:
                     raise OutOfBounds(
-                        'new value is larger than function min for %s' % k
+                        'new value is larger than function min for %s' % k, self
                     )
 
                 value = min(
@@ -1814,7 +1833,7 @@ class BackwardMappingModel(SurrogateModel):
             elif outsideValue < v['min']:
                 if outsideValue < inputsMinMax[k].min:
                     raise OutOfBounds(
-                        'new value is smaller than function max for %s' % k
+                        'new value is smaller than function max for %s' % k, self
                     )
 
                 value = max(

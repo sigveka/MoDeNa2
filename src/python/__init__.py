@@ -117,13 +117,15 @@ def import_helper() -> object:
     # C/Fortran programs that link against the library.
     import importlib.util
     lib_path = str(Path(MODENA_LIB_DIR) / _LIBMODENA_NAME)
-    spec = importlib.util.spec_from_file_location('libmodena', lib_path)
+    spec = importlib.util.spec_from_file_location('modena.libmodena', lib_path)
     if spec is None or spec.loader is None:
         raise ImportError(
             f"Could not load '{lib_path}'. "
             f"Ensure {_LIBPATH_ENV_VAR} includes '{MODENA_LIB_DIR}'."
         )
     _mod = importlib.util.module_from_spec(spec)
+    # Register under the qualified name so `import modena.libmodena` works.
+    sys.modules['modena.libmodena'] = _mod
     spec.loader.exec_module(_mod)
     return _mod
 
@@ -139,25 +141,11 @@ if _reg._toml_log_level is not None and 'MODENA_LOG_LEVEL' not in os.environ:
 libmodena = import_helper()
 del import_helper
 
+del _reg
+
 from .Strategy import *
 from .SurrogateModel import *
 from .Runner import run
-
-# Auto-import every model package discovered in registered prefixes.
-# This ensures all @explicit_serialize FireTask classes are registered in
-# the FireWorks _fw_registry before any rocket deserializes tasks from
-# MongoDB, so ADD_USER_PACKAGES: [modena] in FW_config.yaml is sufficient.
-# NOTE: must run AFTER the modena symbols above are imported so that model
-# packages doing "from modena import ForwardMappingModel" do not hit a
-# circular-import error (modena partially initialised at that point).
-import importlib as _importlib
-for _pkg in _reg.active_packages():
-    try:
-        _importlib.import_module(_pkg)
-        _logger.debug('modena: auto-imported model package %r', _pkg)
-    except ImportError as _e:
-        _logger.debug('modena: could not auto-import %r: %s', _pkg, _e)
-del _importlib, _reg
 
 
 def lpad():

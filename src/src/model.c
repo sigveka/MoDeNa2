@@ -55,7 +55,7 @@ void modena_substitute_model_calculate_maps
     size_t i;
     for(i = 0; i < sm->map_outputs_size; i++)
     {
-        sm->map_outputs[i] = PyInt_AsSsize_t(PyList_GET_ITEM(pSeq, i));
+        sm->map_outputs[i] = PyLong_AsSsize_t(PyList_GET_ITEM(pSeq, i));
     }
     sm->map_outputs_size /= 2;
     Py_DECREF(pSeq);
@@ -69,7 +69,7 @@ void modena_substitute_model_calculate_maps
     sm->map_inputs = malloc(sm->map_inputs_size*sizeof(size_t));
     for(i = 0; i < sm->map_inputs_size; i++)
     {
-        sm->map_inputs[i] = PyInt_AsSsize_t(PyList_GET_ITEM(pSeq, i));
+        sm->map_inputs[i] = PyLong_AsSsize_t(PyList_GET_ITEM(pSeq, i));
     }
     sm->map_inputs_size /= 2;
     Py_DECREF(pSeq);
@@ -170,7 +170,7 @@ bool modena_model_read_substituteModels(modena_model_t *self)
                 }
 
                 if(!pRet){ Modena_PyErr_Print(); }
-                int ret = PyInt_AsLong(pRet);
+                int ret = PyLong_AsLong(pRet);
                 Py_DECREF(pRet);
 
                 modena_error_code = ret;
@@ -250,7 +250,7 @@ void modena_model_get_minMax
     {
         PyObject *pBytes = PyUnicode_AsEncodedString(
             PyList_GET_ITEM(pSeq, i), "UTF-8", "strict");
-        self->inputs_names[i] = strdup(PyString_AsString(pBytes));
+        self->inputs_names[i] = strdup(PyBytes_AsString(pBytes));
         Py_DECREF(pBytes);
     }
     Py_DECREF(pSeq);
@@ -264,7 +264,7 @@ void modena_model_get_minMax
     {
         PyObject *pBytes = PyUnicode_AsEncodedString(
             PyList_GET_ITEM(pSeq, i), "UTF-8", "strict");
-        self->outputs_names[i] = strdup(PyString_AsString(pBytes));
+        self->outputs_names[i] = strdup(PyBytes_AsString(pBytes));
         Py_DECREF(pBytes);
     }
     Py_DECREF(pSeq);
@@ -278,7 +278,7 @@ void modena_model_get_minMax
     {
         PyObject *pBytes = PyUnicode_AsEncodedString(
             PyList_GET_ITEM(pSeq, i), "UTF-8", "strict");
-        self->parameters_names[i] = strdup(PyString_AsString(pBytes));
+        self->parameters_names[i] = strdup(PyBytes_AsString(pBytes));
         Py_DECREF(pBytes);
     }
     Py_DECREF(pSeq);
@@ -360,7 +360,7 @@ modena_model_t *modena_model_new
             }
 
             if(!pRet){ Modena_PyErr_Print(); }
-            int ret = PyInt_AsLong(pRet);
+            int ret = PyLong_AsLong(pRet);
             Py_DECREF(pRet);
 
             modena_error_code = ret;
@@ -385,7 +385,7 @@ size_t modena_model_inputs_argPos(const modena_model_t *self, const char *name)
         name
     );
     if(!pRet){ Modena_PyErr_Print(); }
-    size_t argPos = PyInt_AsSsize_t(pRet);
+    size_t argPos = PyLong_AsSsize_t(pRet);
     Py_DECREF(pRet);
 
     if(self->argPos_used)
@@ -411,7 +411,7 @@ size_t modena_model_outputs_argPos(const modena_model_t *self, const char *name)
         name
     );
     if(!pRet){ Modena_PyErr_Print(); }
-    size_t ret = PyInt_AsSsize_t(pRet);
+    size_t ret = PyLong_AsSsize_t(pRet);
     Py_DECREF(pRet);
 
     return ret;
@@ -551,7 +551,7 @@ int write_outside_point
     );
     Py_DECREF(pOutside);
     if(!pRet){ Modena_PyErr_Print(); }
-    int ret = PyInt_AsLong(pRet);
+    int ret = PyLong_AsLong(pRet);
     Py_DECREF(pRet);
 
     modena_error_code = ret;
@@ -809,7 +809,7 @@ static PyObject *modena_model_t_call
 
     if(!PyList_Check(pI))
     {
-        printf("First argument is not a list\n");
+        PyErr_SetString(PyExc_TypeError, "First argument is not a list");
         return NULL;
     }
 
@@ -819,7 +819,9 @@ static PyObject *modena_model_t_call
     if(len != self->inputs_internal_size)
     {
         Py_DECREF(pSeq);
-        printf("input array has incorrect size %zu %zu\n", len, self->inputs_internal_size);
+        PyErr_Format(PyExc_ValueError,
+            "input array has incorrect size %zu (expected %zu)",
+            len, self->inputs_internal_size);
         return NULL;
     }
 
@@ -845,11 +847,22 @@ static PyObject *modena_model_t_call
             modena_inputs_destroy(inputs);
             modena_outputs_destroy(outputs);
 
-            PyErr_SetString
-            (
-                modena_OutOfBounds,
-                "Surrogate model is used out-of-bounds"
+            PyObject *pExcArgs = Py_BuildValue(
+                "(sO)",
+                "Surrogate model is used out-of-bounds",
+                self->pModel
             );
+            if(pExcArgs)
+            {
+                PyObject *pExcInst =
+                    PyObject_Call(modena_OutOfBounds, pExcArgs, NULL);
+                Py_DECREF(pExcArgs);
+                if(pExcInst)
+                {
+                    PyErr_SetObject(modena_OutOfBounds, pExcInst);
+                    Py_DECREF(pExcInst);
+                }
+            }
 
             return NULL;
         }
@@ -926,11 +939,10 @@ modena_model_t_set_parameters(modena_model_t *self, PyObject *value, void *closu
 
     if(self->parameters_size != PySequence_Size(value))
     {
-        printf
-        (
-            "Wrong number of parameters\n"
-        );
-        exit(1);
+        PyErr_Format(PyExc_ValueError,
+            "Wrong number of parameters: got %zd, expected %zu",
+            PySequence_Size(value), self->parameters_size);
+        return -1;
     }
 
     /*if (value == NULL)
@@ -938,8 +950,8 @@ modena_model_t_set_parameters(modena_model_t *self, PyObject *value, void *closu
           PyErr_SetString(PyExc_TypeError, "Cannot delete parameter values");
           return -1;
     }
-    if (! PyString_Check(value)) {
-          PyErr_SetString(PyErr_TypeError, "First attribute must be a string");
+    if (! PyBytes_Check(value)) {
+          PyErr_SetString(PyExc_TypeError, "First attribute must be a string");
           return -1;
     }*/
 
@@ -1082,7 +1094,7 @@ static int modena_model_t_init
     {
         PyObject *args = PyTuple_New(2);
 
-        PyObject* str = PyString_FromString
+        PyObject* str = PyUnicode_FromString
         (
             "Surrogate model does not have valid parameters"
         );
@@ -1110,7 +1122,7 @@ static int modena_model_t_init
         );
         PyObject *excArgs = PyTuple_New(2);
         PyTuple_SET_ITEM(excArgs, 0,
-            PyString_FromString("Surrogate model does not have valid parameters"));
+            PyUnicode_FromString("Surrogate model does not have valid parameters"));
         Py_INCREF(self->pModel);
         PyTuple_SET_ITEM(excArgs, 1, self->pModel);
 

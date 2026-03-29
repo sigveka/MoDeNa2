@@ -6,7 +6,7 @@
   paths = ["./models"]
 
 [surrogate_functions]
-  lib_dir = "../"
+  lib_dir = "."
 
 [simulate]
   target = "twoTank.TwoTankModel"

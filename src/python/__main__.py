@@ -480,7 +480,21 @@ def _build_run_kwargs(args) -> dict:
 
 def _init_models(args):
     """Run the initialisation workflow for registered surrogate models."""
+    import importlib as _importlib
     import modena as _modena
+    from modena.Registry import ModelRegistry as _ModelRegistry
+
+    # Import every registered model package so their module-level model
+    # instances are created and added to SurrogateModel.___refs___.
+    # This is intentional here — the user explicitly asked to init all models.
+    # (The general `import modena` no longer does this automatically at startup.)
+    _reg = _ModelRegistry().load()
+    for _pkg in _reg.active_packages():
+        try:
+            _importlib.import_module(_pkg)
+        except ImportError as _e:
+            print(f'[modena] WARNING: could not import {_pkg!r}: {_e}',
+                  file=sys.stderr)
 
     all_models = list(_modena.SurrogateModel.get_instances())
 

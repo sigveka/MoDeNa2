@@ -142,6 +142,7 @@ class ModelRegistry:
             inst._bin_dirs: list = []
             inst._toml_log_level: 'str | None' = None   # from [logging] level
             inst._toml_log_file:  'str | None' = None   # from [logging] file
+            inst._loaded: bool = False
             cls._instance = inst
         return cls._instance
 
@@ -153,7 +154,12 @@ class ModelRegistry:
         """
         Read layered config, extend sys.path with resolved site-packages,
         and return self.
+
+        Idempotent: after the first successful load, subsequent calls return
+        immediately without re-reading TOML or modifying sys.path.
         """
+        if self._loaded:
+            return self
         prefixes: list = []
         bin_dirs: list = []
         surrogate_lib_dir: 'str | None' = None
@@ -196,7 +202,7 @@ class ModelRegistry:
                 'lib_dir', surrogate_lib_dir
             )
             _read_logging(proj_cfg)
-            _log.info("ModelRegistry: using project config %s", proj_cfg_path)
+            _log.debug("ModelRegistry: using project config %s", proj_cfg_path)
 
         # Layer 4: MODENA_PATH env var (os.pathsep-separated)
         env_path = os.environ.get('MODENA_PATH', '')
@@ -246,9 +252,9 @@ class ModelRegistry:
                     added.append(sp)
 
         if added:
-            _log.info("ModelRegistry: added %d path(s) to sys.path", len(added))
+            _log.debug("ModelRegistry: added %d path(s) to sys.path", len(added))
         elif resolved:
-            _log.info(
+            _log.debug(
                 "ModelRegistry: %d prefix(es) configured; no new site-packages found",
                 len(resolved),
             )
@@ -259,6 +265,7 @@ class ModelRegistry:
                 _CONFIG_FILE,
             )
 
+        self._loaded = True
         return self
 
     @property

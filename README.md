@@ -168,23 +168,36 @@ fitted parameters yet, `libmodena` returns exit code 202. FireWorks intercepts
 this, builds an initialisation detour workflow on the fly, runs it (collecting
 training data and fitting the surrogate), then retries the original simulation.
 
+The failing model is identified precisely using a per-launch UUID
+(`MODENA_LAUNCH_ID`), stamped onto the model document in MongoDB by the
+subprocess's embedded Python before it exits. This avoids initialising
+unrelated models that happen to also be uninitialised in the database.
+
 ```mermaid
 sequenceDiagram
     participant App as C application
     participant lib as libmodena
+    participant emb as modena (subprocess)
     participant DB  as MongoDB
     participant FW  as FireWorks
-    participant py  as modena
+    participant py  as modena (rocket)
+
+    py  ->>  py  : generate UUID → MODENA_LAUNCH_ID
+    py  ->>  App : launch subprocess (UUID in env)
 
     App ->> lib : modena_model_new("flowRate")
     lib ->> DB  : load surrogate + parameters
     DB -->> lib : parameters = [] (not yet fitted)
+    lib ->> emb : exceptionParametersNotValid("flowRate")
+    emb ->> DB  : flowRate._pending_init_launch_id = UUID
     lib -->> App : NULL, exit code 202
     App -->> FW  : process exits with code 202
 
-    FW  ->>  py  : handleReturnCode(202)
-    py  ->>  DB  : find model with empty parameters
-    py  ->>  FW  : build initialisation detour workflow
+    FW  ->>  py  : handleReturnCode(202, UUID)
+    py  ->>  DB  : find model where _pending_init_launch_id = UUID
+    DB -->> py   : flowRate
+    py  ->>  DB  : clear _pending_init_launch_id marker
+    py  ->>  FW  : build initialisation detour — flowRate only
     FW  ->>  FW  : insert detour, re-queue App after
 
     Note over FW,py: Detour runs first
@@ -193,9 +206,9 @@ sequenceDiagram
 
     Note over FW,App: Original simulation retried
     FW  ->>  App : restart macroscopic solver
-    App ->>  lib : modena_model_new("flowRate")
-    lib ->>  DB  : load surrogate + parameters
-    DB -->>  lib : parameters = [P0, P1] (fitted)
+    App ->> lib : modena_model_new("flowRate")
+    lib ->> DB  : load surrogate + parameters
+    DB -->> lib : parameters = [P0, P1] (fitted)
     lib -->> App : model ready
 ```
 
@@ -240,10 +253,15 @@ sequenceDiagram
 
 ## Installation
 
-### 1 — Install system dependencies (Ubuntu/Debian)
+
+### Ubuntu 24.04
+
+#### 1 — Install system dependencies (Ubuntu/Debian)
+
+##### 1.1 Mandatory
 
 ```bash
-sudo apt install build-essential cmake python3-dev python3-pip mongodb
+sudo apt install build-essential cmake python3-{dev,pip}
 ```
 
 Start MongoDB:
@@ -252,30 +270,71 @@ Start MongoDB:
 sudo systemctl start mongod
 ```
 
-### 2 — Install Python dependencies
+##### 1.1 Optional
+
+**Octave Wrapper**
 
 ```bash
-pip install fireworks mongoengine pymongo scipy jinja2 tomli
+sudo apt install octave{,-dev}
 ```
 
-`tomli` is only needed on Python < 3.11; skip it on Python 3.11+.
-
-### 3 — Build and install MoDeNa
+**R Wrapper**
 
 ```bash
-cmake -B build -DCMAKE_INSTALL_PREFIX="$HOME" .
-cmake --build build
-cmake --build build --target install
+sudo apt install r-{base,-dev}
 ```
 
-The `install` script at the project root is a convenience wrapper that also
-enables all optional wrappers and the test suite:
+**Julia Wrapper**
 
 ```bash
-./install      # builds to $HOME, runs from the project root
+
+--yes --add-to-path=yes
 ```
 
-### 4 — Configure the environment
+#### 2 — Install Python dependencies
+
+```bash
+pip install --user fireworks mongoengine scipy jinja2 "pydantic>=2.0"
+```
+
+On Ubuntu 24.04 pip may require the `--break-system-packages` flag:
+
+```bash
+pip install --user --break-system-packages fireworks mongoengine scipy jinja2 "pydantic>=2.0"
+```
+
+`--user` installs to `~/.local/lib/python3.x/site-packages`, which the embedded Python interpreter in `libmodena` finds automatically.
+
+#### 3 — Build and install MoDeNa
+
+```bash
+cmake --preset default
+cmake --build --preset default
+cmake --install build
+```
+
+The `install` script at the project root is a convenience wrapper that uses
+the `dev` preset (Debug build, tests enabled):
+
+```bash
+./install      # runs from the project root
+```
+
+To pass extra options (e.g. enable the Octave wrapper):
+
+```bash
+./install -DWITH_MATLAB=ON
+```
+
+For a custom install prefix, use the `hpc` preset or override directly:
+
+```bash
+cmake --preset hpc -DCMAKE_INSTALL_PREFIX=/opt/modena
+cmake --build --preset hpc
+cmake --install build
+```
+
+#### 4 — Configure the environment
 
 ```bash
 export MODENA_URI=mongodb://localhost:27017/modena
@@ -285,7 +344,19 @@ export LD_LIBRARY_PATH="$HOME/lib:$LD_LIBRARY_PATH"
 
 Add these to `~/.bashrc` or `~/.profile` to make them permanent.
 
-### 5 — Verify the installation
+When installing to `$HOME` (the default), the `modena` Python package is
+placed in `~/.local/lib/python3.x/site-packages`, which Python finds
+automatically — no `PYTHONPATH` needed.
+
+If installing to a custom prefix (e.g. `/opt/modena`), add the prefix's
+site-packages to `PYTHONPATH`:
+
+```bash
+PYVER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+export PYTHONPATH="/opt/modena/lib/python${PYVER}/site-packages${PYTHONPATH:+:$PYTHONPATH}"
+```
+
+#### 5 — Verify the installation
 
 ```bash
 modena doctor

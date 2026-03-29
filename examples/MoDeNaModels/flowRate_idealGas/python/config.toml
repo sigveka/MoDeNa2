@@ -1,0 +1,79 @@
+# Flow rate surrogate with idealGas substituteModel
+# Polynomial in (D, T0, rho0, p0, p1Byp0) — 2 parameters.
+#
+# argPos for outputs and parameters is auto-assigned by declaration order.
+# Do NOT reorder after the model has been registered in MongoDB.
+
+[surrogate]
+
+[surrogate.inputs.D]
+min = 0.0
+max = 9.0e99
+
+[surrogate.inputs.T0]
+min = 0.0
+max = 9.0e99
+
+[surrogate.inputs.rho0]
+min = 0.0
+max = 9.0e99
+
+[surrogate.inputs.p0]
+min = 0.0
+max = 9.0e99
+
+[surrogate.inputs.p1Byp0]
+min = 0.0
+max = 1.0
+
+[surrogate.outputs.flowRate]
+min = -9.0e99
+max = 9.0e99
+
+[surrogate.parameters.param0]
+min = 0.0
+max = 10.0
+
+[surrogate.parameters.param1]
+min = 0.0
+max = 10.0
+
+[strategy]
+
+[strategy.initialisationStrategy]
+type = "InitialPoints"
+
+[strategy.initialisationStrategy.initialPoints]
+D        = [0.01,  0.01,  0.01,  0.01]
+T0       = [300.0, 300.0, 300.0, 300.0]
+p0       = [2.8e5, 3.2e5, 2.8e5, 3.2e5]
+p1Byp0   = [0.03,  0.03,  0.04,  0.04]
+
+[strategy.outOfBoundsStrategy]
+type = "ExtendSpaceStochasticSampling"
+nNewPoints = 4
+
+[strategy.outOfBoundsStrategy.sampler]
+type = "LatinHypercube"
+
+[strategy.parameterFittingStrategy]
+type = "NonLinFitWithErrorContol"
+maxIterations = 5
+
+[strategy.parameterFittingStrategy.crossValidation]
+type = "Holdout"
+testDataPercentage = 0.2
+
+[strategy.parameterFittingStrategy.acceptanceCriterion]
+type = "MaxError"
+threshold = 0.05
+
+[strategy.parameterFittingStrategy.optimizer]
+type = "TrustRegionReflective"
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type = "StochasticSampling"
+nNewPoints = 2
+
+[strategy.parameterFittingStrategy.improveErrorStrategy.sampler]
+type = "LatinHypercube"

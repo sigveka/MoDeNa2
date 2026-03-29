@@ -261,20 +261,6 @@ extern int modena_log_level;
     Modena_Error_Print("Error in python catched");                            \
     modena_print_backtrace();
 
-/** @name Python 2 → 3 compatibility shims
- *
- * Python 3 is the only supported version.  These macros map legacy Py2 names
- * to their Py3 equivalents so that old call sites compile without modification.
- * Do **not** add new shims — Py2 is no longer supported.
- * @{ */
-#define PyInt_FromLong      PyLong_FromLong   /**< Py3: `PyLong_FromLong` */
-#define PyInt_AsLong        PyLong_AsLong     /**< Py3: `PyLong_AsLong` */
-#define PyInt_AsSize_t      PyLong_AsSize_t   /**< Py3: `PyLong_AsSize_t` */
-#define PyInt_AsSsize_t     PyLong_AsSize_t   /**< Py3: `PyLong_AsSize_t` */
-#define PyString_AsString   PyBytes_AsString  /**< Py3: `PyBytes_AsString` */
-#define PyString_Check      PyBytes_Check     /**< Py3: `PyBytes_Check` */
-#define PyString_FromString PyBytes_FromString /**< Py3: `PyBytes_FromString` */
-/** @} */
 
 
 __END_DECLS

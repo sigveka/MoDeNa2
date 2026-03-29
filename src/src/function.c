@@ -151,15 +151,6 @@ modena_function_t *modena_function_new
 {
     Modena_Info_Print("In '%s' model Id '%s'", __func__, functionId);
 
-    // Initialize the Python Interpreter
-    if(!Py_IsInitialized())
-    {
-        Py_Initialize();
-    }
-
-    // Initialize this module
-    PyInit_libmodena();
-
     PyObject *args = PyTuple_New(0);
     PyObject *kw = Py_BuildValue("{s:s}", "functionId", functionId);
 
@@ -186,7 +177,7 @@ modena_function_t *modena_function_new
                 functionId
             );
             if(!pRet){ Modena_PyErr_Print(); }
-            int ret = PyInt_AsLong(pRet);
+            int ret = PyLong_AsLong(pRet);
             Py_DECREF(pRet);
 
             modena_error_code = ret;

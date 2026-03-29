@@ -1,5 +1,13 @@
+[logging]
+  level = "DEBUG" # WARNING
+  file  = "modena.log"
+
 [models]
-paths = ["./models"]
+  paths = ["./models"]
+
+[surrogate_functions]
+  lib_dir = "."
 
 [simulate]
-target = "twoTankPython.TwoTankPythonModel"
+  target = "twoTank.TwoTankModel"
+

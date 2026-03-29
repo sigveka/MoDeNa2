@@ -4,6 +4,9 @@
 # bounds: effectively unbounded inputs/outputs (physics-valid domain).
 # parameters: [R] — specific gas constant (J/(kg·K)).
 
+# Initial parameter values for ForwardMappingModel (R = 287 J/(kg·K) for dry air)
+parameters = [287.0]
+
 [surrogate]
 
 [surrogate.inputs.p0]
@@ -21,6 +24,3 @@ max = 9.0e99
 [surrogate.parameters.R]
 min = 0.0
 max = 9.0e99
-
-# Initial parameter values for ForwardMappingModel (R = 287 J/(kg·K) for dry air)
-parameters = [287.0]

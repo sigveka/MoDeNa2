@@ -2182,10 +2182,16 @@ class OutOfBounds(Exception):
 
 
 class ParametersNotValid(Exception):
-    def __init__(self, message, model, returnCode=None):
-        self.model      = model
+    def __init__(self, message, models, returnCode=None):
+        # ``models`` may be a single SurrogateModel (code 201 path) or a list
+        # (code 202 path).  Always normalise to a list internally.
+        if isinstance(models, list):
+            self.models = models
+        else:
+            self.models = [models] if models is not None else []
+        self.model = self.models[0] if self.models else None   # backward compat
         self.returnCode = returnCode
-        super().__init__(message, model, returnCode)
+        super().__init__(message)
 
 
 class TerminateWorkflow(Exception):
@@ -2379,23 +2385,33 @@ class ModenaFireTask(FireTaskBase):
             raise ModifyWorkflow(FWAction(detours=wf))
 
         except ParametersNotValid as e:
-            model = e.model
-            _log.info('%s is not initialised, executing initialisationStrategy for model %s',
-                      text, model._id)
+            models = e.models
+            model_ids = ', '.join(m._id for m in models)
+            _log.info('%s: %d model(s) not initialised — %s',
+                      text, len(models), model_ids)
 
-            # Persist the model to MongoDB before building the workflow.
+            # Persist all models to MongoDB before building the workflow.
             # The init workflow's exact tasks call SurrogateModel.load(modelId)
-            # at runtime — if the model was only found in-memory (via
-            # loadFromModule / get_instances) and never saved, that lookup
-            # would raise DoesNotExist and the init detour would abort.
-            model.save()
+            # at runtime — if the model was only found in-memory and never saved,
+            # that lookup would raise DoesNotExist and the detour would abort.
+            for m in models:
+                m.save()
 
-            # Continue with exact tasks, parameter estimation and (finally) this
-            # task in order to resume normal operation
-            wf = model.initialisationStrategy().workflow(model)
+            if len(models) == 1:
+                # Single model: simple linear workflow (original behaviour).
+                wf = models[0].initialisationStrategy().workflow(models[0])
+            else:
+                # Multiple uninitialized models: fan-out from a shared root so
+                # all init workflows run in parallel before resume.
+                root_fw = Firework([EmptyFireTask()], name=f'init root — {model_ids}')
+                wf = Workflow([root_fw], name=f'init — {model_ids}')
+                for m in models:
+                    wf.append_wf(m.initialisationStrategy().workflow(m), [root_fw.fw_id])
+
+            # After all inits complete, resume the original task.
             wf.append_wf(
-                Workflow([Firework(self, name=f'{model._id} — resume after init')],
-                         name=f'{model._id} — resume after init'),
+                Workflow([Firework(self, name=f'resume after init — {model_ids}')],
+                         name=f'resume after init — {model_ids}'),
                 wf.leaf_fw_ids
             )
             raise ModifyWorkflow(FWAction(detours=wf))
@@ -2471,10 +2487,15 @@ class ModenaFireTask(FireTaskBase):
             )
 
 
-    def handleReturnCode(self, returnCode):
+    def handleReturnCode(self, returnCode, launch_id=None):
         """
         @brief    Handle return code caught in executeAndCatchExceptions
         @params   returnCode (integer) error code from simulation
+        @params   launch_id (str|None) UUID injected into the subprocess via
+                  ``MODENA_LAUNCH_ID``.  The subprocess stamps this UUID onto
+                  the failing model's MongoDB document via
+                  ``exceptionParametersNotValid``, so the parent can query the
+                  exact failing model without an imprecise full-collection scan.
         @details
                   The method is called with an integer, i.e. the error code, as
                   the argument and raises the appropriate Python exception if
@@ -2528,17 +2549,47 @@ class ModenaFireTask(FireTaskBase):
             )
 
         elif returnCode == 202:
-            try:
-                model = modena.SurrogateModel.loadParametersNotValid()
-            except Exception:
-                raise TerminateWorkflow(
-                    'Exact task raised ParametersNotValid, '
-                  + 'but failing model could not be determined',
+            model = None
+            if launch_id:
+                # Precise path: query for the model that was stamped with our
+                # launch UUID by exceptionParametersNotValid in the subprocess.
+                model = modena.SurrogateModel.objects(
+                    __raw__={'_pending_init_launch_id': launch_id}
+                ).exclude('fitData').first()
+                if model:
+                    # Clear the marker — it has served its purpose.
+                    modena.SurrogateModel.objects(_id=model._id).update_one(
+                        __raw__={'$unset': {'_pending_init_launch_id': ''}}
+                    )
+
+            if model is None:
+                # Fallback: no launch_id or subprocess crashed before stamping.
+                # Scan for any uninitialized model — may be imprecise when
+                # multiple unrelated models have empty parameters.
+                _log.warning(
+                    'Cannot identify specific model for return code 202 '
+                    '(launch_id=%s); scanning for uninitialized models',
+                    launch_id,
+                )
+                try:
+                    models = modena.SurrogateModel.loadParametersNotValid()
+                    if not models:
+                        raise ValueError('no uninitialized models found in database')
+                except Exception:
+                    raise TerminateWorkflow(
+                        'Exact task raised ParametersNotValid, '
+                        'but failing model could not be determined',
+                        returnCode
+                    )
+                raise ParametersNotValid(
+                    'Exact task raised ParametersNotValid',
+                    models,
                     returnCode
                 )
+
             raise ParametersNotValid(
                 'Exact task raised ParametersNotValid',
-                model,
+                [model],
                 returnCode
             )
 
@@ -2601,12 +2652,29 @@ class BackwardMappingScriptTask(ModenaFireTask, ScriptTask):
 
         @param  fw_spec  dict received from FireWork
         """
+        import os as _os, uuid as _uuid
 
-        self['defuse_bad_rc'] = True
+        # Generate a UUID for this launch and inject it into the subprocess
+        # environment.  The C library calls exceptionParametersNotValid via
+        # Python embedding; that method stamps the UUID onto the failing model's
+        # MongoDB document.  After the subprocess exits, the parent queries
+        # MongoDB by UUID to identify the exact failing model — no files needed,
+        # works across any filesystem or distributed setup.
+        _launch_id = str(_uuid.uuid4())
+        _prev = _os.environ.get('MODENA_LAUNCH_ID')
+        _os.environ['MODENA_LAUNCH_ID'] = _launch_id
+        try:
+            self['defuse_bad_rc'] = True
 
-        # Execute the macroscopic code by calling function in base class
-        ret = ScriptTask.run_task(self, fw_spec)
-        self.handleReturnCode(ret.stored_data['returncode'])
+            # Execute the macroscopic code by calling function in base class
+            ret = ScriptTask.run_task(self, fw_spec)
+
+            self.handleReturnCode(ret.stored_data['returncode'], _launch_id)
+        finally:
+            if _prev is None:
+                _os.environ.pop('MODENA_LAUNCH_ID', None)
+            else:
+                _os.environ['MODENA_LAUNCH_ID'] = _prev
 
 
 # @explicit_serialize
