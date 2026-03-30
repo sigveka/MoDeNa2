@@ -2511,20 +2511,35 @@ class ModenaFireTask(FireTaskBase):
             _log.error('return code = %s', returnCode)
 
         if returnCode == 200:
-            try:
-                # TODO
-                # Finding the 'failing' model using the outsidePoint will fail
-                # eventually fail when running in parallel. Need to pass id of
-                # calling FireTask. However, this requires additional code in the
-                # library as well as cooperation of the recipie
+            model = None
+            if launch_id:
+                # Precise path: query for the model stamped with our launch UUID
+                # by exceptionOutOfBounds in the subprocess.
+                model = modena.SurrogateModel.objects(
+                    __raw__={'_pending_oob_launch_id': launch_id}
+                ).exclude('fitData').first()
+                if model:
+                    modena.SurrogateModel.objects(_id=model._id).update_one(
+                        __raw__={'$unset': {'_pending_oob_launch_id': ''}}
+                    )
 
-                model = modena.SurrogateModel.loadFailing()
-            except Exception:
-                raise TerminateWorkflow(
-                    'Exact task raised OutOfBounds signal, '
-                  + 'but failing model could not be determined',
-                    returnCode
+            if model is None:
+                # Fallback: no launch_id or subprocess crashed before stamping.
+                # Scan for any model with outsidePoint set — imprecise when
+                # multiple workers go out-of-bounds simultaneously.
+                _log.warning(
+                    'handleReturnCode(200): no launch_id or UUID lookup failed; '
+                    'falling back to loadFailing() — may be imprecise with '
+                    'multiple concurrent workers'
                 )
+                try:
+                    model = modena.SurrogateModel.loadFailing()
+                except Exception:
+                    raise TerminateWorkflow(
+                        'Exact task raised OutOfBounds signal, '
+                        'but failing model could not be determined',
+                        returnCode
+                    )
 
             raise OutOfBounds(
                 'Exact task raised OutOfBounds signal',

@@ -1286,13 +1286,34 @@ class SurrogateModel(DynamicDocument):
     def exceptionOutOfBounds(self, oPoint):
         """
         @brief Returning exception when a surrogate function is out of bounds
-        @returns (int) error code
+
+        Saves the out-of-bounds point on the model document so that
+        :meth:`outOfBoundsStrategy` can use it.  Also stamps
+        ``MODENA_LAUNCH_ID`` (if set) as ``_pending_oob_launch_id`` so that
+        :meth:`handleReturnCode` can identify the exact failing model in
+        parallel scenarios — mirrors the ``_pending_init_launch_id`` mechanism
+        used for return code 202.
+
+        @returns (int) error code 200
         """
+        import os as _os
         oPointDict = {
             k: oPoint[self.inputs_argPos(k)] for k in self.inputs.keys()
         }
         self.outsidePoint = EmbDoc(**oPointDict)
         self.save()
+        launch_id = _os.environ.get('MODENA_LAUNCH_ID')
+        if launch_id:
+            try:
+                type(self).objects(_id=self._id).update_one(
+                    __raw__={'$set': {'_pending_oob_launch_id': launch_id}}
+                )
+            except Exception as e:
+                _log.warning(
+                    'exceptionOutOfBounds: failed to stamp '
+                    '_pending_oob_launch_id on model %s: %s',
+                    self._id, e
+                )
         return 200
 
 
@@ -1336,8 +1357,12 @@ class SurrogateModel(DynamicDocument):
                 cls.objects(_id=surrogateModelId).update_one(
                     __raw__={'$set': {'_pending_init_launch_id': launch_id}}
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                _log.warning(
+                    'exceptionParametersNotValid: failed to stamp '
+                    '_pending_init_launch_id on model %s: %s',
+                    surrogateModelId, e
+                )
         return 202
 
 
@@ -1430,7 +1455,8 @@ class SurrogateModel(DynamicDocument):
 
         # Get first set
         #print(self.fitData)
-        self.nSamples = len(next(iter(self.fitData.values())))
+        first = next(iter(self.fitData.values()), None)
+        self.nSamples = len(first) if first is not None else 0
 
 
     def append_fit_data_point(self, point: dict) -> None:
@@ -1449,7 +1475,15 @@ class SurrogateModel(DynamicDocument):
         push_ops = {}
         for k, v in point.items():
             if k in self.inputs or k in self.outputs:
-                push_ops[f'fitData.{k}'] = float(v)
+                try:
+                    push_ops[f'fitData.{k}'] = float(v)
+                except (ValueError, TypeError) as e:
+                    _log.error(
+                        'append_fit_data_point: cannot convert %s[%s]=%r to '
+                        'float for model %s: %s', k, type(v).__name__, v,
+                        self._id, e,
+                    )
+                    return
         if not push_ops:
             _log.warning(
                 'append_fit_data_point: no recognised keys in point %s '
@@ -1511,7 +1545,6 @@ class SurrogateModel(DynamicDocument):
             fi = self.surrogateFunction.inputs[inp]
             lines.append(f"        {inp} = [{mmp['min']:g}, {mmp['max']:g}] \\subset [{fi['min']:g}, {fi['max']:g}]")
 
-            self.reload("fitData")
         lines.append("")
         lines.append("Outputs:")
         for (inp, mmp) in self.outputs.items():
