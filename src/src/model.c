@@ -44,11 +44,18 @@ void modena_substitute_model_calculate_maps
     (
         parent->pModel, "calculate_maps", "(O)", sm->model->pModel
     );
-    if(!pMaps){ Modena_PyErr_Print(); }
+    if(!pMaps){ Modena_PyErr_Print(); return; }
+
+    if(PyTuple_Size(pMaps) < 2)
+    {
+        Modena_Error_Print("calculate_maps returned a tuple with fewer than 2 elements");
+        Py_DECREF(pMaps);
+        return;
+    }
 
     PyObject *pMapOutputs = PyTuple_GET_ITEM(pMaps, 0); // Borrowed ref
-    if(!pMapOutputs){ Modena_PyErr_Print(); }
     PyObject *pSeq = PySequence_Fast(pMapOutputs, "expected a sequence");
+    if(!pSeq){ Py_DECREF(pMaps); Modena_PyErr_Print(); return; }
     sm->map_outputs_size = PySequence_Size(pMapOutputs);
     sm->map_outputs = malloc(sm->map_outputs_size*sizeof(size_t));
 
@@ -63,8 +70,8 @@ void modena_substitute_model_calculate_maps
     if(PyErr_Occurred()){ Modena_PyErr_Print(); }
 
     PyObject *pMapInputs = PyTuple_GET_ITEM(pMaps, 1); // Borrowed ref
-    if(!pMapInputs){ Modena_PyErr_Print(); }
     pSeq = PySequence_Fast(pMapInputs, "expected a sequence");
+    if(!pSeq){ Py_DECREF(pMaps); Modena_PyErr_Print(); return; }
     sm->map_inputs_size = PySequence_Size(pMapInputs);
     sm->map_inputs = malloc(sm->map_inputs_size*sizeof(size_t));
     for(i = 0; i < sm->map_inputs_size; i++)
@@ -87,12 +94,13 @@ bool modena_model_read_substituteModels(modena_model_t *self)
     (
         self->pModel, "substituteModels"
     );
-    if(!pSubstituteModels){ Modena_PyErr_Print(); }
+    if(!pSubstituteModels){ Modena_PyErr_Print(); return false; }
 
     PyObject *pSeq = PySequence_Fast
     (
         pSubstituteModels, "expected a sequence"
     );
+    if(!pSeq){ Py_DECREF(pSubstituteModels); Modena_PyErr_Print(); return false; }
     self->substituteModels_size = PySequence_Size(pSubstituteModels);
     self->substituteModels =
         malloc(self->substituteModels_size*sizeof(modena_substitute_model_t));
@@ -169,7 +177,14 @@ bool modena_model_read_substituteModels(modena_model_t *self)
                     );
                 }
 
-                if(!pRet){ Modena_PyErr_Print(); }
+                if(!pRet)
+                {
+                    Py_DECREF(pModelIdBytes);
+                    Py_DECREF(pSeq);
+                    Py_DECREF(pSubstituteModels);
+                    Modena_PyErr_Print();
+                    return false;
+                }
                 int ret = PyLong_AsLong(pRet);
                 Py_DECREF(pRet);
 
@@ -187,16 +202,6 @@ bool modena_model_read_substituteModels(modena_model_t *self)
                 return false;
             }
         }
-
-        self->substituteModels[i].inputs = modena_inputs_new
-        (
-            self->substituteModels[i].model
-        );
-
-        self->substituteModels[i].outputs = modena_outputs_new
-        (
-            self->substituteModels[i].model
-        );
 
         modena_substitute_model_calculate_maps
         (
@@ -218,7 +223,7 @@ void modena_model_get_minMax
 )
 {
     PyObject *pObj = PyObject_CallMethod(self->pModel, "minMax", NULL);
-    if(!pObj){ Modena_PyErr_Print(); }
+    if(!pObj){ Modena_PyErr_Print(); return; }
 
     PyObject *pMin = PyTuple_GET_ITEM(pObj, 0); // Borrowed ref
     PyObject *pSeq = PySequence_Fast(pMin, "expected a sequence");
@@ -454,6 +459,16 @@ void modena_model_argPos_check(const modena_model_t *self)
         fprintf(stderr, "Not all input arguments used - Exiting\n");
         exit(1);
     }
+
+    /* All Python-calling setup is now complete.  Release the GIL so that
+     * spawned worker threads (pthreads, OpenMP) can acquire it on demand
+     * via PyGILState_Ensure when an out-of-bounds event needs Python.
+     * Only done when libmodena owns the interpreter (pure-C embedding); in
+     * a Python-app context the caller manages the GIL. */
+    if(modena_owns_python && !modena_main_thread_state && PyGILState_Check())
+    {
+        modena_main_thread_state = PyEval_SaveThread();
+    }
 }
 
 const char** modena_model_inputs_names(const modena_model_t *self)
@@ -494,6 +509,12 @@ int modena_substitute_model_call
 )
 {
     Modena_Debug_Print("modena_substitute_model_call: running substitute model");
+
+    /* Allocate per-call I/O so this function is safe to call concurrently
+     * from multiple threads on the same substitute model struct. */
+    modena_inputs_t  *sm_inputs  = modena_inputs_new(sm->model);
+    modena_outputs_t *sm_outputs = modena_outputs_new(sm->model);
+
     size_t j;
     for(j = 0; j < sm->map_inputs_size; j++)
     {
@@ -503,26 +524,31 @@ int modena_substitute_model_call
             sm->map_inputs[2*j],
             inputs->inputs[sm->map_inputs[2*j]]
         );
-        sm->inputs->inputs[sm->map_inputs[2*j+1]] =
+        sm_inputs->inputs[sm->map_inputs[2*j+1]] =
             inputs->inputs[sm->map_inputs[2*j]];
     }
 
-    int ret = modena_model_call(sm->model, sm->inputs, sm->outputs);
-    if(ret){ return ret; }
+    int ret = modena_model_call(sm->model, sm_inputs, sm_outputs);
 
-    for(j = 0; j < sm->map_outputs_size; j++)
+    if(!ret)
     {
-        Modena_Verbose_Print(
-            "  sub-output parent[%zu] <- o%zu  (%g)",
-            sm->map_outputs[2*j+1],
-            sm->map_outputs[2*j],
-            sm->outputs->outputs[sm->map_outputs[2*j]]
-        );
-        inputs->inputs[sm->map_outputs[2*j+1]] =
-            sm->outputs->outputs[sm->map_outputs[2*j]];
+        for(j = 0; j < sm->map_outputs_size; j++)
+        {
+            Modena_Verbose_Print(
+                "  sub-output parent[%zu] <- o%zu  (%g)",
+                sm->map_outputs[2*j+1],
+                sm->map_outputs[2*j],
+                sm_outputs->outputs[sm->map_outputs[2*j]]
+            );
+            inputs->inputs[sm->map_outputs[2*j+1]] =
+                sm_outputs->outputs[sm->map_outputs[2*j]];
+        }
     }
 
-    return 0;
+    modena_inputs_destroy(sm_inputs);
+    modena_outputs_destroy(sm_outputs);
+
+    return ret;
 }
 
 int write_outside_point
@@ -531,15 +557,25 @@ int write_outside_point
     modena_inputs_t *inputs
 )
 {
+    /* This function calls into CPython. Acquire the GIL so it is safe to
+     * call from worker threads that do not already hold it. */
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     PyObject* pOutside = PyList_New(self->inputs_internal_size);
 
     size_t j;
     for(j = 0; j < self->inputs_internal_size; j++)
     {
-        PyList_SET_ITEM
-        (
-            pOutside, j, PyFloat_FromDouble(inputs->inputs[j])
-        );
+        PyObject *pVal = PyFloat_FromDouble(inputs->inputs[j]);
+        if(!pVal)
+        {
+            Py_DECREF(pOutside);
+            Modena_PyErr_Print();
+            PyGILState_Release(gstate);
+            modena_error_code = 1;
+            return 1;
+        }
+        PyList_SET_ITEM(pOutside, j, pVal);
     }
 
     PyObject *pRet = PyObject_CallMethod
@@ -553,6 +589,8 @@ int write_outside_point
     if(!pRet){ Modena_PyErr_Print(); }
     int ret = PyLong_AsLong(pRet);
     Py_DECREF(pRet);
+
+    PyGILState_Release(gstate);
 
     modena_error_code = ret;
 
@@ -578,14 +616,29 @@ int modena_model_call
     modena_outputs_t *outputs
 )
 {
+    /* Release the GIL for the pure-C evaluation path so that multi-threaded
+     * callers (pthreads, OpenMP, MPI+OpenMP) do not need to call
+     * Py_BEGIN_ALLOW_THREADS themselves.  We only release if this thread
+     * currently holds the GIL — worker threads in a pthread/OpenMP pool
+     * typically do not hold it, so PyGILState_Check() returns 0 and this
+     * becomes a no-op.  write_outside_point() re-acquires via
+     * PyGILState_Ensure/Release when an OOB event requires Python. */
+    int gil_held = PyGILState_Check();
+    PyThreadState *_save = NULL;
+    if(gil_held) { _save = PyEval_SaveThread(); }
+
     Modena_Debug_Print("modena_model_call: evaluating model (parameters_size=%zu)", self->parameters_size);
+
+    int retval = 0;
+
     if
     (
           self->parameters_size == 0
        && self->parameters_size != self->mf->parameters_size
     )
     {
-        return write_outside_point(self, inputs);
+        retval = write_outside_point(self, inputs);
+        goto done;
     }
 
     size_t j;
@@ -597,30 +650,19 @@ int modena_model_call
             self,
             inputs
         );
-        if(ret){ return ret; }
+        if(ret){ retval = ret; goto done; }
     }
 
     for(j = 0; j < self->inputs_internal_size; j++)
     {
-        /*
-        printf
-        (
-            "j = %zu %g < %g || %g > %g\n",
-            j,
-            inputs->inputs[j],
-            self->inputs_min[j],
-            inputs->inputs[j],
-            self->inputs_max[j]
-        );
-        */
-
         if
         (
             inputs->inputs[j] < self->inputs_min[j]
          || inputs->inputs[j] > self->inputs_max[j]
         )
         {
-            return write_outside_point(self, inputs);
+            retval = write_outside_point(self, inputs);
+            goto done;
         }
     }
 
@@ -631,7 +673,9 @@ int modena_model_call
         outputs->outputs
     );
 
-    return 0;
+done:
+    if(gil_held) { PyEval_RestoreThread(_save); }
+    return retval;
 }
 
 void modena_model_call_no_check
@@ -687,12 +731,19 @@ void modena_model_call_no_check
  */
 void modena_model_destroy(modena_model_t *self)
 {
+    /* Re-acquire the GIL if argPos_check released it.  Only the first call
+     * restores it; subsequent calls (e.g. recursive substitute-model destroy)
+     * find modena_main_thread_state == NULL and skip this. */
+    if(modena_main_thread_state)
+    {
+        PyEval_RestoreThread(modena_main_thread_state);
+        modena_main_thread_state = NULL;
+    }
+
     size_t i;
     for(i = 0; i < self->substituteModels_size; i++)
     {
         Py_XDECREF(self->substituteModels[i].model);
-        modena_inputs_destroy(self->substituteModels[i].inputs);
-        modena_outputs_destroy(self->substituteModels[i].outputs);
         free(self->substituteModels[i].map_inputs);
         free(self->substituteModels[i].map_outputs);
     }
@@ -875,12 +926,17 @@ static PyObject *modena_model_t_call
     PyObject* pOutputs = PyList_New(self->outputs_size);
     for(j = 0; j < self->outputs_size; j++)
     {
-        PyList_SET_ITEM
-        (
-            pOutputs, j, PyFloat_FromDouble(modena_outputs_get(outputs, j))
-        );
+        PyObject *pVal = PyFloat_FromDouble(modena_outputs_get(outputs, j));
+        if(!pVal)
+        {
+            Py_DECREF(pOutputs);
+            modena_inputs_destroy(inputs);
+            modena_outputs_destroy(outputs);
+            Modena_PyErr_Print();
+            return NULL;
+        }
+        PyList_SET_ITEM(pOutputs, j, pVal);
     }
-    if(PyErr_Occurred()){ Modena_PyErr_Print(); }
 
     modena_inputs_destroy(inputs);
     modena_outputs_destroy(outputs);
@@ -922,7 +978,13 @@ modena_model_t_get_parameters(modena_model_t *self, void *closure)
     size_t i;
     for(i = 0; i < self->parameters_size; i++)
     {
-        PyList_SET_ITEM(pParams, i, PyFloat_FromDouble(self->parameters[i]) );
+        PyObject *pVal = PyFloat_FromDouble(self->parameters[i]);
+        if(!pVal)
+        {
+            Py_DECREF(pParams);
+            return NULL;
+        }
+        PyList_SET_ITEM(pParams, i, pVal);
     }
     return pParams;
 }
@@ -958,7 +1020,10 @@ modena_model_t_set_parameters(modena_model_t *self, PyObject *value, void *closu
     size_t i;
     for(i = 0; i < self->parameters_size; i++)
     {
-         self->parameters[i] = PyFloat_AsDouble(PyList_GetItem(value, i));
+        PyObject *pItem = PyList_GetItem(value, i);
+        if(!pItem) { return -1; }
+        self->parameters[i] = PyFloat_AsDouble(pItem);
+        if(PyErr_Occurred()) { return -1; }
     }
 
     // PyErr_SetString(PyExc_TypeError, "Attribute is read-only!");
@@ -1093,12 +1158,16 @@ static int modena_model_t_init
     )
     {
         PyObject *args = PyTuple_New(2);
+        if(!args){ Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
 
         PyObject* str = PyUnicode_FromString
         (
             "Surrogate model does not have valid parameters"
         );
+        if(!str){ Py_DECREF(args); Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
+
         PyTuple_SET_ITEM(args, 0, str);
+        Py_INCREF(self->pModel);
         PyTuple_SET_ITEM(args, 1, self->pModel);
 
         PyErr_SetObject
@@ -1106,6 +1175,7 @@ static int modena_model_t_init
             modena_ParametersNotValid,
             args
         );
+        Py_DECREF(args);
 
         Py_DECREF(pSeq);
         Py_DECREF(pParameters);
@@ -1121,12 +1191,17 @@ static int modena_model_t_init
             (size_t)PySequence_Size(pParameters)
         );
         PyObject *excArgs = PyTuple_New(2);
-        PyTuple_SET_ITEM(excArgs, 0,
-            PyUnicode_FromString("Surrogate model does not have valid parameters"));
+        if(!excArgs){ Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
+
+        PyObject *excStr = PyUnicode_FromString("Surrogate model does not have valid parameters");
+        if(!excStr){ Py_DECREF(excArgs); Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
+
+        PyTuple_SET_ITEM(excArgs, 0, excStr);
         Py_INCREF(self->pModel);
         PyTuple_SET_ITEM(excArgs, 1, self->pModel);
 
         PyErr_SetObject(modena_ParametersNotValid, excArgs);
+        Py_DECREF(excArgs);
 
         Py_DECREF(pSeq);
         Py_DECREF(pParameters);
@@ -1175,6 +1250,12 @@ static PyObject * modena_model_t_new
         self->function = NULL;
         self->substituteModels_size = 0;
         self->substituteModels = NULL;
+        /* Initialise name arrays to NULL so modena_model_destroy() can safely
+         * call free() on them even when modena_model_t_init() fails before
+         * modena_model_get_minMax() populates them. */
+        self->inputs_names     = NULL;
+        self->outputs_names    = NULL;
+        self->parameters_names = NULL;
     }
     return (PyObject *)self;
 }

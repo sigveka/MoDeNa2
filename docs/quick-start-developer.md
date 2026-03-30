@@ -98,6 +98,36 @@ target_link_libraries(myApp MODENA::modena)
 
 ---
 
+## Thread-safe evaluation from C
+
+`modena_model_t` is read-only after initialisation and can be shared
+across threads.  Each thread needs only its own `modena_inputs_t` /
+`modena_outputs_t` pair.  `modena_model_call()` manages the CPython GIL
+internally, so no `Py_BEGIN_ALLOW_THREADS` wrapper is required in
+application code — this works for pthreads, OpenMP, and hybrid MPI+OpenMP.
+
+```c
+/* Main thread — load once */
+modena_model_t *model = modena_model_new("flowRate");
+/* … argPos setup … */
+
+/* Each worker thread */
+modena_inputs_t  *in  = modena_inputs_new(model);
+modena_outputs_t *out = modena_outputs_new(model);
+modena_model_call(model, in, out);   /* GIL-safe, concurrent */
+modena_inputs_destroy(in);
+modena_outputs_destroy(out);
+
+/* Main thread — after all threads finish */
+modena_model_destroy(model);
+```
+
+For full examples (pthreads parametric sweep, OpenMP, MPI notes) see
+[quick-start-c.md — Thread-safe evaluation](quick-start-c.md#thread-safe-evaluation)
+and the `examples/MoDeNaModels/twoTankMT/` reference implementation.
+
+---
+
 ## Calling a model from Fortran
 
 Use the `fmodena_oop` module (Fortran 2003).  Resources are released

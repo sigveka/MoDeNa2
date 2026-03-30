@@ -9,5 +9,5 @@
   lib_dir = "."
 
 [simulate]
-  target = "twoTank.TwoTankModel"
-
+  target = "twoTankPython.TwoTankPythonModel"
+ 

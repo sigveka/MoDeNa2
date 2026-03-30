@@ -343,7 +343,7 @@ class IOP(DictField):
 
     def size(self):
         size = 0
-        for k in self._fields.keys():
+        for k, v in self._fields.items():
             if 'index' in v:
                 size += v.index.iterator_size()
             else:
@@ -353,7 +353,7 @@ class IOP(DictField):
 
 
     def iteritems(self):
-        for k in self._fields.keys():
+        for k, v in self._fields.items():
             if 'index' in v:
                 for idx in v.index.names:
                     yield f'{k}[{idx}]', v
@@ -1349,6 +1349,11 @@ class SurrogateModel(DynamicDocument):
         @details
                   The surrogate model is called
         @returns  outputs (dict) outputs from the surrogate model
+        @note     If an input is outside the trained region, the process exits
+                  with code 200.  BackwardMappingScriptTask.handleReturnCode(200)
+                  intercepts this to run the out-of-bounds strategy and restart.
+                  This mirrors the behaviour of C applications linked against
+                  libmodena.
         """
         _log.debug('callModel %s', self._id)
         # Instantiate the surrogate model
@@ -1366,8 +1371,16 @@ class SurrogateModel(DynamicDocument):
                     f"Model '{self._id}' expects {expected} inputs, got {len(i)}."
                 )
 
-        # Call the surrogate model
-        out = cModel(i)
+        # Call the surrogate model.
+        # OutOfBounds is raised by the C layer when an input falls outside the
+        # trained region.  Mirror the C-app convention: exit with code 200 so
+        # that BackwardMappingScriptTask.handleReturnCode(200) can trigger the
+        # out-of-bounds strategy and restart the simulation.
+        import sys as _sys
+        try:
+            out = cModel(i)
+        except OutOfBounds:
+            _sys.exit(200)
 
         outputs = {
             self.expandIndices(k): out[v.argPos]
@@ -1405,7 +1418,7 @@ class SurrogateModel(DynamicDocument):
         #print(self.fitData)
         for k, v in self.inputs.items():
             if type(fw_spec[k][0]) is list:
-                self["fitData"][k].extend(fw_spec[k][0])
+                self.fitData[k].extend(fw_spec[k][0])
             else:
                 self.fitData[k].extend(fw_spec[k])
 

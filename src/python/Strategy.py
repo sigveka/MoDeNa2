@@ -1731,10 +1731,10 @@ class Test(ParameterFittingStrategy):
 
         training_sets, validation_sets = self.split(model.nSamples)
 
-        parameters = [ self.fit(model, [v_set] ) for v_set in validation_sets ]
+        parameters = [ self.fit(model, training_set) for training_set in training_sets ]
         errors = [ self.validate(model, pi, [vi] ) for (pi, vi) in zip(parameters, validation_sets) ]
 
-        maxError = min(errors)
+        maxError = max(errors)
         new_parameters = parameters[errors.index(maxError)]
 
         _log.info('Maximum Error = %g', maxError)
@@ -2176,8 +2176,7 @@ class OutOfBounds(Exception):
     def __init__(self, message, model, returnCode=None):
         self.model      = model
         self.returnCode = returnCode
-        _log.info('%s out-of-bounds, executing outOfBoundsStrategy for model %s',
-                  message, model._id)
+        _log.info('%s out-of-bounds for model %s', message, model._id)
         super().__init__(message, model, returnCode)
 
 

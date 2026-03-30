@@ -197,6 +197,16 @@ void modena_print_backtrace();
  *  Never written after initialisation.  Defaults to MODENA_LOG_WARNING. */
 extern int modena_log_level;
 
+/** True when libmodena called Py_Initialize() itself (pure-C embedding).
+ *  False when the interpreter was already running (Python-app import).
+ *  Set once in PyInit_libmodena; never written afterwards. */
+extern bool modena_owns_python;
+
+/** Thread state saved by modena_model_argPos_check() when it releases the GIL
+ *  at the end of the setup phase.  Restored by modena_model_destroy() before
+ *  any Py_DECREF / tp_free calls.  NULL in Python-app contexts. */
+extern PyThreadState *modena_main_thread_state;
+
 /**
  * @brief Emit a debug message to stderr when MODENA_LOG_LEVEL >= DEBUG.
  *

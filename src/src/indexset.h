@@ -89,7 +89,9 @@ typedef struct modena_index_set_t
 {
     PyObject_HEAD
 
-    PyObject *pIndexSet; /**< Reference to the Python `IndexSet` document. */
+    PyObject *pIndexSet;  /**< Reference to the Python `IndexSet` document. */
+    char     *cached_name; /**< One-entry string cache for modena_index_set_get_name().
+                            *   Freed on the next call and in modena_index_set_destroy(). */
 
 } modena_index_set_t;
 
@@ -127,7 +129,8 @@ size_t modena_index_set_get_index
  * @brief Return the label at a given integer index.
  *
  * Inverse of modena_index_set_get_index().  The returned string is owned by
- * the Python object — do not free it.
+ * the index set and valid until the next call to modena_index_set_get_name()
+ * or modena_index_set_destroy() — do not free it.
  *
  * @param self   Index set.
  * @param index  Integer position (must be in [start, end)).

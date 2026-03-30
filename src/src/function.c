@@ -75,18 +75,23 @@ void modena_function_load_library(modena_function_t* self)
 {
     PyObject *pFunctionName =
         PyObject_GetAttrString(self->pFunction, "functionName");
-
-    if(!pFunctionName){ Modena_PyErr_Print(); }
+    if(!pFunctionName){ Modena_PyErr_Print(); return; }
 
     PyObject *pLibraryName =
         PyObject_GetAttrString(self->pFunction, "libraryName");
-    if(!pLibraryName){ Modena_PyErr_Print(); }
+    if(!pLibraryName){ Py_DECREF(pFunctionName); Modena_PyErr_Print(); return; }
 
     PyObject *pFuncBytes = PyUnicode_AsEncodedString(pFunctionName, "UTF-8", "strict");
     PyObject *pLibBytes  = PyUnicode_AsEncodedString(pLibraryName,  "UTF-8", "strict");
     Py_DECREF(pFunctionName);
     Py_DECREF(pLibraryName);
-    if(!pFuncBytes || !pLibBytes){ Modena_PyErr_Print(); }
+    if(!pFuncBytes || !pLibBytes)
+    {
+        Py_XDECREF(pFuncBytes);
+        Py_XDECREF(pLibBytes);
+        Modena_PyErr_Print();
+        return;
+    }
 
     self->handle = lt_dlopen(PyBytes_AsString(pLibBytes));
 
@@ -126,19 +131,19 @@ void modena_function_load_library(modena_function_t* self)
 
     PyObject *pInputs =
         PyObject_GetAttrString(self->pFunction, "inputs");
-    if(!pInputs){ Modena_PyErr_Print(); }
+    if(!pInputs){ Modena_PyErr_Print(); return; }
     self->inputs_size = PyObject_Size(pInputs);
     Py_DECREF(pInputs);
 
     PyObject *pOutputs =
         PyObject_GetAttrString(self->pFunction, "outputs");
-    if(!pOutputs){ Modena_PyErr_Print(); }
+    if(!pOutputs){ Modena_PyErr_Print(); return; }
     self->outputs_size = PyObject_Size(pOutputs);
     Py_DECREF(pOutputs);
 
     PyObject *pParameters =
         PyObject_GetAttrString(self->pFunction, "parameters");
-    if(!pParameters){ Modena_PyErr_Print(); }
+    if(!pParameters){ Modena_PyErr_Print(); return; }
     self->parameters_size = PyObject_Size(pParameters);
     Py_DECREF(pParameters);
 }
@@ -358,8 +363,8 @@ static int modena_function_t_init
         if(!self->pFunction)
         {
             PyErr_SetString(modena_DoesNotExist, "Function does not exist");
-
             Modena_PyErr_Print();
+            return -1;
         }
     }
     else
@@ -372,7 +377,7 @@ static int modena_function_t_init
 
     PyObject *pParameters =
         PyObject_GetAttrString(self->pFunction, "parameters");
-    if(!pParameters){ Modena_PyErr_Print(); }
+    if(!pParameters){ Modena_PyErr_Print(); return -1; }
     self->parameters_size = PyObject_Size(pParameters);
     Py_DECREF(pParameters);
 

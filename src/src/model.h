@@ -104,17 +104,17 @@ extern PyObject *modena_SurrogateModel;
  * @code
  * // Copy outer inputs into substitute's input vector
  * for (size_t k = 0; k < sub->map_inputs_size; ++k)
- *     modena_inputs_set(sub->inputs, k,
+ *     modena_inputs_set(sm_inputs, k,
  *         modena_inputs_get(outer_inputs, sub->map_inputs[k]));
  * @endcode
+ *
+ * I/O vectors for the sub-model are **not** stored here; they are allocated
+ * per-call inside modena_substitute_model_call() so that multiple threads may
+ * invoke modena_model_call() on the same outer model concurrently.
  */
 typedef struct modena_substitute_model_t
 {
     struct modena_model_t *model;    /**< The substitute surrogate model. */
-
-    modena_inputs_t *inputs;         /**< Dedicated input vector for the sub-model. */
-
-    modena_outputs_t *outputs;       /**< Dedicated output vector for the sub-model. */
 
     size_t map_inputs_size;          /**< Length of @c map_inputs. */
 
@@ -194,7 +194,7 @@ typedef struct modena_model_t
     size_t substituteModels_size; /**< Number of substitute (sub-) surrogate models. */
 
     /** Array of substitute model bindings (length `substituteModels_size`).
-     *  Each entry owns its own I/O vectors and index maps. */
+     *  Each entry owns its index maps; I/O vectors are allocated per-call. */
     modena_substitute_model_t *substituteModels;
 
     const char** inputs_names;     /**< Null-terminated array of public input names. */

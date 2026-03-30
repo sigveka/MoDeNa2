@@ -117,17 +117,20 @@ const char* modena_index_set_get_name
     );
     if(!pRet){ Modena_PyErr_Print(); }
     /* Convert to bytes to get a char* pointer.  PyUnicode_AsEncodedString
-     * returns a new reference; we strdup the content and release it so the
-     * returned char* is valid beyond this call.  Callers must NOT free it —
-     * it lives as long as this index set object is alive (minor controlled
-     * leak; one allocation per get_name call). */
+     * returns a new reference; we strdup the content so the returned pointer
+     * remains valid after the Python object is released.  We replace the
+     * previous cached_name (freeing it first) so there is at most one live
+     * allocation per index set at any time.  Callers must NOT free the
+     * returned pointer — it is managed here and released in
+     * modena_index_set_destroy(). */
     PyObject *pBytes = PyUnicode_AsEncodedString(pRet, "UTF-8", "strict");
     Py_DECREF(pRet);
     if(!pBytes){ Modena_PyErr_Print(); }
-    const char* ret = strdup(PyBytes_AsString(pBytes));
+    free(((modena_index_set_t*)self)->cached_name);
+    ((modena_index_set_t*)self)->cached_name = strdup(PyBytes_AsString(pBytes));
     Py_DECREF(pBytes);
 
-    return ret;
+    return ((modena_index_set_t*)self)->cached_name;
 }
 
 size_t modena_index_set_iterator_start
@@ -158,6 +161,8 @@ size_t modena_index_set_iterator_end
 
 void modena_index_set_destroy(modena_index_set_t *self)
 {
+    free(self->cached_name);
+    self->cached_name = NULL;
     Py_XDECREF(self->pIndexSet);
 
 //    self->ob_type->tp_free((PyObject*)self);
@@ -243,7 +248,8 @@ static PyObject *modena_index_set_t_new
     self = (modena_index_set_t *)type->tp_alloc(type, 0);
     if(self)
     {
-        self->pIndexSet = NULL;
+        self->pIndexSet   = NULL;
+        self->cached_name = NULL;
     }
 
     return (PyObject *)self;

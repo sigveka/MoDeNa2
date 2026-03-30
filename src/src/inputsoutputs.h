@@ -152,8 +152,9 @@ void modena_siunits_destroy(modena_siunits_t *self);
 /**
  * @brief Allocate an input vector sized for the given model.
  *
- * Allocates both the `inputs` and `inherited_inputs` arrays based on the
- * model's `inputs_size` and `inputs_internal_size`.
+ * Allocates the `inputs` array; `inherited_inputs` is set to NULL (not
+ * allocated — it is only used by custom surrogate wrappers that call
+ * modena_inherited_inputs_set() explicitly and must allocate it themselves).
  *
  * @param self  Model whose input dimensions should be used.
  * @return      Newly allocated `modena_inputs_t`.

@@ -75,6 +75,8 @@ License
 // Initialise global variables
 thread_local int modena_error_code = 0;
 int modena_log_level = MODENA_LOG_WARNING;
+bool modena_owns_python = false;
+PyThreadState *modena_main_thread_state = NULL;
 
 PyObject *modena_DoesNotExist = NULL;
 PyObject *modena_OutOfBounds = NULL;
@@ -220,6 +222,7 @@ MOD_INIT(libmodena)
     if(!Py_IsInitialized())
     {
         Py_Initialize();
+        modena_owns_python = true;
     }
 
     if(PyType_Ready(&modena_index_set_tType) < 0)

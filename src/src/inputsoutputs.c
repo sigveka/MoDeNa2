@@ -79,6 +79,7 @@ modena_outputs_t *modena_outputs_new(const modena_model_t *self)
 void modena_inputs_destroy(modena_inputs_t *self)
 {
     free(self->inputs);
+    free(self->inherited_inputs); /* NULL-safe; no-op when not allocated */
     free(self);
 }
 
