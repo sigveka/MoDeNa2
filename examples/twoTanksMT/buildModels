@@ -1,0 +1,15 @@
+#!/bin/bash
+# Build the flowRate surrogate and the multi-threaded simulation binary.
+set -euo pipefail
+
+MODENA_MODELS_DIR="../MoDeNaModels"
+BUILD_DIR="${PWD}/build"
+INSTALL_DIR="${PWD}/models"
+
+for MODEL in flowRate twoTankMT; do
+    echo ""
+    echo "=== ${MODEL} ==="
+    SKBUILD_BUILD_DIR="${BUILD_DIR}/${MODEL}" \
+        python3 -m modena install --prefix "${INSTALL_DIR}" \
+            "${MODENA_MODELS_DIR}/${MODEL}"
+done

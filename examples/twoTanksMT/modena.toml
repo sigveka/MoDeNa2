@@ -1,0 +1,11 @@
+[logging]
+level = "DEBUG"
+ 
+[surrogate_functions]
+lib_dir = "."
+
+[models]
+paths = ["./models"]
+
+[simulate]
+target = "twoTankMT.TwoTankMTModel"

@@ -1,0 +1,12 @@
+[build-system]
+requires      = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name            = "twoTankMT"
+version         = "1.0.0"
+requires-python = ">=3.9"
+dependencies    = ["modena"]
+
+[tool.scikit-build]
+wheel.packages = []
