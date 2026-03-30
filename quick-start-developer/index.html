@@ -1,0 +1,2137 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-scale modelling framework with surrogate models">
+      
+      
+      
+        <link rel="canonical" href="https://sigveka.github.io/MoDeNa2/quick-start-developer/">
+      
+      
+        <link rel="prev" href="../quick-start-user/">
+      
+      
+        <link rel="next" href="../quick-start-c/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Developer Guide - MoDeNa</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#quick-start-guide-integrating-modena-models-into-your-code" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="MoDeNa" class="md-header__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MoDeNa
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Developer Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quick-start-user/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  User Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quick-start-c/" class="md-tabs__link">
+          
+  
+  
+  Language Bindings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../core-developer-guide/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Core Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../model-registry/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Model Registry
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../fireworks/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FireWorks
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="MoDeNa" class="md-nav__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MoDeNa
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-user/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core concepts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calling-a-model-from-cc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calling a model from C/C++
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thread-safe-evaluation-from-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-safe evaluation from C
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calling-a-model-from-fortran" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calling a model from Fortran
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calling-a-model-from-matlab-octave" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calling a model from MATLAB / Octave
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#defining-a-new-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defining a new model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Defining a new model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-surrogate-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 — Surrogate function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-exact-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 — Exact task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-surrogate-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 — Surrogate model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Project layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initmodels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        initModels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fw_configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FW_config.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics-and-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics and logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diagnostics and logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#log-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#setting-the-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting the level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-debug-reveals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What DEBUG reveals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-debug_verbose-reveals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What DEBUG_VERBOSE reveals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language Bindings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Language Bindings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-fortran/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fortran
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-julia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Julia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MATLAB / Octave
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-r/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fireworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FireWorks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core concepts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calling-a-model-from-cc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calling a model from C/C++
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thread-safe-evaluation-from-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-safe evaluation from C
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calling-a-model-from-fortran" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calling a model from Fortran
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calling-a-model-from-matlab-octave" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calling a model from MATLAB / Octave
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#defining-a-new-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defining a new model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Defining a new model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-surrogate-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 — Surrogate function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-exact-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 — Exact task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-surrogate-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 — Surrogate model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project layout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Project layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initmodels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        initModels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fw_configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FW_config.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics-and-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics and logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diagnostics and logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#log-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#setting-the-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting the level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-debug-reveals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What DEBUG reveals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-debug_verbose-reveals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What DEBUG_VERBOSE reveals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="quick-start-guide-integrating-modena-models-into-your-code">Quick-Start Guide — Integrating MoDeNa Models into Your Code<a class="headerlink" href="#quick-start-guide-integrating-modena-models-into-your-code" title="Permanent link">&para;</a></h1>
+<p>This guide explains how to call an existing MoDeNa surrogate model from your
+simulation code and how to define a new model from scratch.  The <code>flowRate</code>
+model from the <code>twoTanks</code> example is used throughout.</p>
+<hr />
+<h2 id="core-concepts">Core concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌──────────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│  Macroscopic solver  (C++, Fortran, MATLAB, Python, …)       │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│                                                              │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   calls modena_model_call() ──► surrogate (.so)  ◄── fast   │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│              │                                               │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│              │ out of bounds?                                │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│              ▼                                               │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│         return code 200 ──► FireWorks ──► exact simulation   │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│                                      ──► parameter fitting   │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│                                      ──► restart solver      │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>└──────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p><strong>Surrogate function</strong> — a compiled C shared library that evaluates a
+polynomial or other analytical approximation.  Built automatically from C code
+embedded in the model definition.</p>
+<p><strong>Surrogate model</strong> — a MongoDB document that stores the surrogate function
+reference, current fitted parameters, input/output bounds, and training data.</p>
+<p><strong>Backward mapping</strong> — the adaptive loop: the macroscopic solver runs, the
+surrogate is evaluated, and when a query falls outside the trained region the
+exact simulation is called, the surrogate is refitted, and the solver restarts.</p>
+<hr />
+<h2 id="calling-a-model-from-cc">Calling a model from C/C++<a class="headerlink" href="#calling-a-model-from-cc" title="Permanent link">&para;</a></h2>
+<p>Link against <code>libmodena</code> and include <code>modena.h</code>.  The pattern is:
+<strong>load once before the time loop → set inputs → call → read outputs → handle
+return code</strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;modena.h&quot;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">{</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="cm">/* ── Load model and allocate I/O vectors ── */</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="n">modena_model_t</span><span class="w">   </span><span class="o">*</span><span class="n">model</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_new</span><span class="p">(</span><span class="s">&quot;flowRate&quot;</span><span class="p">);</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="n">modena_inputs_t</span><span class="w">  </span><span class="o">*</span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">modena_inputs_new</span><span class="p">(</span><span class="n">model</span><span class="p">);</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="n">modena_outputs_t</span><span class="w"> </span><span class="o">*</span><span class="n">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">modena_outputs_new</span><span class="p">(</span><span class="n">model</span><span class="p">);</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="cm">/* ── Cache input/output positions (do this ONCE, before the loop) ── */</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">pos_D</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_inputs_argPos</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w">  </span><span class="s">&quot;D&quot;</span><span class="p">);</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">pos_rho0</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_inputs_argPos</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w">  </span><span class="s">&quot;rho0&quot;</span><span class="p">);</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">pos_p0</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_inputs_argPos</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w">  </span><span class="s">&quot;p0&quot;</span><span class="p">);</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">pos_p1Byp0</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_inputs_argPos</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w">  </span><span class="s">&quot;p1Byp0&quot;</span><span class="p">);</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">pos_mdot</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_outputs_argPos</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;flowRate&quot;</span><span class="p">);</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="cm">/* Verify that every declared input/output was queried */</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="n">modena_model_argPos_check</span><span class="p">(</span><span class="n">model</span><span class="p">);</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="cm">/* ── Time-step loop ── */</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">t_end</span><span class="p">)</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">        </span><span class="n">t</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">dt</span><span class="p">;</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">        </span><span class="n">modena_inputs_set</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">pos_D</span><span class="p">,</span><span class="w">      </span><span class="n">D</span><span class="p">);</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">        </span><span class="n">modena_inputs_set</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">pos_rho0</span><span class="p">,</span><span class="w">   </span><span class="n">rho0</span><span class="p">);</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">        </span><span class="n">modena_inputs_set</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">pos_p0</span><span class="p">,</span><span class="w">     </span><span class="n">p0</span><span class="p">);</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">        </span><span class="n">modena_inputs_set</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">pos_p1Byp0</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">p0</span><span class="p">);</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_call</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">outputs</span><span class="p">);</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">dt</span><span class="p">;</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">   </span><span class="cm">/* retrained — retry step */</span>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="n">exit</span><span class="p">(</span><span class="n">ret</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w">            </span><span class="cm">/* 200/201 — let FireWorks handle */</span>
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">mdot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">modena_outputs_get</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span><span class="w"> </span><span class="n">pos_mdot</span><span class="p">);</span>
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">        </span><span class="cm">/* use mdot … */</span>
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a>
+<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="w">    </span><span class="cm">/* ── Clean up ── */</span>
+<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="w">    </span><span class="n">modena_inputs_destroy</span><span class="p">(</span><span class="n">inputs</span><span class="p">);</span>
+<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="w">    </span><span class="n">modena_outputs_destroy</span><span class="p">(</span><span class="n">outputs</span><span class="p">);</span>
+<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="w">    </span><span class="n">modena_model_destroy</span><span class="p">(</span><span class="n">model</span><span class="p">);</span>
+<a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>CMakeLists.txt</strong> to link against modena:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">find_package</span><span class="p">(</span><span class="s">MODENA</span><span class="w"> </span><span class="s">REQUIRED</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">myApp</span><span class="w"> </span><span class="s">MODENA::modena</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="thread-safe-evaluation-from-c">Thread-safe evaluation from C<a class="headerlink" href="#thread-safe-evaluation-from-c" title="Permanent link">&para;</a></h2>
+<p><code>modena_model_t</code> is read-only after initialisation and can be shared
+across threads.  Each thread needs only its own <code>modena_inputs_t</code> /
+<code>modena_outputs_t</code> pair.  <code>modena_model_call()</code> manages the CPython GIL
+internally, so no <code>Py_BEGIN_ALLOW_THREADS</code> wrapper is required in
+application code — this works for pthreads, OpenMP, and hybrid MPI+OpenMP.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="cm">/* Main thread — load once */</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">modena_model_t</span><span class="w"> </span><span class="o">*</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_new</span><span class="p">(</span><span class="s">&quot;flowRate&quot;</span><span class="p">);</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="cm">/* … argPos setup … */</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="cm">/* Each worker thread */</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">modena_inputs_t</span><span class="w">  </span><span class="o">*</span><span class="n">in</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">modena_inputs_new</span><span class="p">(</span><span class="n">model</span><span class="p">);</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">modena_outputs_t</span><span class="w"> </span><span class="o">*</span><span class="n">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">modena_outputs_new</span><span class="p">(</span><span class="n">model</span><span class="p">);</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">modena_model_call</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">in</span><span class="p">,</span><span class="w"> </span><span class="n">out</span><span class="p">);</span><span class="w">   </span><span class="cm">/* GIL-safe, concurrent */</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">modena_inputs_destroy</span><span class="p">(</span><span class="n">in</span><span class="p">);</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">modena_outputs_destroy</span><span class="p">(</span><span class="n">out</span><span class="p">);</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="cm">/* Main thread — after all threads finish */</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">modena_model_destroy</span><span class="p">(</span><span class="n">model</span><span class="p">);</span>
+</code></pre></div>
+<p>For full examples (pthreads parametric sweep, OpenMP, MPI notes) see
+<a href="../quick-start-c/#thread-safe-evaluation">quick-start-c.md — Thread-safe evaluation</a>
+and the <code>examples/MoDeNaModels/twoTankMT/</code> reference implementation.</p>
+<hr />
+<h2 id="calling-a-model-from-fortran">Calling a model from Fortran<a class="headerlink" href="#calling-a-model-from-fortran" title="Permanent link">&para;</a></h2>
+<p>Use the <code>fmodena_oop</code> module (Fortran 2003).  Resources are released
+automatically when the <code>modena_model</code> variable goes out of scope.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">program </span><span class="n">twoTanks</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="k">use </span><span class="n">fmodena_oop</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">use </span><span class="nb">iso_c_binding</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nb">    </span><span class="k">implicit none</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">    type</span><span class="p">(</span><span class="n">modena_model</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">m</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="kt">integer</span><span class="p">(</span><span class="kt">c_size_t</span><span class="p">)</span><span class="w">  </span><span class="kd">::</span><span class="w"> </span><span class="n">pos_D</span><span class="p">,</span><span class="w"> </span><span class="n">pos_rho0</span><span class="p">,</span><span class="w"> </span><span class="n">pos_p0</span><span class="p">,</span><span class="w"> </span><span class="n">pos_p1Byp0</span><span class="p">,</span><span class="w"> </span><span class="n">pos_mdot</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="kt">integer</span><span class="p">(</span><span class="kt">c_int</span><span class="p">)</span><span class="w">     </span><span class="kd">::</span><span class="w"> </span><span class="n">ret</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="kt">real</span><span class="p">(</span><span class="kt">c_double</span><span class="p">)</span><span class="w">     </span><span class="kd">::</span><span class="w"> </span><span class="n">D</span><span class="p">,</span><span class="w"> </span><span class="n">rho0</span><span class="p">,</span><span class="w"> </span><span class="n">p0</span><span class="p">,</span><span class="w"> </span><span class="n">p1Byp0</span><span class="p">,</span><span class="w"> </span><span class="n">mdot</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">dt</span><span class="p">,</span><span class="w"> </span><span class="n">t_end</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="c">! ── Load model ──────────────────────────────────────────────────────────</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="k">call </span><span class="n">m</span><span class="p">%</span><span class="n">init</span><span class="p">(</span><span class="s2">&quot;flowRate&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="c">! ── Cache positions (once, before the loop) ─────────────────────────────</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="n">pos_D</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">%</span><span class="n">input_pos</span><span class="p">(</span><span class="s2">&quot;D&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="n">pos_rho0</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">%</span><span class="n">input_pos</span><span class="p">(</span><span class="s2">&quot;rho0&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="n">pos_p0</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">%</span><span class="n">input_pos</span><span class="p">(</span><span class="s2">&quot;p0&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="n">pos_p1Byp0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">%</span><span class="n">input_pos</span><span class="p">(</span><span class="s2">&quot;p1Byp0&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="n">pos_mdot</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">%</span><span class="n">output_pos</span><span class="p">(</span><span class="s2">&quot;flowRate&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="k">call </span><span class="n">m</span><span class="p">%</span><span class="n">check</span><span class="p">()</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">    </span><span class="c">! ── Time-step loop ───────────────────────────────────────────────────────</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">    </span><span class="k">do while</span><span class="w"> </span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">t_end</span><span class="p">)</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">        </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">dt</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">        </span><span class="k">call </span><span class="n">m</span><span class="p">%</span><span class="n">set</span><span class="p">(</span><span class="n">pos_D</span><span class="p">,</span><span class="w">      </span><span class="n">D</span><span class="p">)</span>
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="w">        </span><span class="k">call </span><span class="n">m</span><span class="p">%</span><span class="n">set</span><span class="p">(</span><span class="n">pos_rho0</span><span class="p">,</span><span class="w">   </span><span class="n">rho0</span><span class="p">)</span>
+<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">        </span><span class="k">call </span><span class="n">m</span><span class="p">%</span><span class="n">set</span><span class="p">(</span><span class="n">pos_p0</span><span class="p">,</span><span class="w">     </span><span class="n">p0</span><span class="p">)</span>
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">        </span><span class="k">call </span><span class="n">m</span><span class="p">%</span><span class="n">set</span><span class="p">(</span><span class="n">pos_p1Byp0</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">p0</span><span class="p">)</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="w">        </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">%</span><span class="k">call</span><span class="p">()</span>
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a>
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="k">            </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">dt</span><span class="w">        </span><span class="c">! surrogate retrained — retry this step</span>
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="w">            </span><span class="k">cycle</span>
+<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a><span class="k">        end if</span>
+<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a><span class="k">        if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">call exit</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span><span class="w">   </span><span class="c">! 200/201 — FireWorks takes over</span>
+<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a>
+<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a><span class="w">        </span><span class="n">mdot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">%</span><span class="n">get_output</span><span class="p">(</span><span class="n">pos_mdot</span><span class="p">)</span>
+<a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a><span class="w">        </span><span class="c">! use mdot …</span>
+<a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a><span class="w">    </span><span class="k">end do</span>
+<a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a>
+<a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a><span class="w">    </span><span class="c">! m is destroyed automatically by the Fortran finaliser</span>
+<a id="__codelineno-4-44" name="__codelineno-4-44" href="#__codelineno-4-44"></a>
+<a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a><span class="k">end program </span><span class="n">twoTanks</span>
+</code></pre></div>
+<p><strong>CMakeLists.txt:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">find_package</span><span class="p">(</span><span class="s">MODENA</span><span class="w"> </span><span class="s">REQUIRED</span><span class="p">)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">myApp</span><span class="w"> </span><span class="s">MODENA::fmodena_oop</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="calling-a-model-from-matlab-octave">Calling a model from MATLAB / Octave<a class="headerlink" href="#calling-a-model-from-matlab-octave" title="Permanent link">&para;</a></h2>
+<p>Use the <code>Modena</code> class, which wraps the MEX gateway.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c">% ── Load model ──────────────────────────────────────────────────────────────</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">m</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">Modena</span><span class="p">(</span><span class="s">&#39;flowRate&#39;</span><span class="p">);</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c">% ── Cache positions (once, before the loop) ─────────────────────────────────</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">pos_D</span><span class="w">      </span><span class="p">=</span><span class="w"> </span><span class="n">input_pos</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;D&#39;</span><span class="p">);</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">pos_rho0</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="n">input_pos</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;rho0&#39;</span><span class="p">);</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">pos_p0</span><span class="w">     </span><span class="p">=</span><span class="w"> </span><span class="n">input_pos</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;p0&#39;</span><span class="p">);</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="n">pos_p1Byp0</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">input_pos</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;p1Byp0&#39;</span><span class="p">);</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">pos_mdot</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="n">output_pos</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;flowRate&#39;</span><span class="p">);</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">check</span><span class="p">(</span><span class="n">m</span><span class="p">);</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="c">% ── Time-step loop ───────────────────────────────────────────────────────────</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="k">while</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">t_end</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="n">t</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">dt</span><span class="p">;</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span><span class="n">set_input</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">pos_D</span><span class="p">,</span><span class="w">      </span><span class="n">D</span><span class="p">);</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="n">set_input</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">pos_rho0</span><span class="p">,</span><span class="w">   </span><span class="n">rho0</span><span class="p">);</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="n">set_input</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">pos_p0</span><span class="p">,</span><span class="w">     </span><span class="n">p0</span><span class="p">);</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="n">set_input</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">pos_p1Byp0</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">p0</span><span class="p">);</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">    </span><span class="n">code</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">call</span><span class="p">(</span><span class="n">m</span><span class="p">);</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">dt</span><span class="p">;</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span><span class="w"> </span><span class="k">end</span><span class="w">   </span><span class="c">% retrained — retry step</span>
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">200</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">201</span><span class="p">,</span><span class="w"> </span><span class="nb">exit</span><span class="p">(</span><span class="n">code</span><span class="p">);</span><span class="w"> </span><span class="k">end</span>
+<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>
+<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a><span class="w">    </span><span class="n">mdot</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">get_output</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">pos_mdot</span><span class="p">);</span>
+<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="w">    </span><span class="c">% use mdot …</span>
+<a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="k">end</span>
+<a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a>
+<a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="c">% m is freed automatically when it goes out of scope (RAII destructor)</span>
+</code></pre></div>
+<p>The MEX gateway (<code>modena_gateway</code>) must be on the MATLAB path.  It is
+installed to <code>${MODENA_MATLAB_DIR}</code> by CMake.  Add it once in <code>startup.m</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">addpath</span><span class="p">(</span><span class="nb">getenv</span><span class="p">(</span><span class="s">&#39;MODENA_MATLAB_DIR&#39;</span><span class="p">));</span>
+</code></pre></div>
+<hr />
+<h2 id="defining-a-new-model">Defining a new model<a class="headerlink" href="#defining-a-new-model" title="Permanent link">&para;</a></h2>
+<p>A model package is a standard Python package that defines three things:
+a <strong>surrogate function</strong> (C code), a <strong>surrogate model</strong> (MongoDB document),
+and an <strong>exact task</strong> (FireTask that runs the expensive simulation).</p>
+<p>The <code>flowRate</code> model (<code>examples/MoDeNaModels/flowRate/python/flowRate.py</code>)
+is the canonical reference.</p>
+<h3 id="1-surrogate-function">1 — Surrogate function<a class="headerlink" href="#1-surrogate-function" title="Permanent link">&para;</a></h3>
+<p>The surrogate function is C code with a specific signature, defined inline
+using <code>CFunction</code>.  MoDeNa compiles it to a shared library automatically.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modena</span><span class="w"> </span><span class="kn">import</span> <span class="n">CFunction</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">f</span> <span class="o">=</span> <span class="n">CFunction</span><span class="p">(</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">Ccode</span><span class="o">=</span><span class="s1">&#39;&#39;&#39;</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="s1">#include &quot;modena.h&quot;</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="s1">#include &quot;math.h&quot;</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="s1">void two_tank_flowRate</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="s1">(</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="s1">    const modena_model_t* model,</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="s1">    const double* inputs,</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="s1">    double* outputs</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="s1">)</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="s1">{</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="s1">    {% block variables %}{</span><span class="si">% e</span><span class="s1">ndblock %}   /* MoDeNa injects variable bindings here */</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="s1">    const double P0 = parameters[0];</span>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="s1">    const double P1 = parameters[1];</span>
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a>
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="s1">    outputs[0] = M_PI * pow(D, 2.0) * P1 * sqrt(P0 * rho0 * p0);</span>
+<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="s1">}</span>
+<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="s1">&#39;&#39;&#39;</span><span class="p">,</span>
+<a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a>    <span class="n">inputs</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a>        <span class="s1">&#39;D&#39;</span><span class="p">:</span>      <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>    <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mf">9e99</span><span class="p">},</span>
+<a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a>        <span class="s1">&#39;rho0&#39;</span><span class="p">:</span>   <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>    <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mf">9e99</span><span class="p">},</span>
+<a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a>        <span class="s1">&#39;p0&#39;</span><span class="p">:</span>     <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>    <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mf">9e99</span><span class="p">},</span>
+<a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a>        <span class="s1">&#39;p1Byp0&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>    <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mf">1.0</span> <span class="p">},</span>
+<a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a>    <span class="p">},</span>
+<a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a>    <span class="n">outputs</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a>        <span class="s1">&#39;flowRate&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mf">9e99</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">9e99</span><span class="p">,</span> <span class="s1">&#39;argPos&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<a id="__codelineno-8-31" name="__codelineno-8-31" href="#__codelineno-8-31"></a>    <span class="p">},</span>
+<a id="__codelineno-8-32" name="__codelineno-8-32" href="#__codelineno-8-32"></a>    <span class="n">parameters</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-8-33" name="__codelineno-8-33" href="#__codelineno-8-33"></a>        <span class="s1">&#39;param0&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span> <span class="s1">&#39;argPos&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<a id="__codelineno-8-34" name="__codelineno-8-34" href="#__codelineno-8-34"></a>        <span class="s1">&#39;param1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span> <span class="s1">&#39;argPos&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+<a id="__codelineno-8-35" name="__codelineno-8-35" href="#__codelineno-8-35"></a>    <span class="p">},</span>
+<a id="__codelineno-8-36" name="__codelineno-8-36" href="#__codelineno-8-36"></a><span class="p">)</span>
+</code></pre></div>
+<p>The <code>{% block variables %}</code> block is filled in by MoDeNa's Jinja2 template
+engine, which generates <code>const double D = inputs[0];</code> style bindings for each
+declared input.  You use those variable names directly in the C body.</p>
+<p><strong><code>argPos</code> — the index contract between Python and C:</strong></p>
+<p><code>argPos</code> is the integer index into the <code>double[]</code> arrays that the C runtime and
+the compiled surrogate exchange.  It is set once at model creation and stored in
+MongoDB.  The rules are:</p>
+<table>
+<thead>
+<tr>
+<th>Variable kind</th>
+<th>argPos</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>inputs</strong></td>
+<td>not specified</td>
+<td>Assigned automatically: scalars first (0, 1, 2, …), then <code>IndexSet</code>-backed vector inputs</td>
+</tr>
+<tr>
+<td><strong>outputs</strong></td>
+<td>required</td>
+<td>Must be unique, starting from 0.  <code>outputs[argPos]</code> in your C code.</td>
+</tr>
+<tr>
+<td><strong>parameters</strong></td>
+<td>required</td>
+<td>Must be unique, starting from 0.  <code>parameters[argPos]</code> in your C code.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Never change <code>argPos</code> on a model that already has data in MongoDB.</strong>  Doing so
+silently shifts which array slot the C application reads, corrupting all
+existing results without any error message.  If you need to add a new input
+to an existing model, append it at the next available index and update the C
+application code.</p>
+<h3 id="2-exact-task">2 — Exact task<a class="headerlink" href="#2-exact-task" title="Permanent link">&para;</a></h3>
+<p>The exact task is a FireWorks <code>FireTask</code> that runs the expensive simulation
+and writes its output back into <code>self['point']</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fireworks.utilities.fw_utilities</span><span class="w"> </span><span class="kn">import</span> <span class="n">explicit_serialize</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modena</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModenaFireTask</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">jinja2</span><span class="w"> </span><span class="kn">import</span> <span class="n">Template</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="nd">@explicit_serialize</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="k">class</span><span class="w"> </span><span class="nc">FlowRateExactSim</span><span class="p">(</span><span class="n">ModenaFireTask</span><span class="p">):</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fw_spec</span><span class="p">):</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>        <span class="c1"># Write inputs to a file the simulation executable expects</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>        <span class="n">Template</span><span class="p">(</span><span class="s1">&#39;{{ s.point.D }}</span><span class="se">\n</span><span class="s1">{{ s.point.p0 }}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="s1">&#39;in.txt&#39;</span><span class="p">)</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>        <span class="c1"># Locate the binary: checks MODENA_BIN_PATH / [binaries] paths in</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>        <span class="c1"># modena.toml, then falls back to bin/ alongside this .py file.</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>        <span class="n">binary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_binary</span><span class="p">(</span><span class="s1">&#39;flowRateExact&#39;</span><span class="p">)</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>        <span class="n">ret</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">binary</span><span class="p">)</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">handleReturnCode</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>        <span class="c1"># Read output and store it back so MoDeNa can use it for fitting</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;out.txt&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>            <span class="bp">self</span><span class="p">[</span><span class="s1">&#39;point&#39;</span><span class="p">][</span><span class="s1">&#39;flowRate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">fh</span><span class="o">.</span><span class="n">readline</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="3-surrogate-model">3 — Surrogate model<a class="headerlink" href="#3-surrogate-model" title="Permanent link">&para;</a></h3>
+<p>Wire the surrogate function and exact task together with a <code>BackwardMappingModel</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modena</span><span class="w"> </span><span class="kn">import</span> <span class="n">BackwardMappingModel</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena.Strategy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">Strategy</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">m</span> <span class="o">=</span> <span class="n">BackwardMappingModel</span><span class="p">(</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">_id</span><span class="o">=</span><span class="s1">&#39;flowRate&#39;</span><span class="p">,</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">surrogateFunction</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">exactTask</span><span class="o">=</span><span class="n">FlowRateExactSim</span><span class="p">(),</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">substituteModels</span><span class="o">=</span><span class="p">[],</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="n">initialisationStrategy</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">InitialPoints</span><span class="p">(</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>        <span class="n">initialPoints</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>            <span class="s1">&#39;D&#39;</span><span class="p">:</span>      <span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">],</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>            <span class="s1">&#39;rho0&#39;</span><span class="p">:</span>   <span class="p">[</span><span class="mf">3.4</span><span class="p">,</span>  <span class="mf">3.5</span><span class="p">,</span>  <span class="mf">3.4</span><span class="p">,</span>  <span class="mf">3.5</span> <span class="p">],</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>            <span class="s1">&#39;p0&#39;</span><span class="p">:</span>     <span class="p">[</span><span class="mf">2.8e5</span><span class="p">,</span> <span class="mf">3.2e5</span><span class="p">,</span> <span class="mf">2.8e5</span><span class="p">,</span> <span class="mf">3.2e5</span><span class="p">],</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>            <span class="s1">&#39;p1Byp0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.04</span><span class="p">,</span> <span class="mf">0.04</span><span class="p">],</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>        <span class="p">},</span>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>    <span class="p">),</span>
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>    <span class="n">outOfBoundsStrategy</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">ExtendSpaceStochasticSampling</span><span class="p">(</span>
+<a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a>        <span class="n">nNewPoints</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a>    <span class="p">),</span>
+<a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>    <span class="n">parameterFittingStrategy</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">NonLinFitWithErrorContol</span><span class="p">(</span>
+<a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a>        <span class="n">crossValidation</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">Holdout</span><span class="p">(</span><span class="n">testDataPercentage</span><span class="o">=</span><span class="mf">0.2</span><span class="p">),</span>
+<a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a>        <span class="n">acceptanceCriterion</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">MaxError</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
+<a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a>        <span class="n">improveErrorStrategy</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">StochasticSampling</span><span class="p">(</span><span class="n">nNewPoints</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+<a id="__codelineno-10-24" name="__codelineno-10-24" href="#__codelineno-10-24"></a>    <span class="p">),</span>
+<a id="__codelineno-10-25" name="__codelineno-10-25" href="#__codelineno-10-25"></a><span class="p">)</span>
+</code></pre></div>
+<p><strong><code>_id</code></strong> — the name used when calling <code>modena_model_new("flowRate")</code>.</p>
+<p><strong><code>initialisationStrategy</code></strong> — points evaluated once by <code>./initModels</code> to seed
+the database before the first simulation run.</p>
+<p><strong><code>outOfBoundsStrategy</code></strong> — what to do when the solver queries outside the
+trained region.  <code>ExtendSpaceStochasticSampling</code> adds random points around the
+out-of-bounds query.</p>
+<p><strong><code>parameterFittingStrategy</code></strong> — how to fit the surrogate to the collected
+data.  <code>NonLinFitWithErrorContol</code> uses non-linear least squares
+(<code>scipy.optimize.least_squares</code>) with four independently composable strategy
+plug-ins:</p>
+<pre class="mermaid"><code>flowchart LR
+    NL["NonLinFitWithErrorContol"]
+
+    subgraph cv["crossValidation"]
+        CV1["Holdout(p)"]
+        CV2["KFold(k)"]
+        CV3["LeaveOneOut()"]
+        CV4["LeavePOut(p)"]
+        CV5["Jackknife()"]
+    end
+
+    subgraph ac["acceptanceCriterion"]
+        AC1["MaxError(threshold)\nmetric= AbsoluteError()\nmetric= RelativeError()\nmetric= NormalizedError()"]
+    end
+
+    subgraph ie["improveErrorStrategy"]
+        IE1["StochasticSampling(n)\nsampler= LatinHypercube()\nsampler= Halton()\nsampler= Sobol()\nsampler= RandomUniform()"]
+    end
+
+    subgraph op["optimizer"]
+        OP1["TrustRegionReflective()"]
+        OP2["LevenbergMarquardt()"]
+        OP3["DogBox()"]
+    end
+
+    cv --&gt; NL
+    ac --&gt; NL
+    ie --&gt; NL
+    op --&gt; NL</code></pre>
+<table>
+<thead>
+<tr>
+<th>Constructor key</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>crossValidation</code></td>
+<td><code>CrossValidationStrategy</code></td>
+<td><code>Holdout(testDataPercentage=0.2)</code></td>
+</tr>
+<tr>
+<td><code>acceptanceCriterion</code></td>
+<td><code>AcceptanceCriterionBase</code></td>
+<td><code>MaxError(threshold=0.1)</code></td>
+</tr>
+<tr>
+<td><code>improveErrorStrategy</code></td>
+<td><code>ImproveErrorStrategy</code></td>
+<td><code>StochasticSampling(nNewPoints=2)</code></td>
+</tr>
+<tr>
+<td><code>optimizer</code></td>
+<td><code>ResidualsOptimizer</code></td>
+<td><code>TrustRegionReflective()</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cross-validation strategies:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Folds</th>
+<th>Error aggregation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Holdout(testDataPercentage)</code></td>
+<td>1 random split</td>
+<td>max</td>
+</tr>
+<tr>
+<td><code>KFold(k)</code></td>
+<td>k shuffled folds</td>
+<td>max</td>
+</tr>
+<tr>
+<td><code>LeaveOneOut()</code></td>
+<td>N folds (test size = 1)</td>
+<td>max</td>
+</tr>
+<tr>
+<td><code>LeavePOut(p)</code></td>
+<td>C(N,p) folds — raises <code>ValueError</code> above 1000</td>
+<td>max</td>
+</tr>
+<tr>
+<td><code>Jackknife()</code></td>
+<td>N LOO folds</td>
+<td><strong>mean</strong> (bias estimation)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Error metrics</strong> — passed as <code>metric=</code> to <code>MaxError</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Residual</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AbsoluteError()</code></td>
+<td><code>measured − predicted</code></td>
+<td>Default</td>
+</tr>
+<tr>
+<td><code>RelativeError()</code></td>
+<td><code>(measured − predicted) / \|measured\|</code></td>
+<td>Falls back to absolute when <code>\|measured\| &lt; 1e-10</code></td>
+</tr>
+<tr>
+<td><code>NormalizedError()</code></td>
+<td><code>(measured − predicted) / output_range</code></td>
+<td>Falls back to absolute when range &lt; 1e-10</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Example: relative error acceptance</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">acceptanceCriterion</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">MaxError</span><span class="p">(</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">metric</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">RelativeError</span><span class="p">(),</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="p">),</span>
+</code></pre></div>
+<p>When the CV error is acceptable, the surrogate is refit on <strong>all</strong> data before
+saving, giving the best possible parameters.</p>
+<blockquote>
+<p><strong>Backward compatibility:</strong> existing MongoDB documents that store the old
+<code>testDataPercentage</code> and <code>maxError</code> keys continue to work.  The new
+<code>crossValidation</code> and <code>acceptanceCriterion</code> keys take precedence when present.</p>
+</blockquote>
+<p><strong><code>nonConvergenceStrategy</code></strong> — when to use which option:</p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SkipPoint()</code> <em>(default)</em></td>
+<td>Numerical failures are expected at certain inputs (e.g. near phase boundaries, composition limits).  Fitting continues with the remaining points.</td>
+</tr>
+<tr>
+<td><code>FizzleOnFailure()</code></td>
+<td>Any exact-simulation failure is a bug and should stop the workflow immediately for investigation.</td>
+</tr>
+<tr>
+<td><code>DefuseWorkflowOnFailure()</code></td>
+<td>A failure in one simulation invalidates the entire run (rare; legacy behaviour).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="project-layout">Project layout<a class="headerlink" href="#project-layout" title="Permanent link">&para;</a></h2>
+<p>A typical model package follows this structure:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>examples/
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>├── myExample/
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>│   ├── modena.toml         # tells MoDeNa where the model package is installed
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>│   ├── FW_config.yaml      # FireWorks config — ADD_USER_PACKAGES: [modena]
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>│   ├── initModels          # bash script: initialise and fit the surrogate
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>│   └── workflow            # bash script: run the simulation
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>│
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>└── MoDeNaModels/
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    └── myModel/
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>        ├── CMakeLists.txt  # builds the exact-simulation executable
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>        └── python/
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>            ├── __init__.py
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>            └── myModel.py  # CFunction + BackwardMappingModel + FireTask
+</code></pre></div>
+<p>The example scripts at the project root tie everything together:</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>buildModels</code></td>
+<td>Compiles and installs model packages into <code>./models/</code></td>
+</tr>
+<tr>
+<td><code>initModels</code></td>
+<td>Registers models in MongoDB and collects initial training data</td>
+</tr>
+<tr>
+<td><code>workflow</code></td>
+<td>Creates the FireWorks workflow and runs the simulation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="initmodels"><code>initModels</code><a class="headerlink" href="#initmodels" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>init<span class="w"> </span>myModel
+</code></pre></div>
+<p><code>modena init</code> imports the named model package, resets the launchpad, constructs
+the initialisation workflow from all registered models, and runs <code>rapidfire</code>
+until complete.  Pass multiple model IDs to initialise several at once:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>init<span class="w"> </span>flowRate<span class="w"> </span>myModel
+</code></pre></div>
+<h3 id="workflow"><code>workflow</code><a class="headerlink" href="#workflow" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>simulate
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Workflow complete.&quot;</span>
+</code></pre></div>
+<p><code>modena simulate</code> reads <code>[simulate] target</code> from <code>modena.toml</code>, instantiates
+the declared task class, and runs the backward-mapping loop via <code>rapidfire</code>.
+Declare the target in <code>modena.toml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">[simulate]</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;myModel.MySimModel&quot;</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">[simulate.kwargs]</span><span class="w">        </span><span class="c1"># optional — forwarded to MySimModel.__init__</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">end_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10.0</span>
+</code></pre></div>
+<h3 id="fw_configyaml"><code>FW_config.yaml</code><a class="headerlink" href="#fw_configyaml" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">ADD_USER_PACKAGES</span><span class="p">:</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">modena</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="nt">REMOVE_USELESS_DIRS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span>
+</code></pre></div>
+<p>When a Rocket subprocess deserializes tasks from MongoDB, it needs the
+<code>@explicit_serialize</code> FireTask classes in scope.  Listing <code>modena</code> is
+sufficient — on import, <code>modena</code> automatically imports every model package
+installed in the registered prefixes (from <code>modena.toml</code> or <code>MODENA_PATH</code>),
+populating the FireWorks task registry.  See
+<a href="../fireworks/#task-serialization-and-fw_configyaml">Task serialization and FW_config.yaml</a>
+for details.</p>
+<hr />
+<h2 id="project-configuration">Project configuration<a class="headerlink" href="#project-configuration" title="Permanent link">&para;</a></h2>
+<p>Create a <code>modena.toml</code> in your project root to tell MoDeNa where the model
+packages are installed and where to store compiled surrogate libraries:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">[models]</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">paths</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;./models&quot;</span><span class="p">]</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="k">[binaries]</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">paths</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;./models/bin&quot;</span><span class="p">]</span><span class="w">     </span><span class="c1"># omit to rely on the package-relative bin/ fallback</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="k">[surrogate_functions]</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="n">lib_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;./surrogate_functions&quot;</span><span class="w">   </span><span class="c1"># omit to use ~/.modena/surrogate_functions</span>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="k">[logging]</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;INFO&quot;</span><span class="w">       </span><span class="c1"># WARNING | INFO | DEBUG | DEBUG_VERBOSE</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="c1"># file = &quot;run.log&quot;   # optional: also write to a log file</span>
+</code></pre></div>
+<p>The <code>[logging]</code> and <code>[binaries]</code> sections are optional.  The <code>MODENA_LOG_LEVEL</code>
+environment variable overrides the log level when set.  Use <code>DEBUG_VERBOSE</code> to
+also enable full FireWorks output (useful when diagnosing workflow failures).</p>
+<p>See the <a href="../model-registry/#environment-variable-reference">environment variable reference</a>
+for session-level overrides via <code>MODENA_URI</code>, <code>MODENA_PATH</code>, <code>MODENA_BIN_PATH</code>,
+and <code>MODENA_SURROGATE_LIB_DIR</code>.</p>
+<hr />
+<h2 id="diagnostics-and-logging">Diagnostics and logging<a class="headerlink" href="#diagnostics-and-logging" title="Permanent link">&para;</a></h2>
+<p>MoDeNa has a unified log-level system controlled by a single environment
+variable, <code>MODENA_LOG_LEVEL</code>.  The same variable governs both the Python
+library output and the C runtime diagnostics — there is nothing extra to
+configure.</p>
+<h3 id="log-levels">Log levels<a class="headerlink" href="#log-levels" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Python output</th>
+<th>C runtime (<code>libmodena</code>) output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WARNING</code> (default)</td>
+<td>Warnings and errors only</td>
+<td>Silent</td>
+</tr>
+<tr>
+<td><code>INFO</code></td>
+<td>Normal progress messages</td>
+<td>Silent</td>
+</tr>
+<tr>
+<td><code>DEBUG</code></td>
+<td>Modena debug output; FireWorks quiet</td>
+<td>Model loading, parameter counts, substitute model mapping</td>
+</tr>
+<tr>
+<td><code>DEBUG_VERBOSE</code></td>
+<td>Full debug from modena + FireWorks</td>
+<td>Everything above, plus per-call input/output value traces</td>
+</tr>
+</tbody>
+</table>
+<h3 id="setting-the-level">Setting the level<a class="headerlink" href="#setting-the-level" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Quiet — only warnings and errors (default)</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>./workflow
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Show which models are loading, parameter counts, substitute-model wiring</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="nv">MODENA_LOG_LEVEL</span><span class="o">=</span>DEBUG<span class="w"> </span>./workflow
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Also trace every input/output value flowing through substitute models</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="nv">MODENA_LOG_LEVEL</span><span class="o">=</span>DEBUG_VERBOSE<span class="w"> </span>./workflow
+</code></pre></div>
+<p>Persistent setting in <code>modena.toml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">[logging]</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;DEBUG&quot;</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="c1"># file = &quot;run.log&quot;   # optional: also write to a file</span>
+</code></pre></div>
+<h3 id="what-debug-reveals">What DEBUG reveals<a class="headerlink" href="#what-debug-reveals" title="Permanent link">&para;</a></h3>
+<p>When running with <code>DEBUG</code>, <code>libmodena</code> emits to stderr:</p>
+<ul>
+<li>
+<p><strong>Model loading</strong> — <code>modena_model_new: loading model 'flowRate'</code>
+  Confirms which model is being loaded and when.</p>
+</li>
+<li>
+<p><strong>Parameter count mismatch</strong> — <code>Wrong number of parameters in 'flowRate'. Requires 2 -- Given 0</code>
+  This appears when a model exists in MongoDB but has not yet been fitted (e.g.
+  <code>initModels</code> has not been run, or the model was just registered).  At runtime
+  the framework handles this automatically via the 202 protocol, but the
+  message is useful when debugging a new model definition.</p>
+</li>
+<li>
+<p><strong>Substitute model activation</strong> — <code>modena_substitute_model_call: running substitute model</code>
+  Confirms that the framework is correctly evaluating the sub-model before the
+  outer surrogate.  If this message does not appear when expected, the
+  substitute model wiring in the Python definition is incorrect.</p>
+</li>
+</ul>
+<h3 id="what-debug_verbose-reveals">What DEBUG_VERBOSE reveals<a class="headerlink" href="#what-debug_verbose-reveals" title="Permanent link">&para;</a></h3>
+<p>At <code>DEBUG_VERBOSE</code>, each invocation of a substitute model also prints the
+actual numeric values being mapped:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>[modena TRACE]   sub-input  i1 &lt;- parent[0]  (300.000)
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>[modena TRACE]   sub-input  i2 &lt;- parent[1]  (3.00e+05)
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>[modena TRACE]   sub-output parent[2] &lt;- o0  (3.484)
+</code></pre></div>
+<p>This is the most detailed level.  Use it to verify that the index maps between
+the outer model and a substitute are wired correctly, or to diagnose
+unexpected values being passed between models.  It will be very noisy in a
+long simulation — use it only during initial model development.</p>
+<hr />
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<p>Run the environment health check before filing a bug:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>modena<span class="w"> </span>doctor
+</code></pre></div>
+<p>This verifies <code>libmodena.so</code>, <code>modena.toml</code>, MongoDB connectivity, all
+required Python packages, and key environment variables.</p>
+<p>For a guided walkthrough of the full workflow:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>modena<span class="w"> </span>quickstart
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

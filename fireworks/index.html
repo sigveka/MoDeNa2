@@ -1,0 +1,3938 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-scale modelling framework with surrogate models">
+      
+      
+      
+        <link rel="canonical" href="https://sigveka.github.io/MoDeNa2/fireworks/">
+      
+      
+        <link rel="prev" href="../model-registry/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>FireWorks - MoDeNa</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#fireworks-in-modena" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="MoDeNa" class="md-header__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MoDeNa
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              FireWorks
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quick-start-user/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  User Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quick-start-developer/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quick-start-c/" class="md-tabs__link">
+          
+  
+  
+  Language Bindings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../core-developer-guide/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Core Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../model-registry/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Model Registry
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FireWorks
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="MoDeNa" class="md-nav__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MoDeNa
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-user/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-developer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language Bindings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Language Bindings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-fortran/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fortran
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-julia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Julia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MATLAB / Octave
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-r/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FireWorks
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FireWorks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-fireworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why FireWorks?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fireworks-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks primitives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FireWorks primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#firework-states" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firework states
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-strategies-map-to-fireworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Strategies map to FireWorks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How Strategies map to FireWorks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initialisation-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialisation workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simulation-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-backward-mapping-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The backward-mapping loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-workflows-with-modenarun" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running workflows with modena.run()
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running workflows with modena.run()">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operation-1-surrogate-initialisation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation 1 — surrogate initialisation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operation-2-re-fit-surrogate-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation 2 — re-fit surrogate parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operation-3-run-the-macroscopic-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation 3 — run the macroscopic simulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Operation 3 — run the macroscopic simulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-definition-twotankpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model definition (twoTank.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bash-workflow-script-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bash workflow script (workflow)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signature
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#launcher-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launcher backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Launcher backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rapidfire-local-workers-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rapidfire — local workers (default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qlaunch-hpc-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qlaunch — HPC queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-adaptive-escalation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auto — adaptive escalation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="auto — adaptive escalation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#out-of-bounds-burst-scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out-of-bounds burst scenario
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-launcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a launcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fireworks-standard-config-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks standard config files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FireWorks standard config files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-fw_configyaml-is-discovered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How FW_config.yaml is discovered
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fworker-resolution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FWorker resolution order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qadapter-resolution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qadapter resolution order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-project-level-fw_configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: project-level FW_config.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#note-on-launchpad_loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Note on LAUNCHPAD_LOC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inspecting-and-managing-the-launchpad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspecting and managing the launchpad
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inspecting and managing the launchpad">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modenalpad-factory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena.lpad() — factory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modenalaunchpad-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ModenaLaunchPad methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connection-internals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection internals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#defuse_orphansmax_age_seconds3600" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        defuse_orphans(max_age_seconds=3600)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tracing-workflow-ancestry-with-retrace_to_origin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tracing workflow ancestry with retrace_to_origin
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firework-naming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firework naming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verbosity-and-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbosity and logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verbosity and logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fireworks-output-is-silenced-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks output is silenced by default
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug_verbose-full-fireworks-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DEBUG_VERBOSE — full FireWorks output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#log-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-in-modenatoml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure in modena.toml
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-serialization-and-fw_configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task serialization and FW_config.yaml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Task serialization and FW_config.yaml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-fireworks-deserializes-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How FireWorks deserializes tasks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fw_configyaml-modena-is-sufficient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FW_config.yaml — [modena] is sufficient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-auto-import-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How auto-import works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-line-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-line reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command-line reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modena-fw-fireworks-launchpad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena fw — FireWorks launchpad
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="modena fw — FireWorks launchpad">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inspection-and-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspection and management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-fw-run-launch-a-macroscopic-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena fw run — launch a macroscopic simulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-model-surrogate-model-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena model — surrogate model database
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-init-initialise-surrogate-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena init — initialise surrogate models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-install-install-a-model-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena install — install a model package
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-model-refit-re-fit-surrogate-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena model refit — re-fit surrogate parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-doctor-environment-health-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena doctor — environment health check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-quickstart-usage-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena quickstart — usage guide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-pitfalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common pitfalls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common pitfalls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rapidfire-hangs-for-60-seconds-after-the-workflow-completes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rapidfire hangs for ~60 seconds after the workflow completes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-stalls-with-runningreserved-fireworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow stalls with RUNNING/RESERVED fireworks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#callmodel-exits-with-code-200" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        callModel exits with code 200
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modulenotfounderror-no-module-named-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ModuleNotFoundError: No module named 'workflow'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fireworks-info-messages-flooding-the-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks INFO messages flooding the terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mongodb-is-not-running-commands-hang-or-fail-immediately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MongoDB is not running — commands hang or fail immediately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#all-exact-simulations-defused-after-one-numerical-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All exact simulations DEFUSED after one numerical failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#launchpad-connects-to-wrong-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LaunchPad connects to wrong MongoDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-fireworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why FireWorks?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fireworks-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks primitives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FireWorks primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#firework-states" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firework states
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-strategies-map-to-fireworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Strategies map to FireWorks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How Strategies map to FireWorks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initialisation-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialisation workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simulation-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simulation workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-backward-mapping-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The backward-mapping loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-workflows-with-modenarun" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running workflows with modena.run()
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running workflows with modena.run()">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operation-1-surrogate-initialisation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation 1 — surrogate initialisation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operation-2-re-fit-surrogate-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation 2 — re-fit surrogate parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operation-3-run-the-macroscopic-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation 3 — run the macroscopic simulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Operation 3 — run the macroscopic simulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-definition-twotankpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model definition (twoTank.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bash-workflow-script-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bash workflow script (workflow)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signature
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#launcher-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launcher backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Launcher backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rapidfire-local-workers-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rapidfire — local workers (default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qlaunch-hpc-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qlaunch — HPC queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-adaptive-escalation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auto — adaptive escalation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="auto — adaptive escalation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#out-of-bounds-burst-scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out-of-bounds burst scenario
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-launcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a launcher
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fireworks-standard-config-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks standard config files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FireWorks standard config files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-fw_configyaml-is-discovered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How FW_config.yaml is discovered
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fworker-resolution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FWorker resolution order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qadapter-resolution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        qadapter resolution order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-project-level-fw_configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: project-level FW_config.yaml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#note-on-launchpad_loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Note on LAUNCHPAD_LOC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inspecting-and-managing-the-launchpad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspecting and managing the launchpad
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inspecting and managing the launchpad">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modenalpad-factory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena.lpad() — factory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modenalaunchpad-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ModenaLaunchPad methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connection-internals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection internals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#defuse_orphansmax_age_seconds3600" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        defuse_orphans(max_age_seconds=3600)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tracing-workflow-ancestry-with-retrace_to_origin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tracing workflow ancestry with retrace_to_origin
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firework-naming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firework naming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verbosity-and-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verbosity and logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Verbosity and logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fireworks-output-is-silenced-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks output is silenced by default
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug_verbose-full-fireworks-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DEBUG_VERBOSE — full FireWorks output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#log-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-in-modenatoml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure in modena.toml
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-serialization-and-fw_configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task serialization and FW_config.yaml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Task serialization and FW_config.yaml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-fireworks-deserializes-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How FireWorks deserializes tasks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fw_configyaml-modena-is-sufficient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FW_config.yaml — [modena] is sufficient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-auto-import-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How auto-import works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-line-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command-line reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command-line reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modena-fw-fireworks-launchpad" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena fw — FireWorks launchpad
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="modena fw — FireWorks launchpad">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inspection-and-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspection and management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-fw-run-launch-a-macroscopic-simulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena fw run — launch a macroscopic simulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-model-surrogate-model-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena model — surrogate model database
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-init-initialise-surrogate-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena init — initialise surrogate models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-install-install-a-model-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena install — install a model package
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-model-refit-re-fit-surrogate-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena model refit — re-fit surrogate parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-doctor-environment-health-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena doctor — environment health check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modena-quickstart-usage-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        modena quickstart — usage guide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-pitfalls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common pitfalls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common pitfalls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rapidfire-hangs-for-60-seconds-after-the-workflow-completes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rapidfire hangs for ~60 seconds after the workflow completes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-stalls-with-runningreserved-fireworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow stalls with RUNNING/RESERVED fireworks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#callmodel-exits-with-code-200" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        callModel exits with code 200
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modulenotfounderror-no-module-named-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ModuleNotFoundError: No module named 'workflow'
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fireworks-info-messages-flooding-the-terminal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FireWorks INFO messages flooding the terminal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mongodb-is-not-running-commands-hang-or-fail-immediately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MongoDB is not running — commands hang or fail immediately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#all-exact-simulations-defused-after-one-numerical-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All exact simulations DEFUSED after one numerical failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#launchpad-connects-to-wrong-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LaunchPad connects to wrong MongoDB
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="fireworks-in-modena">FireWorks in MoDeNa<a class="headerlink" href="#fireworks-in-modena" title="Permanent link">&para;</a></h1>
+<p>MoDeNa uses <a href="https://materialsproject.github.io/fireworks/">FireWorks</a> as its
+workflow engine.  This document explains the philosophy behind that choice, how
+MoDeNa's strategies map onto FireWorks primitives, and how to operate the
+workflow system from Python or the command line.</p>
+<hr />
+<h2 id="contents">Contents<a class="headerlink" href="#contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#why-fireworks">Why FireWorks?</a></li>
+<li><a href="#fireworks-primitives">FireWorks primitives</a></li>
+<li><a href="#how-strategies-map-to-fireworks">How Strategies map to FireWorks</a></li>
+<li><a href="#the-backward-mapping-loop">The backward-mapping loop</a></li>
+<li><a href="#running-workflows-with-modenarun">Running workflows with <code>modena.run()</code></a></li>
+<li><a href="#launcher-backends">Launcher backends</a></li>
+<li><a href="#rapidfire--local-workers-default"><code>rapidfire</code> — local workers</a></li>
+<li><a href="#qlaunch--hpc-queue"><code>qlaunch</code> — HPC queue</a></li>
+<li><a href="#auto--adaptive-escalation"><code>auto</code> — adaptive escalation</a></li>
+<li><a href="#choosing-a-launcher">Choosing a launcher</a></li>
+<li><a href="#fireworks-standard-config-files">FireWorks standard config files</a></li>
+<li><a href="#inspecting-and-managing-the-launchpad">Inspecting and managing the launchpad</a></li>
+<li><a href="#modenalpad-factory"><code>modena.lpad()</code> — factory</a></li>
+<li><a href="#modenalaunchpad-methods"><code>ModenaLaunchPad</code> methods</a></li>
+<li><a href="#connection-internals">Connection internals</a></li>
+<li><a href="#defuse_orphansmax_age_seconds3600"><code>defuse_orphans</code></a></li>
+<li><a href="#tracing-workflow-ancestry-with-retrace_to_origin">Tracing workflow ancestry with <code>retrace_to_origin</code></a></li>
+<li><a href="#firework-naming">Firework naming</a></li>
+<li><a href="#verbosity-and-logging">Verbosity and logging</a></li>
+<li><a href="#task-serialization-and-fw_configyaml">Task serialization and <code>FW_config.yaml</code></a></li>
+<li><a href="#command-line-reference">Command-line reference</a><ul>
+<li><a href="#modena-fw-fireworks-launchpad"><code>modena fw</code> — FireWorks launchpad</a></li>
+<li><a href="#modena-model-surrogate-model-database"><code>modena model</code> — surrogate model database</a></li>
+<li><a href="#modena-init--initialise-surrogate-models"><code>modena init</code> — initialise surrogate models</a></li>
+<li><a href="#modena-doctor-environment-health-check"><code>modena doctor</code> — environment health check</a></li>
+<li><a href="#modena-quickstart-usage-guide"><code>modena quickstart</code> — usage guide</a></li>
+</ul>
+</li>
+<li><a href="#common-pitfalls">Common pitfalls</a></li>
+</ol>
+<hr />
+<h2 id="why-fireworks">Why FireWorks?<a class="headerlink" href="#why-fireworks" title="Permanent link">&para;</a></h2>
+<p>A MoDeNa simulation is not a single program: it is a loop that may restart
+itself whenever the surrogate model needs retraining.  FireWorks provides
+exactly the infrastructure needed:</p>
+<ul>
+<li><strong>Persistent state</strong> — workflow state is stored in MongoDB, so a crash or
+  network interruption does not lose progress.</li>
+<li><strong>Dependency tracking</strong> — parameter-fitting tasks run before the simulation
+  restarts, without any custom scheduling logic.</li>
+<li><strong>Exit-code signalling</strong> — a simulation that exits with code 200 is
+  interpreted as "needs more training"; FireWorks re-queues the fitting task
+  automatically (via <code>defuse_bad_rc</code>).</li>
+<li><strong>Distributed execution</strong> — the same workflow can run locally (rapidfire) or
+  on an HPC cluster (qlaunch) without changing application code.</li>
+</ul>
+<hr />
+<h2 id="fireworks-primitives">FireWorks primitives<a class="headerlink" href="#fireworks-primitives" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>Python class</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FireTask</strong></td>
+<td><code>fireworks.FiretaskBase</code></td>
+<td>One unit of work (a Python callable).</td>
+</tr>
+<tr>
+<td><strong>Firework</strong></td>
+<td><code>fireworks.Firework</code></td>
+<td>A list of FireTasks that run in sequence, plus metadata.</td>
+</tr>
+<tr>
+<td><strong>Workflow</strong></td>
+<td><code>fireworks.Workflow</code></td>
+<td>A DAG of Fireworks connected by dependency links.</td>
+</tr>
+<tr>
+<td><strong>LaunchPad</strong></td>
+<td><code>fireworks.LaunchPad</code></td>
+<td>MongoDB-backed queue that stores and dispatches Fireworks.</td>
+</tr>
+<tr>
+<td><strong>Rocket</strong></td>
+<td>internal</td>
+<td>The worker process that pulls and executes a single Firework.</td>
+</tr>
+<tr>
+<td><strong>rapidfire</strong></td>
+<td><code>fireworks.core.rocket_launcher.rapidfire</code></td>
+<td>Launches Rockets in a loop until no more READY Fireworks exist.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="firework-states">Firework states<a class="headerlink" href="#firework-states" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>WAITING → READY → RESERVED → RUNNING → COMPLETED
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                                      ↘ FIZZLED
+</code></pre></div>
+<ul>
+<li><code>WAITING</code> — dependencies not yet complete.</li>
+<li><code>READY</code> — ready to be picked up by a Rocket.</li>
+<li><code>RESERVED</code> — a Rocket has claimed it but not yet started.</li>
+<li><code>RUNNING</code> — actively executing.</li>
+<li><code>COMPLETED</code> — finished successfully.</li>
+<li><code>FIZZLED</code> — finished with an error (non-zero exit code that was not
+  caught by <code>defuse_bad_rc</code>).</li>
+<li><code>DEFUSED</code> — manually paused; will not run until re-queued.</li>
+<li><code>PAUSED</code> — similar to DEFUSED.</li>
+</ul>
+<hr />
+<h2 id="how-strategies-map-to-fireworks">How Strategies map to FireWorks<a class="headerlink" href="#how-strategies-map-to-fireworks" title="Permanent link">&para;</a></h2>
+<p>Every <code>SurrogateModel</code> has an <code>initialisationStrategy</code> and a
+<code>outOfBoundsStrategy</code>.  Both return objects whose <code>.workflow(model)</code> method
+produces a <code>fireworks.Workflow</code>.</p>
+<h3 id="initialisation-workflow">Initialisation workflow<a class="headerlink" href="#initialisation-workflow" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>init root — flowRate, idealGas  (EmptyFireTask)
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>      │
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>      ├─→  flowRate — init (substitute models)
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>      │          │
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>      │          └─→  flowRate — fitting
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>      │
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>      └─→  idealGas — init (no-op)
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                 │
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                 └─→  (no further steps)
+</code></pre></div>
+<p><code>modena.run(models)</code> creates one such sub-workflow per registered model and
+chains them from a shared root so they run in parallel where possible.</p>
+<h3 id="simulation-workflow">Simulation workflow<a class="headerlink" href="#simulation-workflow" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>flowRate — sim 1/4
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>flowRate — sim 2/4    ── all collected ──►  flowRate — fitting
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>flowRate — sim 3/4
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>flowRate — sim 4/4
+</code></pre></div>
+<p>When a surrogate query falls outside its valid range:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mySimulation (BackwardMappingScriptTask)
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>      │
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>      ├─ exit 0  ─────────────────►  COMPLETED
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>      │
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>      └─ exit 200 ─►  defuse_bad_rc
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>                             │
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>                             └─►  flowRate — fitting
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>                                        │
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>                                        └─►  mySimulation — resume after OOB
+</code></pre></div>
+<p><code>BackwardMappingScriptTask</code> wraps the simulation executable and sets
+<code>defuse_bad_rc: true</code> on exit code 200.  When the surrogate is queried outside
+its valid range, <code>libmodena</code> sets the process exit code to 200 and returns.
+FireWorks catches this, creates a new fitting Firework, and re-queues the
+simulation — the backward-mapping loop.</p>
+<hr />
+<h2 id="the-backward-mapping-loop">The backward-mapping loop<a class="headerlink" href="#the-backward-mapping-loop" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Simulation  →  query surrogate  →  in range?
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>                                      │ yes: use value, continue
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>                                      │ no:  exit(200)
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>                                         │
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>                              FireWorks catches exit 200
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>                                         │
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>                              ParameterFittingTask runs
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>                                         │
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>                              Simulation restarts (new Firework)
+</code></pre></div>
+<p>From the application developer's perspective, calling <code>modena_model_call</code>
+in C, <code>modena.callModel</code> in Python, or <code>model(inputs)</code> in Python is all that
+is needed.  The loop is entirely managed by FireWorks and <code>libmodena</code>.</p>
+<hr />
+<h2 id="running-workflows-with-modenarun">Running workflows with <code>modena.run()</code><a class="headerlink" href="#running-workflows-with-modenarun" title="Permanent link">&para;</a></h2>
+<p><code>modena.run()</code> is the recommended Python entry point for all three MoDeNa
+workflow operations.  It handles LaunchPad setup, workflow construction, and
+progress reporting.  Every operation also has an equivalent CLI form via
+<code>modena init</code>, <code>modena model refit</code>, and <code>modena fw run</code>.</p>
+<h3 id="operation-1-surrogate-initialisation">Operation 1 — surrogate initialisation<a class="headerlink" href="#operation-1-surrogate-initialisation" title="Permanent link">&para;</a></h3>
+<p>Run exact simulations and fit the surrogate for the first time.</p>
+<p><strong>Python:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">flowRate</span>        <span class="c1"># importing registers the model in MongoDB</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Initialise one specific model</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">flowRate</span><span class="o">.</span><span class="n">m</span><span class="p">])</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Initialise all registered models</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">modena</span><span class="o">.</span><span class="n">SurrogateModel</span><span class="o">.</span><span class="n">get_instances</span><span class="p">()))</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1"># With HPC — 4 local workers, overflow to SLURM beyond 4 READY</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">flowRate</span><span class="o">.</span><span class="n">m</span><span class="p">],</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>           <span class="n">launcher</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">njobs</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">escalate_at</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>           <span class="n">qadapter</span><span class="o">=</span><span class="s1">&#39;qadapter.yaml&#39;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>CLI (bash <code>initModels</code> script):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>init<span class="w"> </span>flowRate
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Multiple models in dependency order</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>init<span class="w"> </span>idealGas<span class="w"> </span>flowRate
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># With HPC</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>init<span class="w"> </span>flowRate<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">  </span>--launcher<span class="w"> </span>auto<span class="w"> </span>--jobs<span class="w"> </span><span class="m">4</span><span class="w"> </span>--escalate-at<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">  </span>--qadapter<span class="w"> </span>qadapter.yaml
+</code></pre></div></p>
+<h3 id="operation-2-re-fit-surrogate-parameters">Operation 2 — re-fit surrogate parameters<a class="headerlink" href="#operation-2-re-fit-surrogate-parameters" title="Permanent link">&para;</a></h3>
+<p>Re-run parameter fitting on existing training data — no new exact simulations.
+Use this after adjusting fitting strategy, acceptance threshold, or optimizer.</p>
+<p><strong>Python:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modena.Strategy</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterRefitting</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fireworks</span><span class="w"> </span><span class="kn">import</span> <span class="n">Firework</span><span class="p">,</span> <span class="n">Workflow</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">model</span> <span class="o">=</span> <span class="n">modena</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;flowRate&#39;</span><span class="p">)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">wf</span> <span class="o">=</span> <span class="n">Workflow</span><span class="p">(</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="p">[</span><span class="n">Firework</span><span class="p">(</span><span class="n">ParameterRefitting</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;flowRate — refit&#39;</span><span class="p">)],</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;refit&#39;</span><span class="p">,</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">)</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wf</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>CLI:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>model<span class="w"> </span>refit<span class="w"> </span>flowRate
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Sequential (useful for debugging the fitting step)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>model<span class="w"> </span>refit<span class="w"> </span>flowRate<span class="w"> </span>--sequential
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c1"># With 4 parallel CV fold workers</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>model<span class="w"> </span>refit<span class="w"> </span>flowRate<span class="w"> </span>--jobs<span class="w"> </span><span class="m">4</span>
+</code></pre></div></p>
+<h3 id="operation-3-run-the-macroscopic-simulation">Operation 3 — run the macroscopic simulation<a class="headerlink" href="#operation-3-run-the-macroscopic-simulation" title="Permanent link">&para;</a></h3>
+<p>Run the full simulation workflow (the C/Fortran/Python application that calls
+<code>modena_model_call</code> at runtime).  When the surrogate goes out-of-bounds,
+FireWorks inserts an extra fitting Firework automatically and re-queues the
+simulation — the backward-mapping loop.</p>
+<h4 id="model-definition-twotankpy">Model definition (<code>twoTank.py</code>)<a class="headerlink" href="#model-definition-twotankpy" title="Permanent link">&para;</a></h4>
+<p>The macroscopic simulation is wrapped in a <code>BackwardMappingScriptTask</code> subclass.
+<code>find_binary()</code> resolves the executable at runtime via the paths configured in
+<code>modena.toml</code> (see §7 <a href="#fireworks-standard-config-files">FireWorks standard config files</a>),
+falling back to a <code>bin/</code> directory alongside the package file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modena.Strategy</span><span class="w"> </span><span class="kn">import</span> <span class="n">BackwardMappingScriptTask</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">TwoTankModel</span><span class="p">(</span><span class="n">BackwardMappingScriptTask</span><span class="p">):</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">_fw_name</span> <span class="o">=</span> <span class="s1">&#39;{{twoTank.TwoTankModel}}&#39;</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">optional_params</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># allow arbitrary kwargs through to the task dict</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>        <span class="k">if</span> <span class="n">args</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>            <span class="c1"># Deserialisation path: FireTaskBase.from_dict calls cls(m_dict).</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>            <span class="k">return</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">script</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">find_binary</span><span class="p">(</span><span class="s1">&#39;twoTanksMacroscopicProblem&#39;</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="n">m</span> <span class="o">=</span> <span class="n">TwoTankModel</span><span class="p">()</span>
+</code></pre></div>
+<p>Export both <code>m</code> and the task class from <code>__init__.py</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># twoTank/__init__.py</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">.twoTank</span><span class="w"> </span><span class="kn">import</span> <span class="n">m</span><span class="p">,</span> <span class="n">TwoTankModel</span>
+</code></pre></div>
+<p><code>_fw_name = '{{twoTank.TwoTankModel}}'</code> is required for FireWorks
+serialisation: when a rocket process deserialises the Firework from MongoDB it
+resolves <code>{{twoTank.TwoTankModel}}</code> by importing <code>twoTank</code> and calling
+<code>getattr(twoTank, 'TwoTankModel')</code>.  The class must therefore be exported at
+the package top level (see <a href="#firetask-serialisation">FireTask serialisation</a>).</p>
+<h4 id="bash-workflow-script-workflow">Bash workflow script (<code>workflow</code>)<a class="headerlink" href="#bash-workflow-script-workflow" title="Permanent link">&para;</a></h4>
+<p>The recommended pattern is a short bash script that delegates to the
+<code>modena simulate</code> CLI:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>simulate
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Workflow complete.&quot;</span>
+</code></pre></div>
+<p><code>modena simulate</code> reads <code>[simulate] target</code> from <code>modena.toml</code> to find the
+task class, instantiates it, wraps it in a <code>Workflow</code>, and runs <code>rapidfire</code>
+until complete.  Declare the target in <code>modena.toml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">[simulate]</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;twoTank.TwoTankModel&quot;</span>
+</code></pre></div>
+<p>The target class is resolved as <code>package.ClassName</code>: <code>modena simulate</code> imports
+<code>twoTank</code> and calls <code>TwoTankModel()</code>.  The class must therefore be exported at
+the package top level.</p>
+<p><strong>Optional: pass a target on the command line</strong> (overrides <code>modena.toml</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>simulate<span class="w"> </span>twoTank.TwoTankModel
+</code></pre></div>
+<p><strong>Optional: Python workflow script</strong></p>
+<p>For cases that need custom launcher options or a programmatic workflow graph,
+the Python API is still available:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="ch">#!/usr/bin/env python3</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fireworks</span><span class="w"> </span><span class="kn">import</span> <span class="n">Firework</span><span class="p">,</span> <span class="n">Workflow</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">twoTank</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="n">wf</span> <span class="o">=</span> <span class="n">Workflow</span><span class="p">([</span><span class="n">Firework</span><span class="p">(</span><span class="n">twoTank</span><span class="o">.</span><span class="n">m</span><span class="p">)],</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;simulation&#39;</span><span class="p">)</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wf</span><span class="p">)</span>
+</code></pre></div>
+<p>Run it via:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>fw<span class="w"> </span>run<span class="w"> </span>--py<span class="w"> </span>workflow
+</code></pre></div>
+<p><strong>CLI — wrap a bare binary with <code>--script</code>:</strong></p>
+<p>Use <code>--script</code> when the binary is a plain executable and you do not want to
+write a <code>workflow</code> Python file.  <code>--script</code> generates a <code>workflow.yaml</code>
+wrapping the command in a <code>BackwardMappingScriptTask</code> — it does <strong>not</strong> run
+the workflow automatically:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>fw<span class="w"> </span>run<span class="w"> </span>--script<span class="w"> </span><span class="s1">&#39;./twoTanksMacroscopicProblem&#39;</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="c1"># Writes workflow.yaml; prints:</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1">#   [modena] Generated workflow.yaml</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1">#   [modena] Run with: lpad add workflow.yaml &amp;&amp; rlaunch rapidfire</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># Inspect or edit workflow.yaml, then run:</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>lpad<span class="w"> </span>add<span class="w"> </span>workflow.yaml
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>rlaunch<span class="w"> </span>rapidfire
+</code></pre></div>
+<p><strong>CLI — add a hand-written YAML workflow:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>fw<span class="w"> </span>run<span class="w"> </span>--workflow<span class="w"> </span>my_simulation.yaml
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="c1"># Equivalent to: lpad add my_simulation.yaml &amp;&amp; rlaunch rapidfire</span>
+</code></pre></div></p>
+<p><strong>Summary — when to use each approach:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Run command</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python <code>workflow</code> script</td>
+<td><code>python3 -m modena fw run --py workflow</code></td>
+<td>Recommended; full control over launcher options</td>
+</tr>
+<tr>
+<td>Python <code>workflow</code> script</td>
+<td><code>python3 workflow</code></td>
+<td>Equivalent; useful in CI or shell scripts</td>
+</tr>
+<tr>
+<td>Plain binary</td>
+<td><code>modena fw run --script './binary'</code> then <code>lpad add</code> + <code>rlaunch</code></td>
+<td>No Python file needed; YAML can be edited before run</td>
+</tr>
+<tr>
+<td>Pre-built YAML</td>
+<td><code>modena fw run --workflow sim.yaml</code></td>
+<td>Use with hand-crafted or <code>--script</code>-generated YAML</td>
+</tr>
+</tbody>
+</table>
+<h3 id="signature">Signature<a class="headerlink" href="#signature" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="n">wf_or_models</span><span class="p">,</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">lpad</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="n">sleep_time</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>    <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;modena_workflow&#39;</span><span class="p">,</span>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>    <span class="n">njobs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>    <span class="n">launcher</span><span class="o">=</span><span class="s1">&#39;rapidfire&#39;</span><span class="p">,</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>    <span class="n">fworker</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>    <span class="n">qadapter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>    <span class="n">launch_dir</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span>
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>    <span class="n">escalate_at</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="p">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wf_or_models</code></td>
+<td>—</td>
+<td>A <code>Workflow</code>, a <code>Firework</code>, or a list of <code>SurrogateModel</code> instances.</td>
+</tr>
+<tr>
+<td><code>lpad</code></td>
+<td><code>None</code></td>
+<td>LaunchPad to use.  Created from <code>MODENA_URI</code> if not provided.</td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td><code>True</code></td>
+<td>Reset the launchpad before adding the workflow.</td>
+</tr>
+<tr>
+<td><code>sleep_time</code></td>
+<td><code>1</code></td>
+<td>Seconds to sleep between polling cycles.  Must be ≥ 1; FireWorks treats 0 as falsy and substitutes its own 60-second default, causing workers to hang for up to a minute after the workflow completes.</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td><code>None</code></td>
+<td>Wall-clock timeout in seconds (<code>rapidfire</code> and <code>auto</code> only).</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>'modena_workflow'</code></td>
+<td>Workflow name when building from a model list.</td>
+</tr>
+<tr>
+<td><code>njobs</code></td>
+<td><code>0</code></td>
+<td>Local worker count (<code>rapidfire</code>/<code>auto</code>: 0 = cpu_count, 1 = sequential); HPC queue cap (<code>qlaunch</code>: 0 = unlimited).</td>
+</tr>
+<tr>
+<td><code>launcher</code></td>
+<td><code>'rapidfire'</code></td>
+<td>Launcher backend: <code>'rapidfire'</code>, <code>'qlaunch'</code>, or <code>'auto'</code>.</td>
+</tr>
+<tr>
+<td><code>fworker</code></td>
+<td><code>None</code></td>
+<td><code>FWorker</code> instance, path to <code>fworker.yaml</code>, or <code>None</code>.  Applies to all launchers.  Resolution order: explicit argument → <code>FWORKER_LOC</code> in <code>FW_config.yaml</code> → default catch-all worker.</td>
+</tr>
+<tr>
+<td><code>qadapter</code></td>
+<td><code>None</code></td>
+<td><code>QueueAdapterBase</code> instance, path to <code>qadapter.yaml</code>, or <code>None</code>.  Required for <code>qlaunch</code>/<code>auto</code>.  Resolution order: explicit argument → <code>QUEUEADAPTER_LOC</code> in <code>FW_config.yaml</code> → error.</td>
+</tr>
+<tr>
+<td><code>launch_dir</code></td>
+<td><code>'.'</code></td>
+<td>Directory from which HPC batch scripts are submitted (<code>qlaunch</code>/<code>auto</code> only).</td>
+</tr>
+<tr>
+<td><code>escalate_at</code></td>
+<td><code>0</code></td>
+<td>READY Firework count above which the supervisor starts submitting to HPC (<code>auto</code> only).</td>
+</tr>
+</tbody>
+</table>
+<p>Returns the <code>ModenaLaunchPad</code> used, allowing post-run inspection:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">lp</span> <span class="o">=</span> <span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wf</span><span class="p">)</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">lp</span><span class="o">.</span><span class="n">state_summary</span><span class="p">())</span>
+</code></pre></div>
+<hr />
+<h2 id="launcher-backends">Launcher backends<a class="headerlink" href="#launcher-backends" title="Permanent link">&para;</a></h2>
+<p><code>modena.run()</code> supports three launcher backends selected via the <code>launcher</code>
+parameter.  All three share the same MongoDB launchpad as coordination point:
+every Firework is claimed atomically, so mixed deployments (local workers
+<strong>and</strong> HPC jobs running simultaneously) never execute the same Firework twice.</p>
+<h3 id="rapidfire-local-workers-default"><code>rapidfire</code> — local workers (default)<a class="headerlink" href="#rapidfire-local-workers-default" title="Permanent link">&para;</a></h3>
+<p>Worker processes are spawned on the local machine.  Each worker polls MongoDB,
+claims a READY Firework, executes it, and repeats until the queue is empty.
+<code>njobs</code> controls the worker count (0 = <code>os.cpu_count()</code>; 1 = sequential in
+the calling process).</p>
+<pre class="mermaid"><code>flowchart TD
+    run["modena.run(launcher='rapidfire', njobs=N)"]
+    run --&gt;|"spawn N processes"| workers
+
+    subgraph workers ["Local machine — N worker processes"]
+        W1["Worker 1\nrpidfire()"]
+        W2["Worker 2\nrapidfire()"]
+        WN["Worker N\nrapidfire()"]
+    end
+
+    workers --&gt;|"claim READY"| lpad[("MongoDB\nLaunchPad")]
+    lpad --&gt;|"Firework"| workers
+    workers --&gt;|"write result"| lpad
+    lpad --&gt;|"unblock children"| lpad</code></pre>
+<p><strong>When to use:</strong> development, small initialisation runs, or any workflow where
+all exact simulations fit comfortably on the local machine.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># 8 local workers</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">models</span><span class="p">,</span> <span class="n">njobs</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="c1"># sequential — useful for debugging exact tasks</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">models</span><span class="p">,</span> <span class="n">njobs</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="qlaunch-hpc-queue"><code>qlaunch</code> — HPC queue<a class="headerlink" href="#qlaunch-hpc-queue" title="Permanent link">&para;</a></h3>
+<p>Each READY Firework is submitted as an independent batch job to the cluster
+scheduler (SLURM, PBS, SGE, …).  The scheduler allocates nodes; the job runs
+<code>rlaunch singleshot</code> which claims one Firework from MongoDB, executes it, and
+exits.  <code>njobs</code> caps the number of jobs held in the queue simultaneously
+(0 = unlimited).</p>
+<pre class="mermaid"><code>flowchart TD
+    run["modena.run(launcher='qlaunch')"]
+    run --&gt;|"rapidfire loop\n(nlaunches=0)"| ql["fireworks\nqueue_launcher"]
+    ql --&gt;|"sbatch / qsub"| sched[("Cluster scheduler\nSLURM / PBS / SGE")]
+    sched --&gt;|"allocate node"| node["HPC node\nrlaunch singleshot"]
+    node --&gt;|"claim READY"| lpad[("MongoDB\nLaunchPad")]
+    lpad --&gt;|"Firework"| node
+    node --&gt;|"write result"| lpad
+    lpad --&gt;|"unblock children"| lpad
+    run --&gt;|"poll until\nno READY remain"| lpad</code></pre>
+<p><strong>When to use:</strong> large initialisation runs (hundreds of expensive exact
+simulations), or any workflow where local CPUs are insufficient.</p>
+<p>Requires a <code>qadapter.yaml</code> that describes the cluster queue system.
+A minimal SLURM example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># qadapter.yaml</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nt">_fw_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CommonAdapter</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="nt">_fw_q_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SLURM</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="nt">rocket_launch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rlaunch singleshot</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="nt">nodes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="nt">walltime</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;04:00:00&quot;</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="nt">queue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">compute</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Submit all simulations to SLURM, max 64 in queue at once</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">models</span><span class="p">,</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>           <span class="n">launcher</span><span class="o">=</span><span class="s1">&#39;qlaunch&#39;</span><span class="p">,</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>           <span class="n">qadapter</span><span class="o">=</span><span class="s1">&#39;qadapter.yaml&#39;</span><span class="p">,</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>           <span class="n">njobs</span><span class="o">=</span><span class="mi">64</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>modena<span class="w"> </span>init<span class="w"> </span>all<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>--launcher<span class="w"> </span>qlaunch<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>--qadapter<span class="w"> </span>qadapter.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>--jobs<span class="w"> </span><span class="m">64</span>
+</code></pre></div>
+<hr />
+<h3 id="auto-adaptive-escalation"><code>auto</code> — adaptive escalation<a class="headerlink" href="#auto-adaptive-escalation" title="Permanent link">&para;</a></h3>
+<p>Starts local <code>rapidfire</code> workers <strong>and</strong> a supervisor thread.  The supervisor
+polls the READY count every few seconds.  When the count exceeds <code>escalate_at</code>,
+it submits one HPC job per overflow Firework.  Local workers and HPC jobs
+compete for claims; MongoDB's atomic claiming ensures no double-execution.</p>
+<p>This is the right mode when a long-running macroscopic simulation (e.g.
+OpenFOAM) is running in the workflow and may suddenly trigger large bursts of
+exact simulations through out-of-bounds events.</p>
+<pre class="mermaid"><code>flowchart TD
+    run["modena.run(launcher='auto',\n  njobs=8, escalate_at=8)"]
+
+    run --&gt;|"spawn 8 processes"| local
+    run --&gt;|"start daemon thread"| sv
+
+    subgraph local ["Local machine — 8 workers"]
+        W1["Worker 1"] &amp; W2["Worker 2"] &amp; WN["Worker N"]
+    end
+
+    subgraph sv ["Supervisor thread (every 5 s)"]
+        poll["n_ready = len(READY FWs)"]
+        check{"n_ready &gt; 8?"}
+        submit["submit (n_ready − 8)\nHPC jobs"]
+        poll --&gt; check
+        check --&gt;|yes| submit
+        check --&gt;|no| poll
+        submit --&gt; poll
+    end
+
+    local --&gt;|"claim READY"| lpad[("MongoDB\nLaunchPad")]
+    sv    --&gt;|"sbatch / qsub"| sched[("Cluster\nscheduler")]
+    sched --&gt;|"allocate node"| hpc["HPC node\nrlaunch singleshot"]
+    hpc   --&gt;|"claim READY"| lpad
+
+    lpad --&gt;|"Firework"| local
+    lpad --&gt;|"Firework"| hpc
+    local --&gt;|"write result"| lpad
+    hpc   --&gt;|"write result"| lpad</code></pre>
+<h4 id="out-of-bounds-burst-scenario">Out-of-bounds burst scenario<a class="headerlink" href="#out-of-bounds-burst-scenario" title="Permanent link">&para;</a></h4>
+<p>The sequence below illustrates how <code>auto</code> handles a real OpenFOAM + LAMMPS
+run where the surrogate is initially trained but then encounters a large
+unexplored region mid-simulation.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant OF  as OpenFOAM&lt;br/&gt;(BackwardMappingScriptTask)
+    participant LM  as libmodena
+    participant DB  as MongoDB LaunchPad
+    participant LW  as Local workers (8×)
+    participant SV  as Supervisor thread
+    participant HPC as HPC cluster
+
+    OF  -&gt;&gt;  LM  : modena_model_call(T=350K)
+    LM  --&gt;&gt; OF  : k = 385 W/(m·K)   [in bounds]
+
+    note over OF : simulation advances ...
+
+    OF  -&gt;&gt;  LM  : modena_model_call(T=1500K)
+    LM  --&gt;&gt; DB  : queue 1 OOB exact-sim FW
+    LM  --&gt;&gt; OF  : exit(200)
+
+    DB  --&gt;&gt; LW  : READY=1   [local workers claim it quickly]
+
+    note over OF : more time steps, broader OOB region ...
+
+    OF  -&gt;&gt;  LM  : modena_model_call(T=1800K, …×100)
+    LM  --&gt;&gt; DB  : queue 100 exact-sim FWs
+    LM  --&gt;&gt; OF  : exit(200)
+
+    LW  -&gt;&gt;  DB  : claim 8 FWs (all workers busy)
+    SV  -&gt;&gt;  DB  : poll → READY=92 &gt; escalate_at=8
+    SV  -&gt;&gt;  HPC : submit 92 SLURM jobs
+    HPC -&gt;&gt;  DB  : claim remaining 92 FWs (atomic, no double-claim)
+
+    note over LW,HPC : local workers and HPC jobs run in parallel
+
+    LW  --&gt;&gt; DB  : 8 results written
+    HPC --&gt;&gt; DB  : 92 results written
+
+    DB  --&gt;&gt; DB  : unblock fitting FW
+    DB  --&gt;&gt; DB  : fitting completes → surrogate updated
+
+    DB  --&gt;&gt; OF  : re-queue simulation FW (resume after OOB)
+    OF  -&gt;&gt;  LM  : modena_model_call(T=1800K)
+    LM  --&gt;&gt; OF  : k = 218 W/(m·K)   [in bounds — surrogate now covers T=1800K]</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>    <span class="n">wf</span><span class="p">,</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>    <span class="n">launcher</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>    <span class="n">njobs</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>    <span class="n">escalate_at</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>    <span class="n">qadapter</span><span class="o">=</span><span class="s1">&#39;qadapter.yaml&#39;</span><span class="p">,</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>    <span class="n">launch_dir</span><span class="o">=</span><span class="s1">&#39;/scratch/modena&#39;</span><span class="p">,</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>modena<span class="w"> </span>init<span class="w"> </span>all<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span>--launcher<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>--jobs<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">  </span>--escalate-at<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">  </span>--qadapter<span class="w"> </span>qadapter.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">  </span>--launch-dir<span class="w"> </span>/scratch/modena
+</code></pre></div>
+<hr />
+<h3 id="choosing-a-launcher">Choosing a launcher<a class="headerlink" href="#choosing-a-launcher" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Launcher</th>
+<th>Key parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Development / debugging</td>
+<td><code>rapidfire</code></td>
+<td><code>njobs=1</code></td>
+</tr>
+<tr>
+<td>Small initialisation (&lt; ~20 expensive sims)</td>
+<td><code>rapidfire</code></td>
+<td><code>njobs=cpu_count</code></td>
+</tr>
+<tr>
+<td>Large batch initialisation (100s of sims)</td>
+<td><code>qlaunch</code></td>
+<td><code>njobs=&lt;queue cap&gt;</code></td>
+</tr>
+<tr>
+<td>Long macroscopic run with rare OOB events</td>
+<td><code>rapidfire</code></td>
+<td>default</td>
+</tr>
+<tr>
+<td>Long macroscopic run with potential OOB bursts</td>
+<td><code>auto</code></td>
+<td><code>escalate_at=njobs</code></td>
+</tr>
+<tr>
+<td>Cluster-only deployment (no local compute)</td>
+<td><code>qlaunch</code></td>
+<td><code>njobs=0</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key insight:</strong> all three launchers are interchangeable from the workflow's
+perspective.  The Fireworks and their dependencies are identical in all cases;
+only who executes them changes.  You can switch launcher between runs without
+touching the model or workflow code.</p>
+<hr />
+<h2 id="fireworks-standard-config-files">FireWorks standard config files<a class="headerlink" href="#fireworks-standard-config-files" title="Permanent link">&para;</a></h2>
+<p>MoDeNa follows FireWorks' documented configuration file conventions for worker
+and queue adapter settings, using the same resolution order as
+<code>LaunchPad.auto_load()</code>.</p>
+<h3 id="how-fw_configyaml-is-discovered">How <code>FW_config.yaml</code> is discovered<a class="headerlink" href="#how-fw_configyaml-is-discovered" title="Permanent link">&para;</a></h3>
+<p>FireWorks searches for <code>FW_config.yaml</code> in:</p>
+<ol>
+<li>The current working directory (<code>./FW_config.yaml</code>)</li>
+<li><code>~/.fireworks/FW_config.yaml</code></li>
+</ol>
+<p>Any keys set there override FireWorks' built-in defaults.  MoDeNa respects the
+following keys:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Purpose</th>
+<th>MoDeNa uses?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FWORKER_LOC</code></td>
+<td>Path to <code>my_fworker.yaml</code></td>
+<td>Yes — auto-discovered when <code>fworker=None</code></td>
+</tr>
+<tr>
+<td><code>QUEUEADAPTER_LOC</code></td>
+<td>Path to <code>my_qadapter.yaml</code></td>
+<td>Yes — auto-discovered when <code>qadapter=None</code></td>
+</tr>
+<tr>
+<td><code>LAUNCHPAD_LOC</code></td>
+<td>Path to <code>my_launchpad.yaml</code></td>
+<td><strong>No</strong> — MoDeNa uses <code>MODENA_URI</code> instead</td>
+</tr>
+<tr>
+<td><code>RAPIDFIRE_SLEEP_SECS</code></td>
+<td>Default polling interval</td>
+<td>Overridden — MoDeNa passes <code>sleep_time=1</code></td>
+</tr>
+<tr>
+<td><code>ADD_USER_PACKAGES</code></td>
+<td>Extra modules to import in rockets</td>
+<td>Yes (standard FireWorks)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fworker-resolution-order">FWorker resolution order<a class="headerlink" href="#fworker-resolution-order" title="Permanent link">&para;</a></h3>
+<p>When <code>fworker=None</code> is passed to <code>modena.run()</code> (or <code>--fworker</code> is omitted from
+the CLI), the resolution is:</p>
+<ol>
+<li><code>FWORKER_LOC</code> in <code>FW_config.yaml</code> — load the named file</li>
+<li>Default <code>FWorker()</code> — accepts any Firework on any machine</li>
+</ol>
+<p>This applies to <strong>all launchers</strong>, including <code>rapidfire</code>.  A <code>FWorker</code> with a
+<code>category</code> or <code>query</code> filter can restrict which Fireworks a set of workers will
+claim.</p>
+<h3 id="qadapter-resolution-order">qadapter resolution order<a class="headerlink" href="#qadapter-resolution-order" title="Permanent link">&para;</a></h3>
+<p>When <code>qadapter=None</code> is passed to <code>modena.run()</code> (or <code>--qadapter</code> is omitted),
+the resolution is:</p>
+<ol>
+<li><code>QUEUEADAPTER_LOC</code> in <code>FW_config.yaml</code> — load the named file</li>
+<li>Error — a qadapter is required for <code>qlaunch</code> and <code>auto</code></li>
+</ol>
+<h3 id="example-project-level-fw_configyaml">Example: project-level <code>FW_config.yaml</code><a class="headerlink" href="#example-project-level-fw_configyaml" title="Permanent link">&para;</a></h3>
+<p>Drop this file in your run directory and <code>modena init --launcher auto</code> will
+pick up the worker and adapter automatically — no CLI flags needed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># FW_config.yaml  (project run directory)</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="nt">ADD_USER_PACKAGES</span><span class="p">:</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">modena</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="nt">FWORKER_LOC</span><span class="p">:</span><span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">my_fworker.yaml</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="nt">QUEUEADAPTER_LOC</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_qadapter.yaml</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># my_fworker.yaml</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cluster-worker</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&#39;</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;{}&#39;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># my_qadapter.yaml</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="nt">_fw_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CommonAdapter</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="nt">_fw_q_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SLURM</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="nt">rocket_launch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rlaunch singleshot</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="nt">nodes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="nt">walltime</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;04:00:00&quot;</span>
+<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="nt">queue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">compute</span>
+</code></pre></div>
+<p>With these files in place:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># No --qadapter or --fworker needed; FW_config.yaml supplies them</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>modena<span class="w"> </span>init<span class="w"> </span>flowRate<span class="w"> </span>--launcher<span class="w"> </span>auto<span class="w"> </span>--jobs<span class="w"> </span><span class="m">4</span><span class="w"> </span>--escalate-at<span class="w"> </span><span class="m">4</span>
+</code></pre></div>
+<h3 id="note-on-launchpad_loc">Note on <code>LAUNCHPAD_LOC</code><a class="headerlink" href="#note-on-launchpad_loc" title="Permanent link">&para;</a></h3>
+<p>FireWorks' own tools (<code>lpad</code>, <code>rlaunch</code>) read the MongoDB connection from
+<code>my_launchpad.yaml</code> via <code>LAUNCHPAD_LOC</code>.  MoDeNa does <strong>not</strong> use this file —
+it constructs its own <code>ModenaLaunchPad</code> from <code>MODENA_URI</code>.  If you use both
+MoDeNa and raw FireWorks CLI tools, keep <code>my_launchpad.yaml</code> in sync with
+<code>MODENA_URI</code>.</p>
+<hr />
+<h2 id="inspecting-and-managing-the-launchpad">Inspecting and managing the launchpad<a class="headerlink" href="#inspecting-and-managing-the-launchpad" title="Permanent link">&para;</a></h2>
+<h3 id="modenalpad-factory"><code>modena.lpad()</code> — factory<a class="headerlink" href="#modenalpad-factory" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="n">lp</span> <span class="o">=</span> <span class="n">modena</span><span class="o">.</span><span class="n">lpad</span><span class="p">()</span>          <span class="c1"># connect to the active MODENA_URI</span>
+</code></pre></div>
+<p>This is a thin wrapper around <code>ModenaLaunchPad.from_modena_uri()</code>.  It
+immediately verifies the MongoDB connection with a lightweight <code>ping</code> command.
+If MongoDB is not reachable it raises <code>ModenaConnectionError</code> with a clear
+message instead of hanging silently.</p>
+<p>To increase the connection timeout (e.g. for a remote or slow MongoDB):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modena.Launchpad</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModenaLaunchPad</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="n">lp</span> <span class="o">=</span> <span class="n">ModenaLaunchPad</span><span class="o">.</span><span class="n">from_modena_uri</span><span class="p">(</span><span class="n">server_selection_timeout_ms</span><span class="o">=</span><span class="mi">10_000</span><span class="p">)</span>
+</code></pre></div>
+<p>The default <code>server_selection_timeout_ms</code> is <strong>3000 ms</strong> (3 seconds).</p>
+<h3 id="modenalaunchpad-methods"><code>ModenaLaunchPad</code> methods<a class="headerlink" href="#modenalaunchpad-methods" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="n">lp</span><span class="o">.</span><span class="n">status</span><span class="p">()</span>                 <span class="c1"># print table: fw_id, name, state, created, updated</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="n">lp</span><span class="o">.</span><span class="n">state_counts</span><span class="p">()</span>           <span class="c1"># dict: {&#39;READY&#39;: 1, &#39;COMPLETED&#39;: 3, ...}</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="n">lp</span><span class="o">.</span><span class="n">state_summary</span><span class="p">()</span>          <span class="c1"># str: &#39;READY=1, COMPLETED=3&#39;</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="n">lp</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>                  <span class="c1"># clear all fireworks (warns if RUNNING/RESERVED exist)</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="n">lp</span><span class="o">.</span><span class="n">defuse_orphans</span><span class="p">()</span>         <span class="c1"># re-queue RUNNING/RESERVED fireworks whose process died</span>
+<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="n">lp</span><span class="o">.</span><span class="n">rerun</span><span class="p">(</span><span class="n">fw_id</span><span class="p">)</span>             <span class="c1"># re-queue a specific FIZZLED or COMPLETED firework</span>
+<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a><span class="n">lp</span><span class="o">.</span><span class="n">retrace_to_origin</span><span class="p">(</span><span class="n">fw_id</span><span class="p">)</span> <span class="c1"># print + return the ancestor graph up to fw_id</span>
+</code></pre></div>
+<p><code>ModenaLaunchPad</code> inherits from FireWorks <code>LaunchPad</code>; all standard FireWorks
+<code>LaunchPad</code> methods are also available.</p>
+<h3 id="connection-internals">Connection internals<a class="headerlink" href="#connection-internals" title="Permanent link">&para;</a></h3>
+<p><code>from_modena_uri()</code> builds the LaunchPad in <code>uri_mode=True</code>, passing the full
+<code>MODENA_URI</code> string directly to PyMongo's <code>MongoClient</code>.  This avoids passing
+<code>username=None</code> and <code>authSource</code> as explicit kwargs (the legacy approach),
+which could trigger unintended authentication handshakes in some PyMongo
+versions.  The <code>serverSelectionTimeoutMS</code> kwarg is injected via
+<code>mongoclient_kwargs</code> so that failed connections are detected in ≤3 seconds
+rather than after PyMongo's 30-second default.</p>
+<h3 id="defuse_orphansmax_age_seconds3600"><code>defuse_orphans(max_age_seconds=3600)</code><a class="headerlink" href="#defuse_orphansmax_age_seconds3600" title="Permanent link">&para;</a></h3>
+<p>A firework is considered orphaned if:</p>
+<ul>
+<li>Its launch has been in <code>RUNNING</code> or <code>RESERVED</code> state for longer than
+  <code>max_age_seconds</code> (default: 1 hour), <strong>or</strong></li>
+<li>The launch host matches the current machine and the recorded PID is no
+  longer alive (Linux/macOS only).</li>
+</ul>
+<p>Call this after a crash to recover stuck fireworks:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="n">lp</span> <span class="o">=</span> <span class="n">modena</span><span class="o">.</span><span class="n">lpad</span><span class="p">()</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="n">lp</span><span class="o">.</span><span class="n">defuse_orphans</span><span class="p">()</span>           <span class="c1"># re-queues orphans → READY</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wf</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>   <span class="c1"># resume without losing existing state</span>
+</code></pre></div>
+<h3 id="tracing-workflow-ancestry-with-retrace_to_origin">Tracing workflow ancestry with <code>retrace_to_origin</code><a class="headerlink" href="#tracing-workflow-ancestry-with-retrace_to_origin" title="Permanent link">&para;</a></h3>
+<p>After a run completes, <code>retrace_to_origin</code> walks the workflow graph backwards
+from any Firework and prints the full ancestry chain — every Firework that had
+to complete before the target:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="n">lp</span> <span class="o">=</span> <span class="n">modena</span><span class="o">.</span><span class="n">lpad</span><span class="p">()</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="n">fws</span> <span class="o">=</span> <span class="n">lp</span><span class="o">.</span><span class="n">retrace_to_origin</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span>
+</code></pre></div>
+<p>Example output for a coolProp surrogate initialisation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>────────────────────────────────────────────────────────────────────────
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>Retrace to fw:12 &quot;validate density[fluid=CO2]&quot;
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a>────────────────────────────────────────────────────────────────────────
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a>Depth 0  (root)
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a>  [fw:1   ]  init root — density[fluid=CO2]          COMPLETED
+<a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a>             tasks: EmptyFireTask
+<a id="__codelineno-35-7" name="__codelineno-35-7" href="#__codelineno-35-7"></a>             ↓ (1 → 1)
+<a id="__codelineno-35-8" name="__codelineno-35-8" href="#__codelineno-35-8"></a>
+<a id="__codelineno-35-9" name="__codelineno-35-9" href="#__codelineno-35-9"></a>Depth 1
+<a id="__codelineno-35-10" name="__codelineno-35-10" href="#__codelineno-35-10"></a>  [fw:2   ]  density[fluid=CO2] — init (no-op)       COMPLETED
+<a id="__codelineno-35-11" name="__codelineno-35-11" href="#__codelineno-35-11"></a>             tasks: InitialPoints
+<a id="__codelineno-35-12" name="__codelineno-35-12" href="#__codelineno-35-12"></a>             ↓ (1 → 9)
+<a id="__codelineno-35-13" name="__codelineno-35-13" href="#__codelineno-35-13"></a>
+<a id="__codelineno-35-14" name="__codelineno-35-14" href="#__codelineno-35-14"></a>Depth 2  [9 parallel]
+<a id="__codelineno-35-15" name="__codelineno-35-15" href="#__codelineno-35-15"></a>  [fw:3   ]  density[fluid=CO2] — sim 1/9            COMPLETED
+<a id="__codelineno-35-16" name="__codelineno-35-16" href="#__codelineno-35-16"></a>             tasks: CoolPropExactSim
+<a id="__codelineno-35-17" name="__codelineno-35-17" href="#__codelineno-35-17"></a>  [fw:4   ]  density[fluid=CO2] — sim 2/9            COMPLETED
+<a id="__codelineno-35-18" name="__codelineno-35-18" href="#__codelineno-35-18"></a>             tasks: CoolPropExactSim
+<a id="__codelineno-35-19" name="__codelineno-35-19" href="#__codelineno-35-19"></a>  ...
+<a id="__codelineno-35-20" name="__codelineno-35-20" href="#__codelineno-35-20"></a>             ↓ (9 → 1)
+<a id="__codelineno-35-21" name="__codelineno-35-21" href="#__codelineno-35-21"></a>
+<a id="__codelineno-35-22" name="__codelineno-35-22" href="#__codelineno-35-22"></a>Depth 3
+<a id="__codelineno-35-23" name="__codelineno-35-23" href="#__codelineno-35-23"></a>  [fw:11  ]  density[fluid=CO2] — fitting            COMPLETED
+<a id="__codelineno-35-24" name="__codelineno-35-24" href="#__codelineno-35-24"></a>             tasks: NonLinFitWithErrorContol
+<a id="__codelineno-35-25" name="__codelineno-35-25" href="#__codelineno-35-25"></a>             ↓ (1 → 1)
+<a id="__codelineno-35-26" name="__codelineno-35-26" href="#__codelineno-35-26"></a>
+<a id="__codelineno-35-27" name="__codelineno-35-27" href="#__codelineno-35-27"></a>Depth 4  ★ target
+<a id="__codelineno-35-28" name="__codelineno-35-28" href="#__codelineno-35-28"></a>  [fw:12  ]  validate density[fluid=CO2]             COMPLETED ★
+<a id="__codelineno-35-29" name="__codelineno-35-29" href="#__codelineno-35-29"></a>             tasks: CoolPropValidationTask
+<a id="__codelineno-35-30" name="__codelineno-35-30" href="#__codelineno-35-30"></a>
+<a id="__codelineno-35-31" name="__codelineno-35-31" href="#__codelineno-35-31"></a>────────────────────────────────────────────────────────────────────────
+<a id="__codelineno-35-32" name="__codelineno-35-32" href="#__codelineno-35-32"></a>12 Firework(s) traced
+</code></pre></div>
+<p><code>retrace_to_origin</code> returns a list of <code>Firework</code> objects in topological order
+(roots first, target last), suitable for programmatic inspection:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="k">for</span> <span class="n">fw</span> <span class="ow">in</span> <span class="n">fws</span><span class="p">:</span>
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">fw</span><span class="o">.</span><span class="n">fw_id</span><span class="p">,</span> <span class="n">fw</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">fw</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+</code></pre></div>
+<p>Detour Fireworks inserted at runtime by <code>FWAction(detours=[...])</code> (e.g. when an
+out-of-bounds event triggers extra simulations) appear at their correct depth —
+they are already wired into <code>wf.links</code> by FireWorks before the workflow
+completes.</p>
+<hr />
+<h2 id="firework-naming">Firework naming<a class="headerlink" href="#firework-naming" title="Permanent link">&para;</a></h2>
+<p>All Fireworks produced by MoDeNa strategies follow the convention:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>{model._id} — {role}
+</code></pre></div>
+<p>Examples:</p>
+<table>
+<thead>
+<tr>
+<th>Firework name</th>
+<th>Where created</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init root — flowRate, idealGas</code></td>
+<td><code>modena.run()</code> root Firework</td>
+</tr>
+<tr>
+<td><code>flowRate — init (substitute models)</code></td>
+<td><code>InitialisationStrategy.workflow()</code></td>
+</tr>
+<tr>
+<td><code>flowRate — init (no-op)</code></td>
+<td><code>EmptyInitialisationStrategy.workflow()</code></td>
+</tr>
+<tr>
+<td><code>flowRate — sim 3/9</code></td>
+<td><code>BackwardMappingModel.exactTasks()</code></td>
+</tr>
+<tr>
+<td><code>flowRate — fitting</code></td>
+<td><code>ParameterFittingStrategy.workflow()</code></td>
+</tr>
+<tr>
+<td><code>flowRate — resume after OOB</code></td>
+<td>OOB detour re-queue Firework</td>
+</tr>
+<tr>
+<td><code>flowRate — resume after init</code></td>
+<td>init detour re-queue Firework</td>
+</tr>
+</tbody>
+</table>
+<p>This makes <code>modena fw status</code> and <code>retrace_to_origin</code> output human-readable
+without needing to look up Firework IDs.</p>
+<hr />
+<h2 id="verbosity-and-logging">Verbosity and logging<a class="headerlink" href="#verbosity-and-logging" title="Permanent link">&para;</a></h2>
+<h3 id="fireworks-output-is-silenced-by-default">FireWorks output is silenced by default<a class="headerlink" href="#fireworks-output-is-silenced-by-default" title="Permanent link">&para;</a></h3>
+<p>FireWorks emits INFO-level messages on every Rocket launch, task start, and
+task completion.  These are routine infrastructure noise and are suppressed by
+default in all MoDeNa entry points (<code>modena.run()</code> and <code>modena.lpad()</code>).</p>
+<p><strong>Important:</strong> FireWorks does <strong>not</strong> use the <code>"fireworks"</code> logger hierarchy.
+It creates standalone loggers named <code>"launchpad"</code>, <code>"rocket.launcher"</code>, etc.
+via its internal <code>get_fw_logger()</code> factory.  <code>logging.getLogger('fireworks').setLevel()</code>
+has no effect on these.  The only way to control FireWorks verbosity is via the
+<code>strm_lvl</code> argument passed when those loggers are first created — i.e. at
+<code>LaunchPad(strm_lvl=...)</code> construction and <code>rapidfire(strm_lvl=...)</code> call time.
+MoDeNa passes <code>strm_lvl</code> automatically via the <code>_fw_strm_lvl()</code> helper in
+<code>Launchpad.py</code>.</p>
+<h3 id="debug_verbose-full-fireworks-output"><code>DEBUG_VERBOSE</code> — full FireWorks output<a class="headerlink" href="#debug_verbose-full-fireworks-output" title="Permanent link">&para;</a></h3>
+<p>Set the modena log level to <code>DEBUG_VERBOSE</code> (numeric 5, below <code>DEBUG=10</code>) to
+re-enable FireWorks output:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena</span>
+<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="n">modena</span><span class="o">.</span><span class="n">configure_logging</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;DEBUG_VERBOSE&#39;</span><span class="p">)</span>
+<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wf</span><span class="p">)</span>
+</code></pre></div>
+<p>Or via environment variable (takes priority over <code>modena.toml</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="nv">MODENA_LOG_LEVEL</span><span class="o">=</span>DEBUG_VERBOSE<span class="w"> </span>./initModels
+</code></pre></div>
+<h3 id="log-levels">Log levels<a class="headerlink" href="#log-levels" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Modena messages</th>
+<th>FireWorks messages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WARNING</code></td>
+<td>warnings and errors only</td>
+<td>silent</td>
+</tr>
+<tr>
+<td><code>INFO</code></td>
+<td>normal progress (default)</td>
+<td>silent</td>
+</tr>
+<tr>
+<td><code>DEBUG</code></td>
+<td>full modena debug</td>
+<td>silent</td>
+</tr>
+<tr>
+<td><code>DEBUG_VERBOSE</code></td>
+<td>full modena debug</td>
+<td>full FireWorks output</td>
+</tr>
+</tbody>
+</table>
+<h3 id="configure-in-modenatoml">Configure in <code>modena.toml</code><a class="headerlink" href="#configure-in-modenatoml" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="k">[logging]</span>
+<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;WARNING&quot;</span>
+<a id="__codelineno-40-3" name="__codelineno-40-3" href="#__codelineno-40-3"></a><span class="n">file</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;modena.log&quot;</span><span class="w">   </span><span class="c1"># optional — also write timestamped log to this file</span>
+</code></pre></div>
+<p>The <code>[logging]</code> section is read from all three config layers (system <code>/etc/modena/config.toml</code>,
+user <code>~/.modena/config.toml</code>, project <code>modena.toml</code>).  <code>MODENA_LOG_LEVEL</code> env var
+overrides the toml value.</p>
+<hr />
+<h2 id="task-serialization-and-fw_configyaml">Task serialization and <code>FW_config.yaml</code><a class="headerlink" href="#task-serialization-and-fw_configyaml" title="Permanent link">&para;</a></h2>
+<h3 id="how-fireworks-deserializes-tasks">How FireWorks deserializes tasks<a class="headerlink" href="#how-fireworks-deserializes-tasks" title="Permanent link">&para;</a></h3>
+<p>FireWorks serializes <code>@explicit_serialize</code> task classes by class name and
+reconstructs them from a global registry (<code>_fw_registry</code>).  The registry is
+populated only when the module defining the class is imported.</p>
+<p><strong>Rule:</strong> Every <code>FireTaskBase</code> subclass decorated with <code>@explicit_serialize</code>
+must be defined in a proper Python module (a <code>.py</code> file on <code>sys.path</code>), not
+in a workflow script.  Workflow scripts (<code>initModels</code>, <code>workflow</code>) are not
+importable — they have no <code>.py</code> extension and are not on <code>sys.path</code>.</p>
+<p>If a task is defined in a workflow script, FireWorks serializes it with that
+script as the module name.  When a Rocket subprocess later deserializes the
+task from MongoDB, <code>__import__('workflow')</code> fails with
+<code>ModuleNotFoundError: No module named 'workflow'</code>.</p>
+<p><strong>Correct pattern:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>examples/MoDeNaModels/myModel/python/
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>    myModel.py       ← define ALL FireTask subclasses here
+<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>    __init__.py      ← re-export: from .myModel import MyTask, m
+<a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a>
+<a id="__codelineno-41-5" name="__codelineno-41-5" href="#__codelineno-41-5"></a>examples/myExample/
+<a id="__codelineno-41-6" name="__codelineno-41-6" href="#__codelineno-41-6"></a>    FW_config.yaml   ← see below
+<a id="__codelineno-41-7" name="__codelineno-41-7" href="#__codelineno-41-7"></a>    workflow         ← import MyTask from myModel; do NOT define it here
+</code></pre></div>
+<h3 id="fw_configyaml-modena-is-sufficient"><code>FW_config.yaml</code> — <code>[modena]</code> is sufficient<a class="headerlink" href="#fw_configyaml-modena-is-sufficient" title="Permanent link">&para;</a></h3>
+<p>When <code>modena</code> is imported it automatically imports every model package
+discovered in the registered prefixes (from <code>modena.toml</code> <code>[models] paths</code> or
+<code>MODENA_PATH</code>).  This ensures all <code>@explicit_serialize</code> task classes are in
+<code>_fw_registry</code> before any Rocket deserializes tasks.</p>
+<p>A minimal <code>FW_config.yaml</code> therefore only needs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="nt">ADD_USER_PACKAGES</span><span class="p">:</span>
+<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">modena</span>
+<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a><span class="nt">REMOVE_USELESS_DIRS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span>
+</code></pre></div>
+<p><strong>Prerequisite:</strong> the model package must be installed into a prefix registered
+in <code>modena.toml</code> or <code>MODENA_PATH</code>.  Packages in unregistered locations are not
+auto-imported; list them explicitly in <code>ADD_USER_PACKAGES</code> as a fallback.</p>
+<h3 id="how-auto-import-works">How auto-import works<a class="headerlink" href="#how-auto-import-works" title="Permanent link">&para;</a></h3>
+<p>After <code>ModelRegistry().load()</code> adds model prefixes to <code>sys.path</code>, <code>__init__.py</code>
+calls <code>active_packages()</code> which scans <code>.dist-info</code> directories in all registered
+prefixes.  Each discovered package is imported via <code>importlib.import_module</code>.
+Import failures are silently logged at <code>DEBUG</code> level and do not abort startup.</p>
+<hr />
+<h2 id="command-line-reference">Command-line reference<a class="headerlink" href="#command-line-reference" title="Permanent link">&para;</a></h2>
+<p>Commands are grouped into four categories:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>modena fw        &lt;command&gt;   — FireWorks launchpad operations
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>modena model     &lt;command&gt;   — Surrogate model database operations
+<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>modena init      &lt;model_id&gt;  — Run initialisation workflow
+<a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a>modena install   &lt;path&gt;      — Install a model package
+<a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a>modena doctor               — Environment health check
+<a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a>modena quickstart           — Usage guide
+</code></pre></div>
+<h3 id="modena-fw-fireworks-launchpad"><code>modena fw</code> — FireWorks launchpad<a class="headerlink" href="#modena-fw-fireworks-launchpad" title="Permanent link">&para;</a></h3>
+<h4 id="inspection-and-management">Inspection and management<a class="headerlink" href="#inspection-and-management" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>modena fw status</code></td>
+<td>Print a table of all Firework IDs, names, and states.</td>
+</tr>
+<tr>
+<td><code>modena fw reset</code></td>
+<td>Interactively reset the launchpad (prompts for confirmation).</td>
+</tr>
+<tr>
+<td><code>modena fw reset --force</code></td>
+<td>Reset without prompting.</td>
+</tr>
+<tr>
+<td><code>modena fw rerun &lt;fw_id&gt;</code></td>
+<td>Re-queue a specific FIZZLED or COMPLETED firework.</td>
+</tr>
+<tr>
+<td><code>modena fw orphans</code></td>
+<td>Re-queue RUNNING/RESERVED fireworks whose process has died.</td>
+</tr>
+<tr>
+<td><code>modena fw orphans --max-age &lt;s&gt;</code></td>
+<td>Use a custom age threshold in seconds (default 3600).</td>
+</tr>
+</tbody>
+</table>
+<h4 id="modena-fw-run-launch-a-macroscopic-simulation"><code>modena fw run</code> — launch a macroscopic simulation<a class="headerlink" href="#modena-fw-run-launch-a-macroscopic-simulation" title="Permanent link">&para;</a></h4>
+<p><code>modena fw run</code> runs or prepares the simulation workflow.  Three mutually
+exclusive modes are available.  Note that <code>modena fw run</code> has <strong>no launcher
+flags</strong> (<code>--launcher</code>, <code>--jobs</code>, etc.) — those must be passed inside the
+<code>workflow</code> Python script or via <code>FW_config.yaml</code>.</p>
+<p><strong><code>--py FILE</code></strong> — load and execute a Python workflow script.  The script is
+run in the current process; any <code>modena.run()</code> call inside it launches the
+workers.  This is the recommended approach when the model package ships a
+<code>workflow</code> file.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="c1"># Run from the example directory so modena.toml registers the models</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>fw<span class="w"> </span>run<span class="w"> </span>--py<span class="w"> </span>workflow
+<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a>
+<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="c1"># The workflow file controls launcher options internally:</span>
+<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="c1">#   modena.run(wf, launcher=&#39;auto&#39;, njobs=4, escalate_at=4, qadapter=&#39;...&#39;)</span>
+</code></pre></div>
+<p>The <code>workflow</code> script (no <code>.py</code> extension by convention) is identical to
+what you would run with <code>python3 workflow</code> directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="ch">#!/usr/bin/env python3</span>
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena</span>
+<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">twoTank</span>
+<a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fireworks</span><span class="w"> </span><span class="kn">import</span> <span class="n">Firework</span><span class="p">,</span> <span class="n">Workflow</span>
+<a id="__codelineno-45-5" name="__codelineno-45-5" href="#__codelineno-45-5"></a>
+<a id="__codelineno-45-6" name="__codelineno-45-6" href="#__codelineno-45-6"></a><span class="n">wf</span> <span class="o">=</span> <span class="n">Workflow</span><span class="p">([</span><span class="n">Firework</span><span class="p">(</span><span class="n">twoTank</span><span class="o">.</span><span class="n">m</span><span class="p">)],</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;simulation&#39;</span><span class="p">)</span>
+<a id="__codelineno-45-7" name="__codelineno-45-7" href="#__codelineno-45-7"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wf</span><span class="p">)</span>               <span class="c1"># launcher options go here, not on the CLI</span>
+</code></pre></div>
+<p><code>twoTank</code> is auto-imported by modena's registry when <code>import modena</code> runs,
+so <code>import twoTank</code> finds it without requiring it to be on <code>PYTHONPATH</code>.
+Binary lookup uses <code>find_binary()</code> in the model definition (see
+<a href="#operation-3--run-the-macroscopic-simulation">Operation 3</a>).</p>
+<p><strong><code>--script CMD</code></strong> — wrap a bare command in a <code>BackwardMappingScriptTask</code> and
+write a <code>workflow.yaml</code>.  This mode <strong>only generates the YAML</strong> — it does not
+run the workflow.  Inspect or edit the file, then submit manually:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>fw<span class="w"> </span>run<span class="w"> </span>--script<span class="w"> </span><span class="s1">&#39;./twoTanksMacroscopicProblem&#39;</span>
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a><span class="c1"># Writes workflow.yaml, prints:</span>
+<a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="c1">#   [modena] Generated workflow.yaml</span>
+<a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="c1">#   [modena] Run with: lpad add workflow.yaml &amp;&amp; rlaunch rapidfire</span>
+<a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a>
+<a id="__codelineno-46-6" name="__codelineno-46-6" href="#__codelineno-46-6"></a>lpad<span class="w"> </span>add<span class="w"> </span>workflow.yaml
+<a id="__codelineno-46-7" name="__codelineno-46-7" href="#__codelineno-46-7"></a>rlaunch<span class="w"> </span>rapidfire
+</code></pre></div>
+<p>The generated task sets <code>defuse_bad_rc: true</code>, so exit code 200 from
+<code>libmodena</code> (out-of-bounds) inserts a fitting Firework automatically.</p>
+<p><strong><code>--workflow FILE</code></strong> — add a YAML workflow to the launchpad and launch it
+with <code>rlaunch rapidfire</code>.  Useful for hand-crafted workflows or YAML files
+generated by <code>--script</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>modena<span class="w"> </span>fw<span class="w"> </span>run<span class="w"> </span>--workflow<span class="w"> </span>my_simulation.yaml
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a><span class="c1"># Equivalent to: lpad add my_simulation.yaml &amp;&amp; rlaunch rapidfire</span>
+</code></pre></div>
+<p>Note: <code>--workflow</code> bypasses <code>modena.run()</code> and calls <code>rlaunch rapidfire</code>
+directly, so it does not benefit from the post-run orphan detection or the
+<code>sleep_time=1</code> default.  Use <code>--py</code> with a <code>modena.run(wf)</code> script for
+production runs.</p>
+<h3 id="modena-model-surrogate-model-database"><code>modena model</code> — surrogate model database<a class="headerlink" href="#modena-model-surrogate-model-database" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>modena model ls</code></td>
+<td>List all surrogate models with their function signatures.</td>
+</tr>
+<tr>
+<td><code>modena model show &lt;id&gt;</code></td>
+<td>Show full details for a single model (inputs, outputs, fitted parameters).</td>
+</tr>
+<tr>
+<td><code>modena model freeze [-o FILE]</code></td>
+<td>Snapshot model parameters and package versions to a lock file.</td>
+</tr>
+<tr>
+<td><code>modena model restore [-i FILE]</code></td>
+<td>Restore model parameters from a lock file.</td>
+</tr>
+<tr>
+<td><code>modena model restore --verify-only</code></td>
+<td>Check version consistency only; do not write to DB.</td>
+</tr>
+<tr>
+<td><code>modena model refit &lt;id&gt;</code></td>
+<td>Re-fit surrogate parameters using the training data already stored in MongoDB (no exact simulations re-run). Accepts all <code>--jobs</code>/<code>--launcher</code> flags.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="modena-init-initialise-surrogate-models"><code>modena init</code> — initialise surrogate models<a class="headerlink" href="#modena-init-initialise-surrogate-models" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>modena<span class="w"> </span>init<span class="w"> </span>all<span class="w">                        </span><span class="c1"># initialise every registered model</span>
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>modena<span class="w"> </span>init<span class="w"> </span><span class="s1">&#39;thermalDiffusion[material=Cu]&#39;</span><span class="w">   </span><span class="c1"># one specific model</span>
+<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a>modena<span class="w"> </span>init<span class="w"> </span><span class="s1">&#39;modelA&#39;</span><span class="w"> </span><span class="s1">&#39;modelB&#39;</span><span class="w">          </span><span class="c1"># subset by ID</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--jobs N</code> / <code>-j N</code></td>
+<td><code>0</code> (cpu_count)</td>
+<td>Worker count (<code>rapidfire</code>/<code>auto</code>) or queue cap (<code>qlaunch</code>).</td>
+</tr>
+<tr>
+<td><code>--sequential</code></td>
+<td>off</td>
+<td>Run one simulation at a time (equivalent to <code>--jobs 1</code>).</td>
+</tr>
+<tr>
+<td><code>--launcher</code></td>
+<td><code>rapidfire</code></td>
+<td><code>rapidfire</code>, <code>qlaunch</code>, or <code>auto</code>.</td>
+</tr>
+<tr>
+<td><code>--qadapter PATH</code></td>
+<td>—</td>
+<td>Path to <code>qadapter.yaml</code> (required for <code>qlaunch</code>/<code>auto</code> unless <code>QUEUEADAPTER_LOC</code> is set in <code>FW_config.yaml</code>).</td>
+</tr>
+<tr>
+<td><code>--fworker PATH</code></td>
+<td>—</td>
+<td>Path to <code>fworker.yaml</code>.  Applies to all launchers.  Falls back to <code>FWORKER_LOC</code> in <code>FW_config.yaml</code>, then a default catch-all worker.</td>
+</tr>
+<tr>
+<td><code>--launch-dir DIR</code></td>
+<td><code>.</code></td>
+<td>Directory from which batch scripts are submitted (<code>qlaunch</code>/<code>auto</code> only).</td>
+</tr>
+<tr>
+<td><code>--escalate-at N</code></td>
+<td><code>0</code></td>
+<td>READY count threshold for HPC escalation (<code>auto</code> only).</td>
+</tr>
+</tbody>
+</table>
+<p>Examples:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="c1"># Sequential — easy to debug exact tasks</span>
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>modena<span class="w"> </span>init<span class="w"> </span>all<span class="w"> </span>--sequential
+<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a>
+<a id="__codelineno-49-4" name="__codelineno-49-4" href="#__codelineno-49-4"></a><span class="c1"># 4 local workers</span>
+<a id="__codelineno-49-5" name="__codelineno-49-5" href="#__codelineno-49-5"></a>modena<span class="w"> </span>init<span class="w"> </span>all<span class="w"> </span>--jobs<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-49-6" name="__codelineno-49-6" href="#__codelineno-49-6"></a>
+<a id="__codelineno-49-7" name="__codelineno-49-7" href="#__codelineno-49-7"></a><span class="c1"># All simulations go to SLURM</span>
+<a id="__codelineno-49-8" name="__codelineno-49-8" href="#__codelineno-49-8"></a>modena<span class="w"> </span>init<span class="w"> </span>all<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-9" name="__codelineno-49-9" href="#__codelineno-49-9"></a><span class="w">  </span>--launcher<span class="w"> </span>qlaunch<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-10" name="__codelineno-49-10" href="#__codelineno-49-10"></a><span class="w">  </span>--qadapter<span class="w"> </span>qadapter.yaml
+<a id="__codelineno-49-11" name="__codelineno-49-11" href="#__codelineno-49-11"></a>
+<a id="__codelineno-49-12" name="__codelineno-49-12" href="#__codelineno-49-12"></a><span class="c1"># Local workers for small jobs; HPC for bursts &gt; 8 READY</span>
+<a id="__codelineno-49-13" name="__codelineno-49-13" href="#__codelineno-49-13"></a>modena<span class="w"> </span>init<span class="w"> </span>all<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-14" name="__codelineno-49-14" href="#__codelineno-49-14"></a><span class="w">  </span>--launcher<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-15" name="__codelineno-49-15" href="#__codelineno-49-15"></a><span class="w">  </span>--jobs<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-16" name="__codelineno-49-16" href="#__codelineno-49-16"></a><span class="w">  </span>--escalate-at<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-17" name="__codelineno-49-17" href="#__codelineno-49-17"></a><span class="w">  </span>--qadapter<span class="w"> </span>qadapter.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-18" name="__codelineno-49-18" href="#__codelineno-49-18"></a><span class="w">  </span>--launch-dir<span class="w"> </span>/scratch/modena
+</code></pre></div>
+<h3 id="modena-install-install-a-model-package"><code>modena install</code> — install a model package<a class="headerlink" href="#modena-install-install-a-model-package" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>modena<span class="w"> </span>install<span class="w"> </span>path/to/myModel/
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>modena<span class="w"> </span>install<span class="w"> </span>dielectricFunction/<span class="w"> </span>emiShielding/<span class="w">   </span><span class="c1"># dependency order</span>
+<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>modena<span class="w"> </span>install<span class="w"> </span>myModel/<span class="w"> </span>--prefix<span class="w"> </span>/opt/modena/models
+</code></pre></div>
+<p>Installs a local model package (identified by its <code>pyproject.toml</code>) to
+<code>~/.modena/models</code> (or <code>--prefix</code>) and registers the path in
+<code>~/.modena/config.toml</code> so that <code>import modena</code> auto-imports it at startup.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--prefix DIR</code></td>
+<td><code>~/.modena/models</code></td>
+<td>Install destination directory.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Prerequisites:</strong> The package directory must contain a <code>pyproject.toml</code>.
+Framework dependencies (modena, numpy, scipy, etc.) must already be installed;
+<code>modena install</code> passes <code>--no-deps</code> to pip.</p>
+<p><strong>Install order matters</strong> when packages depend on each other — install
+lower-level packages first.</p>
+<h3 id="modena-model-refit-re-fit-surrogate-parameters"><code>modena model refit</code> — re-fit surrogate parameters<a class="headerlink" href="#modena-model-refit-re-fit-surrogate-parameters" title="Permanent link">&para;</a></h3>
+<p>Re-runs parameter fitting for a <code>BackwardMappingModel</code> using the training data
+already stored in MongoDB — without re-running any exact simulations.</p>
+<p>Use this when you want to:
+- Retry fitting after adjusting the acceptance threshold or optimizer
+- Apply a different fitting strategy
+- Recover from a failed fitting step without re-collecting data</p>
+<p>The model must already have training data (<code>modena init</code> must have been run at
+least once).</p>
+<p><strong>CLI:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>modena<span class="w"> </span>model<span class="w"> </span>refit<span class="w"> </span><span class="s1">&#39;thermalDiffusion[material=Cu]&#39;</span>
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a>modena<span class="w"> </span>model<span class="w"> </span>refit<span class="w"> </span>flowRate<span class="w"> </span>--sequential
+<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a>modena<span class="w"> </span>model<span class="w"> </span>refit<span class="w"> </span>myModel<span class="w"> </span>--jobs<span class="w"> </span><span class="m">4</span>
+</code></pre></div></p>
+<p>Accepts the same <code>--jobs</code> / <code>--launcher</code> / <code>--qadapter</code> /
+<code>--fworker</code> / <code>--launch-dir</code> / <code>--escalate-at</code> flags as <code>modena init</code>.</p>
+<p><strong>Python:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">modena</span>
+<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">modena.Strategy</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterRefitting</span>
+<a id="__codelineno-52-3" name="__codelineno-52-3" href="#__codelineno-52-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fireworks</span><span class="w"> </span><span class="kn">import</span> <span class="n">Firework</span><span class="p">,</span> <span class="n">Workflow</span>
+<a id="__codelineno-52-4" name="__codelineno-52-4" href="#__codelineno-52-4"></a>
+<a id="__codelineno-52-5" name="__codelineno-52-5" href="#__codelineno-52-5"></a><span class="n">wf</span> <span class="o">=</span> <span class="n">Workflow</span><span class="p">(</span>
+<a id="__codelineno-52-6" name="__codelineno-52-6" href="#__codelineno-52-6"></a>    <span class="p">[</span><span class="n">Firework</span><span class="p">(</span><span class="n">ParameterRefitting</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;flowRate — refit&#39;</span><span class="p">)],</span>
+<a id="__codelineno-52-7" name="__codelineno-52-7" href="#__codelineno-52-7"></a>    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;refit&#39;</span><span class="p">,</span>
+<a id="__codelineno-52-8" name="__codelineno-52-8" href="#__codelineno-52-8"></a><span class="p">)</span>
+<a id="__codelineno-52-9" name="__codelineno-52-9" href="#__codelineno-52-9"></a><span class="n">modena</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">wf</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div></p>
+<p><code>ParameterRefitting</code> is an <code>@explicit_serialize</code> FireTask; it loads the
+model's <code>fitData</code> from MongoDB and delegates to the model's
+<code>parameterFittingStrategy</code>.  Unlike <code>modena init</code>, it does not run any
+exact simulation Fireworks first.</p>
+<h3 id="modena-doctor-environment-health-check"><code>modena doctor</code> — environment health check<a class="headerlink" href="#modena-doctor-environment-health-check" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>modena<span class="w"> </span>doctor
+</code></pre></div>
+<p>Reports the status of every MoDeNa dependency and configuration item:</p>
+<ul>
+<li>libmodena shared library (<code>libmodena.so</code>)</li>
+<li><code>modena.toml</code> project config file</li>
+<li>MongoDB connectivity (2 s timeout)</li>
+<li>Required Python packages (scipy, fireworks, mongoengine, jinja2, pymongo)</li>
+<li>Optional Python packages (CoolProp, rpy2)</li>
+<li>Environment variables (<code>MODENA_URI</code>, <code>MODENA_SURROGATE_LIB_DIR</code>, <code>MODENA_LOG_LEVEL</code>, <code>MODENA_PATH</code>)</li>
+</ul>
+<p>Each item is marked <code>✓</code>, <code>✗</code>, or <code>—</code> (optional/not configured).  Run this
+before filing a bug report or when setting up a new environment.</p>
+<h3 id="modena-quickstart-usage-guide"><code>modena quickstart</code> — usage guide<a class="headerlink" href="#modena-quickstart-usage-guide" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>modena<span class="w"> </span>quickstart
+</code></pre></div>
+<p>Prints a 5-step inline guide covering the typical development workflow:
+environment setup, model definition, initialisation, running a simulation,
+and inspecting results.  Includes a reference table of useful Python one-liners
+(<code>lp.status()</code>, <code>lp.retrace_to_origin(fw_id)</code>, <code>modena.load()</code>, etc.).</p>
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a><span class="c1"># Check what is currently in the launchpad</span>
+<a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a>modena<span class="w"> </span>fw<span class="w"> </span>status
+<a id="__codelineno-55-3" name="__codelineno-55-3" href="#__codelineno-55-3"></a>
+<a id="__codelineno-55-4" name="__codelineno-55-4" href="#__codelineno-55-4"></a><span class="c1"># Clear the launchpad after a failed run</span>
+<a id="__codelineno-55-5" name="__codelineno-55-5" href="#__codelineno-55-5"></a>modena<span class="w"> </span>fw<span class="w"> </span>reset<span class="w"> </span>--force
+<a id="__codelineno-55-6" name="__codelineno-55-6" href="#__codelineno-55-6"></a>
+<a id="__codelineno-55-7" name="__codelineno-55-7" href="#__codelineno-55-7"></a><span class="c1"># Recover fireworks stuck after a crash</span>
+<a id="__codelineno-55-8" name="__codelineno-55-8" href="#__codelineno-55-8"></a>modena<span class="w"> </span>fw<span class="w"> </span>orphans
+<a id="__codelineno-55-9" name="__codelineno-55-9" href="#__codelineno-55-9"></a>
+<a id="__codelineno-55-10" name="__codelineno-55-10" href="#__codelineno-55-10"></a><span class="c1"># Re-run a specific firework</span>
+<a id="__codelineno-55-11" name="__codelineno-55-11" href="#__codelineno-55-11"></a>modena<span class="w"> </span>fw<span class="w"> </span>rerun<span class="w"> </span><span class="m">42</span>
+<a id="__codelineno-55-12" name="__codelineno-55-12" href="#__codelineno-55-12"></a>
+<a id="__codelineno-55-13" name="__codelineno-55-13" href="#__codelineno-55-13"></a><span class="c1"># List all trained surrogate models</span>
+<a id="__codelineno-55-14" name="__codelineno-55-14" href="#__codelineno-55-14"></a>modena<span class="w"> </span>model<span class="w"> </span>ls
+<a id="__codelineno-55-15" name="__codelineno-55-15" href="#__codelineno-55-15"></a>
+<a id="__codelineno-55-16" name="__codelineno-55-16" href="#__codelineno-55-16"></a><span class="c1"># Inspect the flowRate model</span>
+<a id="__codelineno-55-17" name="__codelineno-55-17" href="#__codelineno-55-17"></a>modena<span class="w"> </span>model<span class="w"> </span>show<span class="w"> </span>flowRate
+<a id="__codelineno-55-18" name="__codelineno-55-18" href="#__codelineno-55-18"></a>
+<a id="__codelineno-55-19" name="__codelineno-55-19" href="#__codelineno-55-19"></a><span class="c1"># Snapshot the current model state before an experiment</span>
+<a id="__codelineno-55-20" name="__codelineno-55-20" href="#__codelineno-55-20"></a>modena<span class="w"> </span>model<span class="w"> </span>freeze<span class="w"> </span>-o<span class="w"> </span>experiment_01.lock
+<a id="__codelineno-55-21" name="__codelineno-55-21" href="#__codelineno-55-21"></a>
+<a id="__codelineno-55-22" name="__codelineno-55-22" href="#__codelineno-55-22"></a><span class="c1"># Restore a previous model state</span>
+<a id="__codelineno-55-23" name="__codelineno-55-23" href="#__codelineno-55-23"></a>modena<span class="w"> </span>model<span class="w"> </span>restore<span class="w"> </span>-i<span class="w"> </span>experiment_01.lock
+<a id="__codelineno-55-24" name="__codelineno-55-24" href="#__codelineno-55-24"></a>
+<a id="__codelineno-55-25" name="__codelineno-55-25" href="#__codelineno-55-25"></a><span class="c1"># Verify the environment is set up correctly</span>
+<a id="__codelineno-55-26" name="__codelineno-55-26" href="#__codelineno-55-26"></a>modena<span class="w"> </span>doctor
+<a id="__codelineno-55-27" name="__codelineno-55-27" href="#__codelineno-55-27"></a>
+<a id="__codelineno-55-28" name="__codelineno-55-28" href="#__codelineno-55-28"></a><span class="c1"># Re-fit a model after adjusting the acceptance threshold</span>
+<a id="__codelineno-55-29" name="__codelineno-55-29" href="#__codelineno-55-29"></a>modena<span class="w"> </span>model<span class="w"> </span>refit<span class="w"> </span><span class="s1">&#39;thermalDiffusion[material=Cu]&#39;</span>
+<a id="__codelineno-55-30" name="__codelineno-55-30" href="#__codelineno-55-30"></a>
+<a id="__codelineno-55-31" name="__codelineno-55-31" href="#__codelineno-55-31"></a><span class="c1"># Install a model package</span>
+<a id="__codelineno-55-32" name="__codelineno-55-32" href="#__codelineno-55-32"></a>modena<span class="w"> </span>install<span class="w"> </span>examples/MoDeNaModels/thermalDiffusion/
+</code></pre></div>
+<hr />
+<h2 id="common-pitfalls">Common pitfalls<a class="headerlink" href="#common-pitfalls" title="Permanent link">&para;</a></h2>
+<h3 id="rapidfire-hangs-for-60-seconds-after-the-workflow-completes"><code>rapidfire</code> hangs for ~60 seconds after the workflow completes<a class="headerlink" href="#rapidfire-hangs-for-60-seconds-after-the-workflow-completes" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>modena init</code> finishes all work (all "Rocket finished" messages
+appear) but the process does not return to the shell for about 60 seconds.</p>
+<p><strong>Cause</strong>: FireWorks' <code>rapidfire</code> treats <code>sleep_time=0</code> as falsy and silently
+substitutes its own default of 60 seconds
+(<code>sleep_time = sleep_time if sleep_time else RAPIDFIRE_SLEEP_SECS</code>).
+Workers that found no READY Fireworks on startup sleep for 60 seconds before
+waking up, checking again, finding nothing, and exiting.  A secondary effect
+is that these workers also miss the window to pick up Fireworks that become
+READY while they are sleeping, forcing all work onto a single worker
+(sequential execution even when <code>njobs &gt; 1</code>).</p>
+<p><strong>Fix</strong>: Always use <code>modena.run()</code>, which passes <code>sleep_time=1</code>.  Workers then
+wake up within 1 second and the process exits within 1 second of the workflow
+completing.  Do <strong>not</strong> pass <code>sleep_time=0</code> directly to FireWorks' <code>rapidfire</code>.</p>
+<h3 id="workflow-stalls-with-runningreserved-fireworks">Workflow stalls with RUNNING/RESERVED fireworks<a class="headerlink" href="#workflow-stalls-with-runningreserved-fireworks" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>modena fw status</code> shows fireworks stuck in <code>RUNNING</code> or <code>RESERVED</code>
+after a crash.</p>
+<p><strong>Fix</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>modena<span class="w"> </span>fw<span class="w"> </span>orphans
+</code></pre></div></p>
+<p>Or from Python:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="n">lp</span> <span class="o">=</span> <span class="n">modena</span><span class="o">.</span><span class="n">lpad</span><span class="p">()</span>
+<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="n">lp</span><span class="o">.</span><span class="n">defuse_orphans</span><span class="p">()</span>
+</code></pre></div></p>
+<h3 id="callmodel-exits-with-code-200"><code>callModel</code> exits with code 200<a class="headerlink" href="#callmodel-exits-with-code-200" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: The simulation exits immediately; no output produced.</p>
+<p><strong>Explanation</strong>: This is expected behaviour.  Exit code 200 signals that the
+surrogate was queried outside its valid range.  FireWorks will automatically
+trigger parameter fitting and restart the simulation.  If the loop never
+converges, increase the number of training points in the initialisation
+strategy or widen the input bounds.</p>
+<h3 id="modulenotfounderror-no-module-named-workflow"><code>ModuleNotFoundError: No module named 'workflow'</code><a class="headerlink" href="#modulenotfounderror-no-module-named-workflow" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: A Rocket subprocess fails with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>ModuleNotFoundError: No module named &#39;workflow&#39;
+</code></pre></div>
+<p><strong>Cause</strong>: A <code>@explicit_serialize</code> FireTask class was defined in the <code>workflow</code>
+script instead of in an importable Python module.  When a rocket tries to
+deserialize the task from MongoDB it attempts <code>__import__('workflow')</code>, which
+fails because <code>workflow</code> is a shell script with no <code>.py</code> extension.</p>
+<p><strong>Fix</strong>: Move the FireTask class into the model's <code>myModel.py</code> package module
+and re-export it from <code>__init__.py</code>.  The <code>workflow</code> script should only import
+from the package, never define task classes.  See
+<a href="#task-serialization-and-fw_configyaml">Task serialization and <code>FW_config.yaml</code></a>.</p>
+<h3 id="fireworks-info-messages-flooding-the-terminal">FireWorks INFO messages flooding the terminal<a class="headerlink" href="#fireworks-info-messages-flooding-the-terminal" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: The terminal is flooded with messages like:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>2026-03-17 10:02:05,123 INFO Rocket launching...
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>2026-03-17 10:02:05,456 INFO Task completed: NonLinFitWithErrorContol
+</code></pre></div>
+<p><strong>Explanation</strong>: FireWorks' standalone loggers (<code>"launchpad"</code>, <code>"rocket.launcher"</code>)
+bypass the <code>"fireworks"</code> logger hierarchy.  <code>logging.getLogger('fireworks').setLevel(WARNING)</code>
+has no effect on them.</p>
+<p><strong>Fix</strong>: These messages are already suppressed when using <code>modena.run()</code> or
+<code>modena.lpad()</code>.  If you are constructing a <code>LaunchPad</code> directly, pass
+<code>strm_lvl='WARNING'</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fireworks</span><span class="w"> </span><span class="kn">import</span> <span class="n">LaunchPad</span>
+<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a><span class="n">lp</span> <span class="o">=</span> <span class="n">LaunchPad</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s1">&#39;my_launchpad.yaml&#39;</span><span class="p">,</span> <span class="n">strm_lvl</span><span class="o">=</span><span class="s1">&#39;WARNING&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p>To re-enable FireWorks output for debugging, use <code>DEBUG_VERBOSE</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a><span class="nv">MODENA_LOG_LEVEL</span><span class="o">=</span>DEBUG_VERBOSE<span class="w"> </span>./initModels
+</code></pre></div>
+<h3 id="mongodb-is-not-running-commands-hang-or-fail-immediately">MongoDB is not running — commands hang or fail immediately<a class="headerlink" href="#mongodb-is-not-running-commands-hang-or-fail-immediately" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>modena fw status</code> (or any <code>modena.run()</code> call) exits with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>[modena] Cannot connect to MongoDB at: mongodb://localhost:27017/test
+<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a>
+<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a>  Make sure MongoDB is running before using MoDeNa:
+<a id="__codelineno-62-4" name="__codelineno-62-4" href="#__codelineno-62-4"></a>    sudo systemctl start mongod    # systemd
+<a id="__codelineno-62-5" name="__codelineno-62-5" href="#__codelineno-62-5"></a>    mongod --dbpath /data/db       # manual
+<a id="__codelineno-62-6" name="__codelineno-62-6" href="#__codelineno-62-6"></a>  ...
+</code></pre></div>
+<p><strong>Cause</strong>: <code>mongod</code> is not running, or <code>MODENA_URI</code> points to the wrong host/port.
+<code>ModenaLaunchPad.from_modena_uri()</code> sends a <code>ping</code> to MongoDB immediately after
+creating the client.  If the server does not respond within
+<code>server_selection_timeout_ms</code> (default 3 s) it raises <code>ModenaConnectionError</code>.</p>
+<p><strong>Fix</strong>: Start MongoDB, then retry:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>mongod<span class="w">   </span><span class="c1"># or: mongod --dbpath /data/db</span>
+<a id="__codelineno-63-2" name="__codelineno-63-2" href="#__codelineno-63-2"></a>modena<span class="w"> </span>fw<span class="w"> </span>status
+</code></pre></div></p>
+<p>To use a different MongoDB instance:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MODENA_URI</span><span class="o">=</span>mongodb://myhost:27017/modena
+<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>modena<span class="w"> </span>fw<span class="w"> </span>status
+</code></pre></div></p>
+<h3 id="all-exact-simulations-defused-after-one-numerical-failure">All exact simulations DEFUSED after one numerical failure<a class="headerlink" href="#all-exact-simulations-defused-after-one-numerical-failure" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>initModels</code> completes with <code>COMPLETED=2, DEFUSED=30</code> (or similar)
+even though the model should have 30 training points.  The log shows an
+exception such as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>ValueError: One stationary point (not good) for T=341.844, p=519967, ...
+</code></pre></div>
+<p><strong>Cause</strong>: Pre-3.x behaviour was to return <code>FWAction(defuse_workflow=True)</code> on
+any exception from an exact simulation task, which cancelled all remaining
+sibling simulations.</p>
+<p><strong>Fix</strong>: The default behaviour since 3.x is <code>SkipPoint()</code> — the failing point
+is skipped and all other exact simulations continue.  To make this explicit in
+your model definition (recommended for models where numerical failures are
+expected at certain input combinations):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a><span class="n">m</span> <span class="o">=</span> <span class="n">BackwardMappingModel</span><span class="p">(</span>
+<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a>    <span class="n">_id</span><span class="o">=</span><span class="s1">&#39;myModel&#39;</span><span class="p">,</span>
+<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a>    <span class="o">...</span>
+<a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a>    <span class="n">nonConvergenceStrategy</span><span class="o">=</span><span class="n">Strategy</span><span class="o">.</span><span class="n">SkipPoint</span><span class="p">(),</span>
+<a id="__codelineno-66-5" name="__codelineno-66-5" href="#__codelineno-66-5"></a><span class="p">)</span>
+</code></pre></div>
+<p>If you want failures to be immediately visible instead of silently skipped,
+use <code>Strategy.FizzleOnFailure()</code> during development.</p>
+<h3 id="launchpad-connects-to-wrong-mongodb">LaunchPad connects to wrong MongoDB<a class="headerlink" href="#launchpad-connects-to-wrong-mongodb" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: <code>modena fw status</code> shows an empty or unexpected launchpad even
+though MongoDB is running.</p>
+<p><strong>Fix</strong>: Check <code>MODENA_URI</code> is set correctly:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a><span class="nb">echo</span><span class="w"> </span><span class="nv">$MODENA_URI</span>
+<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a><span class="c1"># mongodb://localhost:27017/modena</span>
+</code></pre></div></p>
+<p>See <code>docs/quick-start-developer.md</code> for environment setup instructions.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

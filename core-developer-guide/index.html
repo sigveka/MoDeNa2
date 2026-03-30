@@ -1,0 +1,2750 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-scale modelling framework with surrogate models">
+      
+      
+      
+        <link rel="canonical" href="https://sigveka.github.io/MoDeNa2/core-developer-guide/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../model-registry/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Core Developer Guide - MoDeNa</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#core-developer-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="MoDeNa" class="md-header__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MoDeNa
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Core Developer Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quick-start-user/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  User Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quick-start-developer/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quick-start-c/" class="md-tabs__link">
+          
+  
+  
+  Language Bindings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Core Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../model-registry/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Model Registry
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../fireworks/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FireWorks
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="MoDeNa" class="md-nav__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MoDeNa
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-user/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-developer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language Bindings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Language Bindings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-fortran/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fortran
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-julia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Julia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MATLAB / Octave
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-r/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repository-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Building">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-not-a-venv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not a venv?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-install-location-and-libmodena-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python install location and libmodena discovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python install location and libmodena discovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-the-python-package-locates-libmodenaso" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Python package locates libmodena.so
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-install-layout-cmake_install_prefixhome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default install layout (CMAKE_INSTALL_PREFIX=$HOME)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-prefix-layout-cmake_install_prefixoptmodena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom prefix layout (CMAKE_INSTALL_PREFIX=/opt/modena)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srccmakeliststxt-dual-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        src/CMakeLists.txt dual-use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-c-library-libmodena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The C library — libmodena
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The C library — libmodena">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#responsibilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Responsibilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#public-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-23-compatibility-shims" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python 2→3 compatibility shims
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#functions-declared-but-not-yet-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions declared but not yet implemented
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-python-library-modena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Python library — modena
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Python library — modena">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#module-responsibilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module responsibilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-packaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python packaging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mongodb-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MongoDB connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-argpos-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The argPos system
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategy-key-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategy key registration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-side-diagnostics-libmodena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C-side diagnostics (libmodena)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-language-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-language boundaries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cross-language boundaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-the-minmax-tuple-python-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 — The minMax() tuple (Python → C)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-argpos-array-indexing-python-c-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 — argPos array indexing (Python ↔ C ↔ MongoDB)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-mongoengine-dynamicdocument-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 — MongoEngine DynamicDocument schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-language-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a language wrapper
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding a language wrapper">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-rtld_global-requirement-linux-macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The RTLD_GLOBAL requirement (Linux / macOS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#finding-the-libmodena-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding the libmodena path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-destruction-use-py_decref-not-modena_model_delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model destruction — use Py_DecRef, not modena_model_delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointer-representation-in-managed-languages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointer representation in managed languages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist-for-a-new-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checklist for a new wrapper
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-surrogate-compilation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The surrogate compilation pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations-and-deferred-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known limitations and deferred work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platform-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform notes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platform notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macos-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        macOS (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fireworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FireWorks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#repository-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Building">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-not-a-venv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why not a venv?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-install-location-and-libmodena-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python install location and libmodena discovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python install location and libmodena discovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-the-python-package-locates-libmodenaso" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Python package locates libmodena.so
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-install-layout-cmake_install_prefixhome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default install layout (CMAKE_INSTALL_PREFIX=$HOME)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-prefix-layout-cmake_install_prefixoptmodena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom prefix layout (CMAKE_INSTALL_PREFIX=/opt/modena)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Presets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srccmakeliststxt-dual-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        src/CMakeLists.txt dual-use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-c-library-libmodena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The C library — libmodena
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The C library — libmodena">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#responsibilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Responsibilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#public-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-23-compatibility-shims" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python 2→3 compatibility shims
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#functions-declared-but-not-yet-implemented" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions declared but not yet implemented
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-python-library-modena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Python library — modena
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Python library — modena">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#module-responsibilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module responsibilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-packaging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python packaging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mongodb-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MongoDB connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-argpos-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The argPos system
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategy-key-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategy key registration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-side-diagnostics-libmodena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C-side diagnostics (libmodena)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-language-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-language boundaries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cross-language boundaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-the-minmax-tuple-python-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 — The minMax() tuple (Python → C)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-argpos-array-indexing-python-c-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 — argPos array indexing (Python ↔ C ↔ MongoDB)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-mongoengine-dynamicdocument-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 — MongoEngine DynamicDocument schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-language-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a language wrapper
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Adding a language wrapper">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-rtld_global-requirement-linux-macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The RTLD_GLOBAL requirement (Linux / macOS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#finding-the-libmodena-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding the libmodena path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-destruction-use-py_decref-not-modena_model_delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model destruction — use Py_DecRef, not modena_model_delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointer-representation-in-managed-languages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointer representation in managed languages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checklist-for-a-new-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checklist for a new wrapper
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-surrogate-compilation-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The surrogate compilation pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limitations-and-deferred-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known limitations and deferred work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platform-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Platform notes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platform notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linux
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#macos-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        macOS (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="core-developer-guide">Core Developer Guide<a class="headerlink" href="#core-developer-guide" title="Permanent link">&para;</a></h1>
+<p>This guide is for developers working on the MoDeNa library itself — the C
+runtime, the Python library, or a language wrapper.  For model authoring see
+<a href="../quick-start-developer/">quick-start-developer.md</a>.</p>
+<hr />
+<h2 id="contents">Contents<a class="headerlink" href="#contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#repository-layout">Repository layout</a></li>
+<li><a href="#building">Building</a></li>
+<li><a href="#the-c-library-libmodena">The C library — libmodena</a></li>
+<li><a href="#the-python-library-modena">The Python library — modena</a></li>
+<li><a href="#cross-language-boundaries">Cross-language boundaries</a></li>
+<li><a href="#adding-a-language-wrapper">Adding a language wrapper</a></li>
+<li><a href="#the-surrogate-compilation-pipeline">The surrogate compilation pipeline</a></li>
+<li><a href="#known-limitations-and-deferred-work">Known limitations and deferred work</a></li>
+<li><a href="#platform-notes">Platform notes</a></li>
+</ol>
+<hr />
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<p>The runtime call path from a macroscopic solver to a surrogate evaluation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>C/Fortran/Python application
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  → modena_model_call()          [libmodena — C shared library]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>     → SurrogateModel.minMax()   [Python/MongoEngine — bounds + parameters]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>     → compiled surrogate .so    [C shared library, generated per-function]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  ← double[] outputs
+</code></pre></div>
+<p>When an input is outside the trained bounds, <code>modena_model_call()</code> returns
+exit code 200 rather than a surrogate value.  The application exits, FireWorks
+detects the exit code, triggers new exact simulations and parameter fitting,
+then re-queues the application.  This is the <strong>backward-mapping loop</strong> — the
+core value proposition of the framework.</p>
+<hr />
+<h2 id="repository-layout">Repository layout<a class="headerlink" href="#repository-layout" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>MoDeNa/
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── CMakeLists.txt          ← single CMake entry point
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── src/
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│   ├── src/                ← C library (libmodena)
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│   │   ├── modena.h        ← public API — the only installed header
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│   │   ├── model.c         ← modena_model_new/call/delete
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│   │   ├── function.c      ← surrogate .so loading via lt_dlopen
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│   │   ├── inputsoutputs.c ← argPos lookup, min/max arrays
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│   │   ├── global.c        ← modena_initialize(), Py_Initialize()
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│   │   └── inline.h        ← modena_inputs_set/get (inlined)
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>│   ├── python/             ← Python library (modena)
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>│   │   ├── SurrogateModel.py
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>│   │   ├── Strategy.py
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>│   │   ├── ErrorMetrics.py
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>│   │   ├── Registry.py
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>│   │   ├── Launchpad.py
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>│   │   └── Runner.py
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>│   ├── wrappers/
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>│   │   ├── cpp/            ← RAII C++ header
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>│   │   ├── fortran/        ← Fortran 2003 OOP wrapper
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>│   │   ├── julia/          ← Julia ccall wrapper
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>│   │   ├── matlab/mex/     ← MATLAB/Octave MEX gateway
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>│   │   └── r/              ← R package
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>│   └── tests/
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>│       ├── python/         ← pytest suite
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>│       └── c/              ← CTest executables (no Python dependency)
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>├── examples/               ← example model packages
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>├── applications/           ← PUfoam and other application packages
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>└── docs/                   ← user and developer guides (MkDocs)
+</code></pre></div>
+<hr />
+<h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
+<p><code>libmodena</code> embeds a Python interpreter via <code>Py_Initialize()</code> and immediately
+imports <code>modena.SurrogateModel</code>.  This means the <code>modena</code> package must be on
+the <strong>system Python path</strong> — not inside a venv — so that the embedded
+interpreter can find it.  cmake owns the Python package install; pip installs
+only the third-party dependencies.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># 1. Install Python dependencies to user site-packages</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1">#    (~/.local/lib/python3.x/site-packages — found by the embedded interpreter)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>pip<span class="w"> </span>install<span class="w"> </span>--user<span class="w"> </span>fireworks<span class="w"> </span>mongoengine<span class="w"> </span>scipy<span class="w"> </span>jinja2<span class="w"> </span><span class="s2">&quot;pydantic&gt;=2.0&quot;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># On Ubuntu 24.04 add --break-system-packages</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># 2. Build and install using the dev preset (Debug, tests on, installs to $HOME)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>cmake<span class="w"> </span>--preset<span class="w"> </span>dev
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>cmake<span class="w"> </span>--build<span class="w"> </span>--preset<span class="w"> </span>dev
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>cmake<span class="w"> </span>--install<span class="w"> </span>build
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># 3. No PYTHONPATH needed — modena lands in ~/.local/lib/python3.x/site-packages</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="c1">#    (user site-packages, found automatically by the embedded interpreter)</span>
+</code></pre></div>
+<h3 id="why-not-a-venv">Why not a venv?<a class="headerlink" href="#why-not-a-venv" title="Permanent link">&para;</a></h3>
+<p><code>Py_Initialize()</code> in <code>global.c</code> starts the embedded interpreter without venv
+awareness — it uses the compiled-in Python prefix, not <code>$VIRTUAL_ENV</code>.
+Packages installed into a venv's <code>site-packages</code> are invisible to it.
+<code>~/.local/lib/python3.x/site-packages</code> (user site-packages) is added by
+<code>site.py</code> automatically even in embedded mode, so both <code>pip install --user</code>
+deps and the cmake-installed <code>modena</code> package are found with no extra
+configuration.</p>
+<h3 id="python-install-location-and-libmodena-discovery">Python install location and <code>libmodena</code> discovery<a class="headerlink" href="#python-install-location-and-libmodena-discovery" title="Permanent link">&para;</a></h3>
+<p><code>src/python/CMakeLists.txt</code> selects <code>PYTHON_SITE</code> based on <code>CMAKE_INSTALL_PREFIX</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Prefix</th>
+<th><code>PYTHON_SITE</code></th>
+<th><code>PYTHONPATH</code> needed?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$HOME</code> (default)</td>
+<td><code>~/.local/lib/python3.x/site-packages</code></td>
+<td>No</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td><code>&lt;prefix&gt;/lib/python3.x/site-packages</code></td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p><code>cmake --install</code> copies the source <code>.py</code> files plus the generated <code>_paths.py</code>
+to <code>PYTHON_SITE/modena/</code>.  It also writes a minimal <code>.dist-info/METADATA</code> so
+pip recognises the package as installed.</p>
+<h4 id="how-the-python-package-locates-libmodenaso">How the Python package locates <code>libmodena.so</code><a class="headerlink" href="#how-the-python-package-locates-libmodenaso" title="Permanent link">&para;</a></h4>
+<p><code>PYTHON_SITE</code> and the C library install location (<code>$CMAKE_INSTALL_PREFIX/lib/modena/</code>)
+are independent directories.  <code>_paths.py</code> is the bridge: cmake renders the
+absolute library path into it at configure time, and <code>__init__.py</code> reads it at
+runtime to load the shared library:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># _paths.py — generated by cmake, installed alongside the .py sources</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">MODENA_LIB_DIR</span> <span class="o">=</span> <span class="s1">&#39;/home/alice/lib/modena&#39;</span>   <span class="c1"># absolute, baked in at configure time</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># __init__.py — import_helper() uses it</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">lib_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">MODENA_LIB_DIR</span><span class="p">)</span> <span class="o">/</span> <span class="s1">&#39;libmodena.so&#39;</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">spec</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">spec_from_file_location</span><span class="p">(</span><span class="s1">&#39;libmodena&#39;</span><span class="p">,</span> <span class="n">lib_path</span><span class="p">)</span>
+</code></pre></div>
+<p>This means the Python package can be anywhere on <code>sys.path</code> — the library is
+always found via the absolute path in <code>_paths.py</code>, not by searching
+<code>LD_LIBRARY_PATH</code>.</p>
+<h4 id="default-install-layout-cmake_install_prefixhome">Default install layout (<code>CMAKE_INSTALL_PREFIX=$HOME</code>)<a class="headerlink" href="#default-install-layout-cmake_install_prefixhome" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>@startwbs
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>* $HOME/
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>** bin/
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>*** modena        ← CLI entry point
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>** lib/
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>*** modena/
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>**** libmodena.so ← C shared library (loaded via _paths.py)
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>**** libfmodena.so
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>** .local/
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>*** lib/
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>**** python3.12/
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>***** site-packages/
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>****** modena/          ← installed by cmake
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>******* __init__.py
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>******* _paths.py       ← MODENA_LIB_DIR = &quot;$HOME/lib/modena&quot;
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>******* SurrogateModel.py
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>******* Strategy.py
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>******* ...
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>****** modena-2.0.dist-info/
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>****** mongoengine/     ← installed by pip --user
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>****** fireworks/
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>****** pymongo/
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>****** scipy/
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>****** ...
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>@endwbs
+</code></pre></div>
+<h4 id="custom-prefix-layout-cmake_install_prefixoptmodena">Custom prefix layout (<code>CMAKE_INSTALL_PREFIX=/opt/modena</code>)<a class="headerlink" href="#custom-prefix-layout-cmake_install_prefixoptmodena" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>@startwbs
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>* /opt/modena/
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>** bin/
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>*** modena
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>** lib/
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>*** modena/
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>**** libmodena.so
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>**** libfmodena.so
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>*** python3.12/
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>**** site-packages/
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>***** modena/           ← installed by cmake
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>****** __init__.py
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>****** _paths.py        ← MODENA_LIB_DIR = &quot;/opt/modena/lib/modena&quot;
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>****** SurrogateModel.py
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>****** ...
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>***** modena-2.0.dist-info/
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>* $HOME/
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>** .local/
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>*** lib/
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>**** python3.12/
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>***** site-packages/
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>****** mongoengine/     ← installed by pip --user
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>****** fireworks/
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>****** pymongo/
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>****** ...
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>@endwbs
+</code></pre></div>
+<p>For the custom prefix, the admin must add
+<code>/opt/modena/lib/python3.12/site-packages</code> to <code>PYTHONPATH</code> (e.g. via a
+module file) so the embedded interpreter can find the <code>modena</code> package.</p>
+<p><strong>Adding a Python dependency:</strong> add it to <code>install_requires</code> in
+<code>src/python/setup.py.in</code> for documentation purposes, and also update the
+<code>pip install --user</code> line in <code>README.md</code> — that is the authoritative install
+step for dependencies.</p>
+<h3 id="presets">Presets<a class="headerlink" href="#presets" title="Permanent link">&para;</a></h3>
+<p><code>CMakePresets.json</code> at the project root defines three presets:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Prefix</th>
+<th>Build type</th>
+<th>Tests</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default</code></td>
+<td><code>$HOME</code></td>
+<td>Release</td>
+<td>off</td>
+<td>end-user install</td>
+</tr>
+<tr>
+<td><code>dev</code></td>
+<td><code>$HOME</code></td>
+<td>Debug</td>
+<td>on</td>
+<td>library development</td>
+</tr>
+<tr>
+<td><code>hpc</code></td>
+<td><code>/opt/modena</code></td>
+<td>Release</td>
+<td>off</td>
+<td>system/cluster install</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cmake<span class="w"> </span>--preset<span class="w"> </span>dev<span class="w">           </span><span class="c1"># configure</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cmake<span class="w"> </span>--build<span class="w"> </span>--preset<span class="w"> </span>dev<span class="w">   </span><span class="c1"># build</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>cmake<span class="w"> </span>--install<span class="w"> </span>build<span class="w">        </span><span class="c1"># install</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>ctest<span class="w"> </span>--preset<span class="w"> </span>dev<span class="w">           </span><span class="c1"># run tests</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--target<span class="w"> </span>doc<span class="w">  </span><span class="c1"># Doxygen (requires -DMODENA_BUILD_DOCS=ON)</span>
+</code></pre></div>
+<p>Machine-local settings (e.g. <code>WITH_MATLAB=ON</code>, a non-standard prefix) go in
+<code>CMakeUserPresets.json</code> in the project root — this file is gitignored.
+Example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">&quot;configurePresets&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;my-dev&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">      </span><span class="nt">&quot;inherits&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dev&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">      </span><span class="nt">&quot;cacheVariables&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">        </span><span class="nt">&quot;WITH_MATLAB&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ON&quot;</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="srccmakeliststxt-dual-use"><code>src/CMakeLists.txt</code> dual-use<a class="headerlink" href="#srccmakeliststxt-dual-use" title="Permanent link">&para;</a></h3>
+<p><code>src/CMakeLists.txt</code> works as a subdirectory from the project root and also
+standalone (<code>cmake ../src</code>).  All local paths use <code>${CMAKE_CURRENT_LIST_DIR}</code>
+— never <code>${CMAKE_SOURCE_DIR}</code>, which would break paths in subdirectory mode.</p>
+<hr />
+<h2 id="the-c-library-libmodena">The C library — libmodena<a class="headerlink" href="#the-c-library-libmodena" title="Permanent link">&para;</a></h2>
+<h3 id="responsibilities">Responsibilities<a class="headerlink" href="#responsibilities" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Function</th>
+<th>File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Initialise Python interpreter</td>
+<td><code>modena_initialize()</code></td>
+<td><code>global.c</code></td>
+</tr>
+<tr>
+<td>Load model from MongoDB</td>
+<td><code>modena_model_new()</code></td>
+<td><code>model.c</code></td>
+</tr>
+<tr>
+<td>Evaluate surrogate</td>
+<td><code>modena_model_call()</code></td>
+<td><code>model.c</code></td>
+</tr>
+<tr>
+<td>Load compiled surrogate <code>.so</code></td>
+<td><code>CFunction.__init__</code> → <code>lt_dlopen</code></td>
+<td><code>function.c</code></td>
+</tr>
+<tr>
+<td>Detect out-of-bounds</td>
+<td><code>modena_model_call()</code></td>
+<td><code>model.c</code></td>
+</tr>
+<tr>
+<td>Free model</td>
+<td><code>modena_model_delete()</code></td>
+<td><code>model.c</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>modena_initialize()</code> <strong>must</strong> be called before any other <code>modena_</code> function.
+It calls <code>Py_Initialize()</code>, configures <code>sys.path</code>, and loads the
+<code>SurrogateModel</code> Python class into the global <code>modena_SurrogateModel</code>.</p>
+<h3 id="public-api">Public API<a class="headerlink" href="#public-api" title="Permanent link">&para;</a></h3>
+<p><code>modena.h</code> is the <strong>only</strong> public header and defines the stable ABI.  Do not
+remove or rename anything in <code>modena.h</code> without a major version bump.  Internal
+headers (<code>model.h</code>, <code>function.h</code>, <code>inputsoutputs.h</code>, <code>inline.h</code>, <code>global.h</code>)
+are not installed.</p>
+<h3 id="memory-ownership">Memory ownership<a class="headerlink" href="#memory-ownership" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>modena_model_new()</code> allocates <code>modena_model_t</code> and all sub-arrays on the
+  heap.  <code>modena_model_delete()</code> frees everything.  Callers must call delete.</li>
+<li><code>inputs</code>, <code>outputs</code>, <code>parameters</code> arrays inside <code>modena_model_t</code> are <strong>owned
+  by the struct</strong> — do not free them separately.</li>
+<li>CPython reference counting:</li>
+<li><code>PyTuple_GET_ITEM</code> and <code>PyList_GET_ITEM</code> return <strong>borrowed</strong> references —
+    do not <code>Py_DECREF</code> them.</li>
+<li><code>PyObject_CallMethod</code>, <code>PyObject_GetAttrString</code> return <strong>new</strong> references —
+    always <code>Py_DECREF</code> when done.</li>
+<li>The global <code>modena_SurrogateModel</code> lives for the process lifetime and is
+  never freed.</li>
+</ul>
+<h3 id="python-23-compatibility-shims">Python 2→3 compatibility shims<a class="headerlink" href="#python-23-compatibility-shims" title="Permanent link">&para;</a></h3>
+<p><code>global.h</code> defines <code>PyInt_AsSsize_t</code>, <code>PyString_AsString</code>, <code>PyInt_FromLong</code>
+etc. as macros for Python 3.  Do not add new Py2 shims — Py2 is not supported.</p>
+<h3 id="functions-declared-but-not-yet-implemented">Functions declared but not yet implemented<a class="headerlink" href="#functions-declared-but-not-yet-implemented" title="Permanent link">&para;</a></h3>
+<p>These are declared in headers but have no body.  Do not call them.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Header</th>
+<th>Planned</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>modena_siunits_get()</code></td>
+<td><code>inputsoutputs.h</code></td>
+<td>Phase 3</td>
+</tr>
+<tr>
+<td><code>modena_model_inputs_siunits()</code></td>
+<td><code>model.h</code></td>
+<td>Phase 3</td>
+</tr>
+<tr>
+<td><code>modena_model_outputs_siunits()</code></td>
+<td><code>model.h</code></td>
+<td>Phase 3</td>
+</tr>
+</tbody>
+</table>
+<p>Tests for these exist in <code>src/tests/c/test_siunits.c</code> but are wrapped in
+<code>#if 0</code>.  Remove the guards when implementations are added.</p>
+<hr />
+<h2 id="the-python-library-modena">The Python library — modena<a class="headerlink" href="#the-python-library-modena" title="Permanent link">&para;</a></h2>
+<h3 id="module-responsibilities">Module responsibilities<a class="headerlink" href="#module-responsibilities" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__init__.py</code></td>
+<td>Load <code>libmodena.so</code>, call <code>ModelRegistry().load()</code>, auto-import model packages, expose <code>modena.load()</code> and <code>modena.lpad()</code></td>
+</tr>
+<tr>
+<td><code>SurrogateModel.py</code></td>
+<td>MongoEngine documents, <code>CFunction</code> compilation, <code>ForwardMappingModel</code>, <code>BackwardMappingModel</code></td>
+</tr>
+<tr>
+<td><code>Strategy.py</code></td>
+<td>Sampling, fitting, cross-validation, FireWorks task definitions</td>
+</tr>
+<tr>
+<td><code>ErrorMetrics.py</code></td>
+<td><code>AbsoluteError</code>, <code>RelativeError</code>, <code>NormalizedError</code></td>
+</tr>
+<tr>
+<td><code>Registry.py</code></td>
+<td>TOML config, model path resolution, binary search, lock file</td>
+</tr>
+<tr>
+<td><code>Launchpad.py</code></td>
+<td><code>ModenaLaunchPad</code> extending FireWorks <code>LaunchPad</code></td>
+</tr>
+<tr>
+<td><code>Runner.py</code></td>
+<td>Multi-launcher workflow runner (<code>rapidfire</code>, <code>qlaunch</code>, <code>auto</code>); exposes <code>modena.run()</code>; escalation supervisor thread for <code>auto</code> mode</td>
+</tr>
+<tr>
+<td><code>_logging.py</code></td>
+<td>Logger configuration; exposes <code>configure_logging()</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="python-packaging">Python packaging<a class="headerlink" href="#python-packaging" title="Permanent link">&para;</a></h3>
+<p>The <code>modena</code> package is installed by <code>cmake --install</code>, not by pip.
+<code>src/python/setup.py.in</code> is a cmake template — <code>${PROJECT_VERSION}</code>,
+<code>${CMAKE_CURRENT_SOURCE_DIR}</code>, and <code>${INSTALL_LIB_DIR}</code> are substituted at
+configure time to produce <code>build/src/python/setup.py</code> (used only for
+reference; pip is not invoked by cmake).</p>
+<p><strong>Adding a new Python dependency:</strong> add it to <code>install_requires</code> in
+<code>src/python/setup.py.in</code> and to the <code>pip install --user</code> line in <code>README.md</code>.</p>
+<p><strong>Adding a new generated file</strong> (i.e. one that needs cmake variable
+substitution): add a <code>configure_file(... @ONLY)</code> step in
+<code>src/python/CMakeLists.txt</code> targeting <code>${CMAKE_CURRENT_BINARY_DIR}</code>, then add
+a corresponding <code>install(FILES ...)</code> line pointing at the binary-dir output.</p>
+<h3 id="mongodb-connection">MongoDB connection<a class="headerlink" href="#mongodb-connection" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># SurrogateModel.py — runs at import time</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">connect</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="n">MODENA_URI</span><span class="p">)</span>
+</code></pre></div>
+<p>This runs <strong>at import time</strong>.  Models are defined at module level in user
+scripts, so the connection must exist before any document class is
+instantiated.  <strong>Do not move this into a function or lazy-initialise it.</strong></p>
+<p>The test suite intercepts <code>mongoengine.connect</code> in <code>conftest.py</code> before any
+import.  If you add a new module-level side effect, add a corresponding stub
+there.</p>
+<h3 id="the-argpos-system">The <code>argPos</code> system<a class="headerlink" href="#the-argpos-system" title="Permanent link">&para;</a></h3>
+<p><code>argPos</code> is the integer index into the <code>double[] inputs</code> / <code>double[] outputs</code>
+/ <code>double[] parameters</code> arrays exchanged between libmodena and the compiled
+surrogate.  It is set at model creation time and stored in MongoDB.</p>
+<p><strong>Never recalculate or reassign <code>argPos</code> on an existing model.</strong>  This would
+invalidate the C arrays in every application without a corresponding recompile.
+To add an input to an existing model, append it at the highest available
+<code>argPos</code> and update the C application.</p>
+<p>Input <code>argPos</code> values are assigned automatically (scalars first, then
+<code>IndexSet</code>-backed vector inputs).  Output and parameter <code>argPos</code> values are
+set explicitly by the model author and must be unique and sequential from 0.</p>
+<h3 id="strategy-key-registration">Strategy key registration<a class="headerlink" href="#strategy-key-registration" title="Permanent link">&para;</a></h3>
+<p>Every new key added to <code>NonLinFitWithErrorContol</code> or <code>SamplingStrategy</code> must
+be added to <code>_strategy_roots</code> in <code>SurrogateModel.parameterFittingStrategy()</code>.
+MongoEngine injects strategy sub-object root names into <code>_changed_fields</code> on
+first encounter; failing to filter them causes <code>AttributeError</code> in <code>_delta()</code>
+during <code>model.save()</code>.</p>
+<h3 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h3>
+<p>FireWorks does <strong>not</strong> use the <code>"fireworks"</code> logger hierarchy.  It creates
+standalone loggers (<code>"launchpad"</code>, <code>"rocket.launcher"</code>) via its internal
+<code>get_fw_logger()</code> factory.  <code>logging.getLogger('fireworks').setLevel()</code> has no
+effect.  Control FireWorks verbosity only via the <code>strm_lvl</code> kwarg at
+<code>LaunchPad</code> construction and <code>rapidfire</code> call time.  The <code>_fw_strm_lvl()</code>
+helper in <code>Launchpad.py</code> derives the right value from the active modena log
+level.</p>
+<h3 id="c-side-diagnostics-libmodena">C-side diagnostics (libmodena)<a class="headerlink" href="#c-side-diagnostics-libmodena" title="Permanent link">&para;</a></h3>
+<p><code>libmodena</code> has its own parallel log-level system driven by the same
+<code>MODENA_LOG_LEVEL</code> environment variable as the Python side.</p>
+<p><strong>Mechanism</strong> — <code>global.c:PyInit_libmodena()</code> reads <code>$MODENA_LOG_LEVEL</code> at
+startup (before any model is loaded) and stores the result in the process-global
+<code>int modena_log_level</code>.  Three macros in <code>global.h</code> gate output against this
+integer:</p>
+<table>
+<thead>
+<tr>
+<th>Macro</th>
+<th>Fires when</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Modena_Error_Print(fmt, ...)</code></td>
+<td>Always (stderr)</td>
+<td>Fatal errors, unexpected states</td>
+</tr>
+<tr>
+<td><code>Modena_Debug_Print(fmt, ...)</code></td>
+<td><code>MODENA_LOG_LEVEL &gt;= DEBUG</code></td>
+<td>Model loading, parameter counts, substitute wiring</td>
+</tr>
+<tr>
+<td><code>Modena_Verbose_Print(fmt, ...)</code></td>
+<td><code>MODENA_LOG_LEVEL &gt;= DEBUG_VERBOSE</code></td>
+<td>Per-call input/output value traces</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Adding new diagnostics</strong> — use <code>Modena_Debug_Print</code> for anything that fires
+once per model load (e.g. configuration messages), and <code>Modena_Verbose_Print</code>
+for anything that fires every time-step (e.g. per-call value traces).  Never
+use bare <code>printf</code> for diagnostic output — it cannot be suppressed.</p>
+<p><strong>Level constants</strong> (defined in <code>global.h</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="cp">#define MODENA_LOG_WARNING       0   </span><span class="cm">/* default — silent    */</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="cp">#define MODENA_LOG_INFO          1</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="cp">#define MODENA_LOG_DEBUG         2</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="cp">#define MODENA_LOG_DEBUG_VERBOSE 3</span>
+</code></pre></div>
+<hr />
+<h2 id="cross-language-boundaries">Cross-language boundaries<a class="headerlink" href="#cross-language-boundaries" title="Permanent link">&para;</a></h2>
+<p>These three boundaries are the most dangerous places to make changes.  A
+locally correct-looking change can silently corrupt data at runtime.</p>
+<h3 id="1-the-minmax-tuple-python-c">1 — The <code>minMax()</code> tuple (Python → C)<a class="headerlink" href="#1-the-minmax-tuple-python-c" title="Permanent link">&para;</a></h3>
+<p><code>model.c:modena_model_get_minMax()</code> calls <code>SurrogateModel.minMax()</code> and reads
+the result by <strong>raw integer index</strong> via <code>PyTuple_GET_ITEM(t, i)</code>.  There is no
+named-field access.</p>
+<p><strong>Current layout — do not reorder:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Type</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>list[float]</code></td>
+<td>input minimums, ordered by <code>argPos</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>list[float]</code></td>
+<td>input maximums, ordered by <code>argPos</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>list[float]</code></td>
+<td>output minimums, ordered by <code>argPos</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>list[float]</code></td>
+<td>output maximums, ordered by <code>argPos</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>int</code></td>
+<td>number of parameters</td>
+</tr>
+</tbody>
+</table>
+<p>If you extend the tuple (e.g. for units), <strong>append at the end</strong> and update
+<code>model.c</code> in the same commit.  A mismatch fails silently at runtime with
+corrupted bounds or a segfault.  There are no automated tests for this
+boundary.</p>
+<h3 id="2-argpos-array-indexing-python-c-mongodb">2 — <code>argPos</code> array indexing (Python ↔ C ↔ MongoDB)<a class="headerlink" href="#2-argpos-array-indexing-python-c-mongodb" title="Permanent link">&para;</a></h3>
+<p>Changing <code>argPos</code> on an existing model invalidates the C arrays in every
+application and the MongoDB documents of every user.  See <a href="#the-argpos-system">The <code>argPos</code> system
+</a> above.</p>
+<p><code>existsAndHasArgPos</code> must raise <code>ArgPosNotFound</code>, <strong>not</strong> bare <code>Exception</code>.
+If it raises the wrong type the fallback lookup silently never runs, causing
+<code>KeyError</code>-style failures at runtime.  This was the root cause of the
+twoTanks crash.</p>
+<h3 id="3-mongoengine-dynamicdocument-schema">3 — MongoEngine <code>DynamicDocument</code> schema<a class="headerlink" href="#3-mongoengine-dynamicdocument-schema" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Safety</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Add a field with <code>default=</code></td>
+<td><strong>Safe</strong> — old documents return the default</td>
+</tr>
+<tr>
+<td>Remove a field</td>
+<td><strong>Unsafe</strong> — old documents silently carry the orphaned key</td>
+</tr>
+<tr>
+<td>Rename a field</td>
+<td><strong>Unsafe</strong> — data loss; old value becomes unreachable</td>
+</tr>
+<tr>
+<td>Change a field type</td>
+<td><strong>Unsafe</strong> — existing values may cast incorrectly</td>
+</tr>
+</tbody>
+</table>
+<p>For any unsafe operation write a migration script before deploying.</p>
+<hr />
+<h2 id="adding-a-language-wrapper">Adding a language wrapper<a class="headerlink" href="#adding-a-language-wrapper" title="Permanent link">&para;</a></h2>
+<p>All language wrappers follow the same pattern: load <code>libmodena.so</code> at runtime
+via the platform dynamic linker, cache function pointers, then expose a thin
+idiomatic API in the target language.</p>
+<h3 id="the-rtld_global-requirement-linux-macos">The RTLD_GLOBAL requirement (Linux / macOS)<a class="headerlink" href="#the-rtld_global-requirement-linux-macos" title="Permanent link">&para;</a></h3>
+<p><code>libmodena.so</code> embeds a CPython interpreter.  When Python is initialised it
+imports extension modules (e.g. <code>_bz2</code>, <code>_ssl</code>) that are themselves shared
+libraries.  These extension modules resolve Python symbols (<code>PyArg_ParseTuple</code>,
+<code>PyErr_SetString</code>, …) by looking them up in the <strong>global</strong> symbol namespace.</p>
+<p>When the OS loads <code>libmodena.so</code> as a <code>DT_NEEDED</code> dependency (i.e. at link
+time), it uses <code>RTLD_LOCAL</code> by default, which makes <code>libpython</code> symbols
+invisible to those extension modules.  The result is an <code>ImportError</code> or
+segfault on the first Python import inside <code>libmodena</code>.</p>
+<p><strong>The fix — three steps, in order:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1">// Step 1: promote libpython into the global namespace</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1">//         (RTLD_NOLOAD upgrades an existing mapping; falls back to a fresh load)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">libpy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dlopen</span><span class="p">(</span><span class="s">&quot;libpython3.so.1.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">RTLD_LAZY</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">RTLD_GLOBAL</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">RTLD_NOLOAD</span><span class="p">);</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">libpy</span><span class="p">)</span><span class="w"> </span><span class="n">libpy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dlopen</span><span class="p">(</span><span class="s">&quot;libpython3.so.1.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">RTLD_LAZY</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">RTLD_GLOBAL</span><span class="p">);</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1">// Step 2: load libmodena into the global namespace</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1">//         This triggers Py_Initialize() via __attribute__((constructor))</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">lib</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dlopen</span><span class="p">(</span><span class="s">&quot;/path/to/libmodena.so&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">RTLD_LAZY</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">RTLD_GLOBAL</span><span class="p">);</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1">// Step 3: resolve all needed function pointers</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="n">modena_model_new_t</span><span class="w">  </span><span class="o">*</span><span class="n">p_model_new</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">dlsym</span><span class="p">(</span><span class="n">lib</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;modena_model_new&quot;</span><span class="p">);</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="n">modena_model_call_t</span><span class="w"> </span><span class="o">*</span><span class="n">p_model_call</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dlsym</span><span class="p">(</span><span class="n">lib</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;modena_model_call&quot;</span><span class="p">);</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="c1">// ...</span>
+</code></pre></div>
+<p>Do <strong>not</strong> link against <code>libmodena</code> at compile time in language wrappers.
+Runtime <code>dlopen</code> means the wrapper package can be installed on machines without
+MoDeNa present and will only error on first use.</p>
+<h3 id="finding-the-libmodena-path">Finding the libmodena path<a class="headerlink" href="#finding-the-libmodena-path" title="Permanent link">&para;</a></h3>
+<p>The wrapper must locate <code>libmodena.so</code> without a hardcoded path.  Resolve
+<code>MODENA_LIB_DIR</code> in priority order:</p>
+<ol>
+<li><code>MODENA_LIB_DIR</code> environment variable (set by the user or CMake install).</li>
+<li>Ask Python: <code>python3 -c "import modena; print(modena.MODENA_LIB_DIR)"</code>.</li>
+</ol>
+<p>See <code>src/wrappers/matlab/mex/modena_gateway.c</code> and
+<code>src/wrappers/r/src/modena_r.c</code> for complete reference implementations.</p>
+<h3 id="model-destruction-use-py_decref-not-modena_model_delete">Model destruction — use <code>Py_DecRef</code>, not <code>modena_model_delete</code><a class="headerlink" href="#model-destruction-use-py_decref-not-modena_model_delete" title="Permanent link">&para;</a></h3>
+<p><code>modena_model_t</code> is a Python object wrapped in a C struct.  Calling
+<code>modena_model_delete()</code> directly bypasses Python's reference counting and
+causes a use-after-free when <code>Py_Finalize()</code> runs at process exit.  Always
+decrement the reference count via <code>Py_DecRef(model)</code> (or the equivalent
+function pointer) to let <code>tp_dealloc</code> free memory at the right time.</p>
+<h3 id="pointer-representation-in-managed-languages">Pointer representation in managed languages<a class="headerlink" href="#pointer-representation-in-managed-languages" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Wrapper</th>
+<th>Representation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MATLAB</td>
+<td><code>uint64</code> scalar (encodes pointer as integer)</td>
+</tr>
+<tr>
+<td>R</td>
+<td><code>externalptr</code> with registered GC finalizer</td>
+</tr>
+<tr>
+<td>Julia</td>
+<td><code>Ptr{Cvoid}</code></td>
+</tr>
+</tbody>
+</table>
+<p>Register a GC finalizer that calls <code>Py_DecRef</code> when the model object is
+collected, so memory is freed even if the user forgets to call <code>destroy()</code>.</p>
+<h3 id="checklist-for-a-new-wrapper">Checklist for a new wrapper<a class="headerlink" href="#checklist-for-a-new-wrapper" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] Locate <code>libmodena.so</code> via <code>MODENA_LIB_DIR</code></li>
+<li>[ ] <code>dlopen</code> libpython with <code>RTLD_GLOBAL</code> before loading libmodena</li>
+<li>[ ] <code>dlopen</code> libmodena with <code>RTLD_GLOBAL</code></li>
+<li>[ ] Cache all needed function pointers via <code>dlsym</code></li>
+<li>[ ] Expose <code>model_new</code>, <code>inputs_new</code>, <code>outputs_new</code>, <code>inputs_set</code>,
+      <code>model_call</code>, <code>outputs_get</code>, <code>inputs_destroy</code>, <code>outputs_destroy</code></li>
+<li>[ ] Destroy via <code>Py_DecRef</code>, not <code>modena_model_delete</code></li>
+<li>[ ] Register a GC finalizer for all three pointer types</li>
+<li>[ ] Handle return codes: 0 = ok, 100 = retrained (retry step), 200 = OOB (exit)</li>
+<li>[ ] Write unit tests (no libmodena required) and integration tests (skip if absent)</li>
+</ul>
+<hr />
+<h2 id="the-surrogate-compilation-pipeline">The surrogate compilation pipeline<a class="headerlink" href="#the-surrogate-compilation-pipeline" title="Permanent link">&para;</a></h2>
+<p>When a <code>CFunction</code> is first instantiated:</p>
+<ol>
+<li>The user's C code template is <strong>SHA256-hashed</strong> to produce a unique
+   function ID <code>h</code>.  SHA256 is used (not MD5) because MD5 has known collisions
+   that could silently reuse the wrong <code>.so</code>.</li>
+<li>A Jinja2 child template fills in <code>{% block variables %}</code> with
+   <code>const double varname = inputs[argPos];</code> bindings for every input.</li>
+<li>The rendered <code>.c</code> file and a generated <code>CMakeLists.txt</code> are written to
+   <code>&lt;surrogate_lib_dir&gt;/func_&lt;h&gt;/</code>.</li>
+<li>CMake is invoked as a subprocess to compile the <code>.so</code>.</li>
+<li>The absolute path to the <code>.so</code> (<code>libraryName</code>) is stored in MongoDB.</li>
+</ol>
+<p>On subsequent runs the hash is recomputed; if the <code>.so</code> already exists the
+compilation step is skipped.</p>
+<p>The <code>surrogate_lib_dir</code> is resolved from (highest priority first):</p>
+<ol>
+<li><code>MODENA_SURROGATE_LIB_DIR</code> environment variable</li>
+<li><code>[surrogate_functions] lib_dir</code> in <code>modena.toml</code></li>
+<li><code>MODENA_LIB_DIR</code> (the installed library directory)</li>
+</ol>
+<hr />
+<h2 id="known-limitations-and-deferred-work">Known limitations and deferred work<a class="headerlink" href="#known-limitations-and-deferred-work" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Location</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No in-place parameter update in C</td>
+<td><code>model.c</code></td>
+<td>Every optimizer iteration calls <code>modena_model_new()</code> (malloc + copy). Fix: add <code>modena_model_set_parameters()</code>.</td>
+</tr>
+<tr>
+<td>No automated tests for <code>minMax()</code> ABI</td>
+<td><code>SurrogateModel.py</code> / <code>model.c</code></td>
+<td>A mismatch fails silently. Needs a C-level integration test.</td>
+</tr>
+<tr>
+<td><code>parameters</code> is positional, not named</td>
+<td><code>SurrogateModel.py</code></td>
+<td>Names live in <code>surrogateFunction.parameters</code> keyed by <code>argPos</code>. Easy to join incorrectly.</td>
+</tr>
+<tr>
+<td><code>JigglePoint</code> non-convergence strategy</td>
+<td><code>Strategy.py</code></td>
+<td>Not yet implemented. Would retry a failing point with a small random perturbation.</td>
+</tr>
+<tr>
+<td><code>modena_siunits_get()</code> and related</td>
+<td><code>inputsoutputs.c</code></td>
+<td>Declared, not implemented. Tests exist under <code>#if 0</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="platform-notes">Platform notes<a class="headerlink" href="#platform-notes" title="Permanent link">&para;</a></h2>
+<h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
+<p>Fully supported.  If MoDeNa is installed to a non-standard prefix (e.g.
+<code>$HOME</code> via the convenience <code>install</code> script), the install directory must
+be on <code>LD_LIBRARY_PATH</code> so that applications can locate <code>libmodena.so</code> at
+load time:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$HOME</span><span class="s2">/lib:</span><span class="nv">$LD_LIBRARY_PATH</span><span class="s2">&quot;</span>
+</code></pre></div>
+<p>If installed to a standard system prefix (<code>/usr/local</code>) and <code>ldconfig</code> has
+been run, no environment variable is needed.</p>
+<p>The compiled surrogate <code>.so</code> files are loaded by the absolute path stored
+in MongoDB (<code>libraryName</code> field) and do <strong>not</strong> require <code>LD_LIBRARY_PATH</code>.</p>
+<h3 id="macos-experimental">macOS <em>(experimental)</em><a class="headerlink" href="#macos-experimental" title="Permanent link">&para;</a></h3>
+<p>The Python layer is fully cross-platform.  The following platform-specific
+values are selected automatically at runtime:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Linux</th>
+<th>macOS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shared library name</td>
+<td><code>libmodena.so</code></td>
+<td><code>libmodena.dylib</code></td>
+</tr>
+<tr>
+<td>Library search path env var</td>
+<td><code>LD_LIBRARY_PATH</code></td>
+<td><code>DYLD_LIBRARY_PATH</code></td>
+</tr>
+<tr>
+<td>Path separator (<code>MODENA_PATH</code> etc.)</td>
+<td><code>:</code></td>
+<td><code>:</code></td>
+</tr>
+</tbody>
+</table>
+<p>The same logic applies on macOS: <code>DYLD_LIBRARY_PATH</code> is only needed when
+installing to a non-standard prefix.</p>
+<p>The C library and language wrappers (<code>function.c</code>, <code>modena_gateway.c</code>,
+<code>modena_r.c</code>) use <code>dlopen</code> / <code>RTLD_GLOBAL</code>, which work on macOS.  The
+generated surrogate <code>CMakeLists.txt</code> produces a <code>.dylib</code> (CMake handles the
+platform difference transparently via <code>MODULE</code> targets); the Python side uses
+the platform-aware <code>_LIBMODENA_NAME</code> constant.</p>
+<p>Experimental status means: the Python layer and build system are expected to
+work, but macOS has not been part of the regular CI matrix and edge cases
+(e.g. Homebrew Python vs system Python, Apple Silicon vs x86) may surface.
+Please report issues.</p>
+<h3 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h3>
+<p>Not currently supported.  The Python-layer cross-platform work is complete
+(library name, path separator, env var name are all runtime-selected).  The
+remaining blockers are in the C layer:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C library (<code>function.c</code>)</td>
+<td>Uses <code>lt_dlopen</code> (LTDL / POSIX). Windows equivalent is <code>LoadLibrary</code>.</td>
+</tr>
+<tr>
+<td>Language wrappers (<code>modena_gateway.c</code>, <code>modena_r.c</code>)</td>
+<td>Use <code>dlopen</code> / <code>RTLD_GLOBAL</code>. No direct Windows equivalent; requires <code>LoadLibraryEx</code> with a different symbol-visibility strategy.</td>
+</tr>
+<tr>
+<td>Surrogate library naming</td>
+<td>CMake <code>MODULE</code> target produces <code>.dll</code> on Windows; <code>SurrogateModel.py</code> now uses <code>_LIBMODENA_NAME</code> but the stored <code>libraryName</code> in MongoDB would need a migration for existing databases.</td>
+</tr>
+</tbody>
+</table>
+<p>The C-layer fixes require <code>#ifdef _WIN32</code> branches throughout <code>function.c</code>
+and the wrapper C files.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
