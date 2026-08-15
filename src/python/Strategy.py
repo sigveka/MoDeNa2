@@ -1771,6 +1771,7 @@ class Test(ParameterFittingStrategy):
             )
             model.updateMinMax()
             model.last_fitted = datetime.now(timezone.utc)
+            model.n_samples_fitted = model.nSamples
             model.save()
             ModelRegistry().update_lock(model)
 
@@ -1960,6 +1961,7 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
             )
             model.updateMinMax()
             model.last_fitted = datetime.now(timezone.utc)
+            model.n_samples_fitted = model.nSamples
             model.save()
             ModelRegistry().update_lock(model)
 
@@ -2079,13 +2081,15 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
         )
         model.updateMinMax()
         model.last_fitted = datetime.now(timezone.utc)
+        model.n_samples_fitted = model.nSamples
 
         # Atomic field-level update — avoids a full document write that would
         # overwrite concurrent changes (e.g. fitData appended by another task).
         # $set on individual fields is safe regardless of execution order.
         _update = {
-            'set__parameters':  model.named_parameters(),   # dict, MongoDB-native
-            'set__last_fitted': model.last_fitted,
+            'set__parameters':        model.named_parameters(),   # dict, MongoDB-native
+            'set__last_fitted':       model.last_fitted,
+            'set__n_samples_fitted':  model.n_samples_fitted,
         }
         for k, v in model.inputs.items():
             _update[f'set__inputs__{k}__min'] = v.min
@@ -2164,12 +2168,38 @@ class ParameterFitting(FireTaskBase):
         """
         model = modena.SurrogateModel.load(self['surrogateModelId'])
         _log.info('Performing parameter fitting for model %s', model._id)
-        # Simulation results were written directly to MongoDB by each exact
-        # task (append_fit_data_point), so reload fitData from the database.
-        model.reload('fitData')
+        # ``load()`` already fetched the full document including fitData.
+        # No second reload needed — exact tasks all completed before this
+        # ParameterFitting task fires (FireWorks DAG guarantee), so the
+        # snapshot from load() is current.
         model.nSamples = (
             len(next(iter(model.fitData.values()))) if model.fitData else 0
         )
+
+        # Skip the fit if no new samples have arrived since the last fit
+        # AND parameters are already populated.  This makes re-runs of
+        # already-fitted models free (e.g. a workflow re-run, a manual
+        # `modena fw run` after everything succeeded, or FireWorks
+        # replaying a completed detour).
+        if (
+            model.parameters
+            and model.n_samples_fitted == model.nSamples
+        ):
+            _log.info(
+                'Skipping fit for %s: no new samples since last fit '
+                '(nSamples=%d, n_samples_fitted=%d)',
+                model._id, model.nSamples, model.n_samples_fitted,
+                extra={
+                    'event': 'parameter_fit_skipped',
+                    'model_id': model._id,
+                    'n_samples': model.nSamples,
+                    'reason': 'no_new_samples',
+                },
+            )
+            return FWAction(mod_spec=[
+                {'_push': {'_modena_fitted_models': self['surrogateModelId']}}
+            ])
+
         action = model.parameterFittingStrategy().newPointsFWAction(model)
         # When fitting succeeds (no detours needed), push the model ID into
         # fw_spec so the upstream BackwardMappingScriptTask can tell freeze()

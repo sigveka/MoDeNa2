@@ -909,6 +909,12 @@ class SurrogateModel(DynamicDocument):
     parameters = DictField(FloatField())
     documentation = StringField(default='')
     last_fitted = DateTimeField()
+    # Number of samples in ``fitData`` at the time ``parameters`` was last
+    # fitted.  A re-fit that finds ``nSamples == n_samples_fitted`` (and
+    # the parameters non-empty) is a no-op and can skip scipy entirely —
+    # the DB has no new data since the previous fit.  Set at the end of
+    # every successful fit path in Strategy.py.
+    n_samples_fitted = IntField(default=0)
     meta = {'allow_inheritance': True}
 
     def __init__(self, *args, **kwargs):
@@ -1792,18 +1798,32 @@ class SurrogateModel(DynamicDocument):
         return value    # Instance of bytes
 
     @classmethod
-    def load(cls, surrogateModelId: str) -> 'SurrogateModel':
+    def load(cls, surrogateModelId: str,
+             with_fit_data: bool = True) -> 'SurrogateModel':
         """
         @brief     Load SurrogateModel from database by "_id"
-        @parameter surrogateModelId string _id field of the surrogate model
-        @details
-                   The load method excludes the 'fitData' field of the SM in
-                   order to reduce the network traffic.
+        @parameter surrogateModelId  str  _id field of the surrogate model.
+        @parameter with_fit_data     bool When ``False``, the ``fitData``
+                                     subdocument is excluded from the DB
+                                     fetch — a large win when fitData has
+                                     accumulated thousands of samples and
+                                     the caller only needs parameters +
+                                     bounds (C application load, portal
+                                     browsing, validation tasks).
+                                     Callers that will run the fitting
+                                     loop or otherwise iterate fitData
+                                     must leave this at the default.
 
-        @return    object  'SurrogateModel' or 'None'
+        @return    object  ``SurrogateModel`` (may be a subclass instance).
         """
         try:
-            return cls.objects.get(_id=surrogateModelId)
+            qs = cls.objects.filter(_id=surrogateModelId)
+            if not with_fit_data:
+                qs = qs.exclude('fitData')
+            model = qs.first()
+            if model is None:
+                raise DoesNotExist
+            return model
         except DoesNotExist:
             raise DoesNotExist(
                 f"SurrogateModel '{surrogateModelId}' not found in database. "
@@ -1814,11 +1834,16 @@ class SurrogateModel(DynamicDocument):
     @classmethod
     def loadFailing(cls) -> 'SurrogateModel | None':
         """
-        @brief   Load all objects that have a 'outside point' key
+        @brief   Load a model that has a 'outsidePoint' key.
+
+        Only the model's identifying fields are needed by the caller
+        (``handleReturnCode`` uses the model to construct the OOB detour
+        workflow and reads ``outsidePoint``); fitData can be huge and is
+        never touched on this path — excluded from the fetch.
         """
         return cls.objects(
             __raw__={'outsidePoint': {'$exists': True}}
-        ).first()
+        ).exclude('fitData').first()
 
 
     @classmethod
