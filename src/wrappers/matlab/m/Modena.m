@@ -127,5 +127,33 @@ classdef Modena < handle
             names = modena_gateway('parameters_names', obj.model_ptr);
         end
 
+        %-- Named parameter access (Phase 3) ───────────────────────────────────
+        function s = parameters(obj)
+        % PARAMETERS  Fitted parameter values as a MATLAB struct keyed by name.
+        %
+        % Field names come from the SurrogateFunction's parameter declaration
+        % order (which is the argPos ordering post Phase 3).  Equivalent to
+        % Python's ``model.named_parameters()`` and R's ``m$parameters()``.
+        %
+        % Example:
+        %   >> p = m.parameters()
+        %   p =
+        %     struct with fields:
+        %       P0: 0.6134
+        %       P1: 0.6143
+            s = modena_gateway('parameters', obj.model_ptr);
+        end
+
+        function v = get_parameter(obj, name)
+        % GET_PARAMETER  Look up one fitted parameter value by declared name.
+        %
+        % Errors with 'Modena:parameter' if NAME is not a declared parameter.
+        %
+        % Example:
+        %   >> m.get_parameter('P0')
+        %   ans = 0.6134
+            v = modena_gateway('parameter', obj.model_ptr, name);
+        end
+
     end % methods
 end % classdef

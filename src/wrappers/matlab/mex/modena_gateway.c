@@ -79,6 +79,7 @@ typedef int    (*fp_model_call_t)    (modena_model_t *,
 typedef size_t       (*fp_inputs_size_t)      (const modena_model_t *);
 typedef size_t       (*fp_outputs_size_t)     (const modena_model_t *);
 typedef size_t       (*fp_parameters_size_t)  (const modena_model_t *);
+typedef double       (*fp_parameters_get_t)   (const modena_model_t *, size_t);
 typedef const char** (*fp_inputs_names_t)     (const modena_model_t *);
 typedef const char** (*fp_outputs_names_t)    (const modena_model_t *);
 typedef const char** (*fp_parameters_names_t) (const modena_model_t *);
@@ -101,6 +102,7 @@ static fp_model_call_t      p_model_call;
 static fp_inputs_size_t      p_inputs_size;
 static fp_outputs_size_t     p_outputs_size;
 static fp_parameters_size_t  p_parameters_size;
+static fp_parameters_get_t   p_parameters_get;
 static fp_inputs_names_t     p_inputs_names;
 static fp_outputs_names_t    p_outputs_names;
 static fp_parameters_names_t p_parameters_names;
@@ -249,6 +251,7 @@ static void ensure_init(void)
     LOAD(p_inputs_size,     "modena_model_inputs_size");
     LOAD(p_outputs_size,    "modena_model_outputs_size");
     LOAD(p_parameters_size, "modena_model_parameters_size");
+    LOAD(p_parameters_get,  "modena_model_parameters_get");
     LOAD(p_inputs_names,    "modena_model_inputs_names");
     LOAD(p_outputs_names,   "modena_model_outputs_names");
     LOAD(p_parameters_names,"modena_model_parameters_names");
@@ -398,6 +401,41 @@ void mexFunction(int nlhs, mxArray *plhs[],
             mexErrMsgIdAndTxt("Modena:usage", "parameters_names(model_ptr).");
         void *m = mx_to_ptr(prhs[1]);
         plhs[0] = names_to_cell(p_parameters_names(m), p_parameters_size(m));
+
+    /* ── parameters ─── (values as a MATLAB struct keyed by name) ──────────── */
+    } else if (strcmp(cmd, "parameters") == 0) {
+        if (nrhs != 2)
+            mexErrMsgIdAndTxt("Modena:usage", "parameters(model_ptr).");
+        void *m = mx_to_ptr(prhs[1]);
+        size_t n = p_parameters_size(m);
+        const char **names = p_parameters_names(m);
+        /* MATLAB struct field names must be valid identifiers — the
+         * framework validates this at CFunction construction time so
+         * every name reaching us is safe. */
+        mxArray *out = mxCreateStructMatrix(1, 1, (int)n, names);
+        for (size_t i = 0; i < n; i++) {
+            mxSetFieldByNumber(out, 0, (int)i,
+                mxCreateDoubleScalar(p_parameters_get(m, i)));
+        }
+        plhs[0] = out;
+
+    /* ── parameter ──── (one value by name; convenience) ───────────────────── */
+    } else if (strcmp(cmd, "parameter") == 0) {
+        if (nrhs != 3 || !mxIsChar(prhs[2]))
+            mexErrMsgIdAndTxt("Modena:usage", "parameter(model_ptr, name).");
+        void *m = mx_to_ptr(prhs[1]);
+        char *name = mxArrayToString(prhs[2]);
+        size_t n = p_parameters_size(m);
+        const char **names = p_parameters_names(m);
+        size_t idx = (size_t)-1;
+        for (size_t i = 0; i < n; i++) {
+            if (strcmp(names[i], name) == 0) { idx = i; break; }
+        }
+        mxFree(name);
+        if (idx == (size_t)-1)
+            mexErrMsgIdAndTxt("Modena:parameter",
+                "unknown parameter '%s'", mxArrayToString(prhs[2]));
+        plhs[0] = mxCreateDoubleScalar(p_parameters_get(m, idx));
 
     } else {
         mexErrMsgIdAndTxt("Modena:usage",

@@ -496,6 +496,15 @@ size_t modena_model_outputs_size(const modena_model_t *self)
     return self->outputs_size;
 }
 
+double modena_model_parameters_get(const modena_model_t *self, size_t i)
+{
+    /* Bounds-check silently — callers that iterate 0..size-1 (as
+     * documented) will never trip this.  A caller passing a rogue index
+     * gets 0.0 rather than a segfault. */
+    if (i >= self->parameters_size) return 0.0;
+    return self->parameters[i];
+}
+
 size_t modena_model_parameters_size(const modena_model_t *self)
 {
     return self->parameters_size;

@@ -7,8 +7,14 @@
 !*.py
 !*.m
 !*.rb
-!.mat
-!.jl
+# The two patterns below previously read `!.mat` and `!.jl`, which match
+# the literal filenames `.mat` and `.jl` only — not any *.mat / *.jl
+# file.  Fixed to the intended glob pattern; adds *.R for R sources
+# (case-sensitive: R uses uppercase `.R` for scripts).
+!*.mat
+!*.jl
+!*.R
+!*.r
 
 # Misc
 !*.svg

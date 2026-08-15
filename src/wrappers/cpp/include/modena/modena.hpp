@@ -189,21 +189,28 @@ public:
         inputs_  = modena_inputs_new(model_);
         outputs_ = modena_outputs_new(model_);
 
-        // Cache all input and output positions up front.  These calls go
-        // through libmodena's Python bindings, so they must happen BEFORE
-        // any downstream check() releases the GIL for the time-step loop.
-        const std::size_t nin  = inputs_size();
-        const std::size_t nout = outputs_size();
-        const char** in_names  = modena_model_inputs_names(model_);
-        const char** out_names = modena_model_outputs_names(model_);
+        // Cache all input, output, and parameter positions up front.
+        // These calls go through libmodena's Python bindings, so they
+        // must happen BEFORE any downstream check() releases the GIL
+        // for the time-step loop.  Parameter positions are the argPos
+        // ordering derived from SurrogateFunction dict-key order.
+        const std::size_t nin    = inputs_size();
+        const std::size_t nout   = outputs_size();
+        const std::size_t nparam = parameters_size();
+        const char** in_names    = modena_model_inputs_names(model_);
+        const char** out_names   = modena_model_outputs_names(model_);
+        const char** param_names = modena_model_parameters_names(model_);
         input_pos_.reserve(nin);
         output_pos_.reserve(nout);
+        parameter_pos_.reserve(nparam);
         for (std::size_t i = 0; i < nin;  ++i)
             input_pos_.emplace(in_names[i],
                                modena_model_inputs_argPos(model_, in_names[i]));
         for (std::size_t i = 0; i < nout; ++i)
             output_pos_.emplace(out_names[i],
                                 modena_model_outputs_argPos(model_, out_names[i]));
+        for (std::size_t i = 0; i < nparam; ++i)
+            parameter_pos_.emplace(param_names[i], i);   // argPos == index
     }
 
     ~Model()
@@ -222,7 +229,8 @@ public:
     Model(Model&& o) noexcept
         : model_(o.model_), inputs_(o.inputs_), outputs_(o.outputs_),
           input_pos_(std::move(o.input_pos_)),
-          output_pos_(std::move(o.output_pos_))
+          output_pos_(std::move(o.output_pos_)),
+          parameter_pos_(std::move(o.parameter_pos_))
     {
         o.model_ = nullptr; o.inputs_ = nullptr; o.outputs_ = nullptr;
     }
@@ -237,11 +245,12 @@ public:
                 modena_outputs_destroy(outputs_);
                 modena_model_destroy(model_);
             }
-            model_      = o.model_;
-            inputs_     = o.inputs_;
-            outputs_    = o.outputs_;
-            input_pos_  = std::move(o.input_pos_);
-            output_pos_ = std::move(o.output_pos_);
+            model_         = o.model_;
+            inputs_        = o.inputs_;
+            outputs_       = o.outputs_;
+            input_pos_     = std::move(o.input_pos_);
+            output_pos_    = std::move(o.output_pos_);
+            parameter_pos_ = std::move(o.parameter_pos_);
             o.model_ = nullptr; o.inputs_ = nullptr; o.outputs_ = nullptr;
         }
         return *this;
@@ -263,6 +272,51 @@ public:
 
     std::vector<std::string> parameters_names() const
     { return names_from(modena_model_parameters_names(model_), parameters_size()); }
+
+    // -------------------------------------------------------------------- //
+    // Fitted parameters — named access
+    // -------------------------------------------------------------------- //
+
+    /**
+     * @brief One fitted parameter value by argPos index.
+     */
+    double parameter(std::size_t i) const
+    {
+        return modena_model_parameters_get(model_, i);
+    }
+
+    /**
+     * @brief One fitted parameter value by declared name.
+     *
+     * O(1) via the cache built at construction time.
+     *
+     * @throws std::out_of_range if @p name is not a declared parameter.
+     */
+    double parameter(std::string_view name) const
+    {
+        auto it = parameter_pos_.find(std::string(name));
+        if (it == parameter_pos_.end())
+            throw std::out_of_range(
+                "modena: unknown parameter '" + std::string(name) + "'"
+            );
+        return modena_model_parameters_get(model_, it->second);
+    }
+
+    /**
+     * @brief All fitted parameters as a ``{name: value}`` map.
+     *
+     * Iteration order matches ``parameters_names()`` (argPos-ordered).
+     */
+    std::unordered_map<std::string, double> parameters() const
+    {
+        std::unordered_map<std::string, double> out;
+        const std::size_t n = parameters_size();
+        const char** names = modena_model_parameters_names(model_);
+        out.reserve(n);
+        for (std::size_t i = 0; i < n; ++i)
+            out.emplace(names[i], modena_model_parameters_get(model_, i));
+        return out;
+    }
 
     // -------------------------------------------------------------------- //
     // ArgPos API — cache positions once, use in the hot loop
@@ -383,6 +437,10 @@ private:
     // lookup, safe after check() has released the GIL.
     std::unordered_map<std::string, std::size_t> input_pos_;
     std::unordered_map<std::string, std::size_t> output_pos_;
+    // Parameter positions are the argPos ordering derived from the
+    // SurrogateFunction's parameter dict-key order (Phase 3), which
+    // matches iteration order of modena_model_parameters_names().
+    std::unordered_map<std::string, std::size_t> parameter_pos_;
 
     static std::vector<std::string>
     names_from(const char** arr, std::size_t n)

@@ -63,6 +63,7 @@ typedef size_t       (*fp_parameters_size_t)  (const modena_model_t *);
 typedef const char** (*fp_inputs_names_t)     (const modena_model_t *);
 typedef const char** (*fp_outputs_names_t)    (const modena_model_t *);
 typedef const char** (*fp_parameters_names_t) (const modena_model_t *);
+typedef double       (*fp_parameters_get_t)   (const modena_model_t *, size_t);
 
 /* ── Static library handle and resolved symbols ──────────────────────────── */
 static void *_lib      = NULL;
@@ -86,6 +87,7 @@ static fp_parameters_size_t  p_parameters_size;
 static fp_inputs_names_t     p_inputs_names;
 static fp_outputs_names_t    p_outputs_names;
 static fp_parameters_names_t p_parameters_names;
+static fp_parameters_get_t   p_parameters_get;
 
 /* ── Helper: last non-empty line from a popen command ───────────────────── */
 static int popen_last_line(const char *cmd, char *buf, size_t bufsz)
@@ -200,6 +202,7 @@ static void ensure_init(void)
     LOAD(p_inputs_names,     "modena_model_inputs_names");
     LOAD(p_outputs_names,    "modena_model_outputs_names");
     LOAD(p_parameters_names, "modena_model_parameters_names");
+    LOAD(p_parameters_get,   "modena_model_parameters_get");
 }
 
 /* ── externalptr finalizers ──────────────────────────────────────────────── */
@@ -371,6 +374,27 @@ SEXP r_parameters_names(SEXP model_)
     return names_to_strsxp(p_parameters_names(m), p_parameters_size(m));
 }
 
+/* Return the fitted parameters as a named numeric vector — the R
+ * equivalent of Python's ``model.named_parameters()``.  Element order
+ * matches ``parameters_names(m)`` (argPos-authoritative). */
+SEXP r_parameters_values(SEXP model_)
+{
+    void *m = R_ExternalPtrAddr(model_);
+    if (!m) Rf_error("Modena: model pointer is NULL");
+    size_t n = p_parameters_size(m);
+    const char **names = p_parameters_names(m);
+
+    SEXP values = PROTECT(allocVector(REALSXP, (R_xlen_t)n));
+    SEXP nms    = PROTECT(allocVector(STRSXP,  (R_xlen_t)n));
+    for (size_t i = 0; i < n; i++) {
+        REAL(values)[i] = p_parameters_get(m, i);
+        SET_STRING_ELT(nms, (R_xlen_t)i, mkChar(names[i]));
+    }
+    setAttrib(values, R_NamesSymbol, nms);
+    UNPROTECT(2);
+    return values;
+}
+
 /* ── Registration table ──────────────────────────────────────────────────── */
 static const R_CallMethodDef CallMethods[] = {
     {"r_modena_init",      (DL_FUNC) &r_modena_init,       0},
@@ -388,7 +412,8 @@ static const R_CallMethodDef CallMethods[] = {
     {"r_parameters_size",  (DL_FUNC) &r_parameters_size,   1},
     {"r_inputs_names",     (DL_FUNC) &r_inputs_names,      1},
     {"r_outputs_names",    (DL_FUNC) &r_outputs_names,     1},
-    {"r_parameters_names", (DL_FUNC) &r_parameters_names,  1},
+    {"r_parameters_names",  (DL_FUNC) &r_parameters_names,   1},
+    {"r_parameters_values", (DL_FUNC) &r_parameters_values,  1},
     {NULL, NULL, 0}
 };
 

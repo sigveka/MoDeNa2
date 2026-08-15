@@ -464,6 +464,20 @@ size_t modena_model_outputs_size(const modena_model_t *self);
 size_t modena_model_parameters_size(const modena_model_t *self);
 
 /**
+ * @brief Return one fitted parameter value by argPos index.
+ *
+ * Values are in the argPos ordering established by the SurrogateFunction's
+ * parameter declaration order (see ``parameter_names_ordered()`` on the
+ * Python side).  Iterating i = 0 … ``modena_model_parameters_size(self)-1``
+ * yields the parameters in the same order as ``modena_model_parameters_names(self)``.
+ *
+ * @param self  Surrogate model created by modena_model_new().
+ * @param i     Argument-position index, must be less than parameters_size.
+ * @return      The fitted parameter value at slot @p i.
+ */
+double modena_model_parameters_get(const modena_model_t *self, size_t i);
+
+/**
  * @brief Retrieve the SI unit exponents for a public input slot.
  *
  * @warning **NOT IMPLEMENTED** (Phase 3).  This function is declared but has

@@ -85,6 +85,28 @@ int main()
     }
     catch (const std::out_of_range&) { /* expected */ }
 
+    // ── Named-parameter access (Phase 3) ────────────────────────────────
+    // Every fitted parameter is accessible both by argPos index and by
+    // declared name.  parameters() returns the full {name: value} map.
+    auto params = m.parameters();
+    assert(params.count("P0") == 1);
+    assert(params.count("P1") == 1);
+    assert(std::isfinite(params["P0"]));
+    assert(std::isfinite(params["P1"]));
+
+    // Named and positional access must agree.
+    assert(m.parameter("P0") == m.parameter(std::size_t{0}));
+    assert(m.parameter("P1") == m.parameter(std::size_t{1}));
+
+    // Unknown parameter name must raise.
+    try
+    {
+        (void) m.parameter("does_not_exist");
+        std::cerr << "FAIL  parameter(name) on unknown name should throw" << std::endl;
+        return 1;
+    }
+    catch (const std::out_of_range&) { /* expected */ }
+
     std::cout << "PASS  test_cpp_smoke  (flowRate mdot = " << mdot
               << " kg/s at D=0.01, rho0=3.4, p0=3e5, p1/p0=0.03)"
               << std::endl;
