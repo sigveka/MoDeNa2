@@ -3,21 +3,7 @@
 #
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-if(WITH_PYTHON_SWIG)
-    find_package(Python3 COMPONENTS Interpreter Development)
-    find_package(SWIG REQUIRED)
-
-    include(${SWIG_USE_FILE})
-
-    set(SWIG_MODULE_pymodena_EXTRA_DEPS ${MODENA_SRC_DIR}/modena.h)
-
-    swig_add_module(pymodena python pymodena.i)
-    swig_link_libraries(pymodena modena ${Python3_LIBRARIES})
-
-    get_property(PYMODENA_LIB_LOCATION TARGET _pymodena PROPERTY LOCATION)
-else()
-    find_package(Python3 COMPONENTS Interpreter)
-endif(WITH_PYTHON_SWIG)
+find_package(Python3 COMPONENTS Interpreter)
 
 
 # Compute Python site-packages install destination.
@@ -68,11 +54,7 @@ add_custom_command(OUTPUT ${OUTPUT}
                    DEPENDS modena ${DEPS}
                   )
 
-if(WITH_PYTHON_SWIG)
-    add_custom_target(python ALL DEPENDS ${OUTPUT} _pymodena)
-else()
-    add_custom_target(python ALL DEPENDS ${OUTPUT})
-endif(WITH_PYTHON_SWIG)
+add_custom_target(python ALL DEPENDS ${OUTPUT})
 
 install(FILES ${DEPS}
   DESTINATION "${PYTHON_SITE}/modena"

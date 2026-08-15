@@ -42,7 +42,6 @@ foreach(p ARCH BIN CMAKE INCLUDE LIB)            # Make relative paths absolute
 endforeach()
 
 # Options -------------------------------------------------------------------- #
-option(WITH_PYTHON_SWIG   "Build SWIG Python bindings"                        OFF)
 
 # Probe for a Fortran compiler before exposing the WITH_FORTRAN option so the
 # default matches what the system can actually provide. ---------------------- #

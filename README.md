@@ -240,11 +240,10 @@ sequenceDiagram
 
 | Option | CMake flag | Requires |
 |---|---|---|
-| Fortran wrapper | `WITH_R=ON` via `fmodena` | gfortran |
+| Fortran wrapper | `-DWITH_FORTRAN=ON` | gfortran / ifort (Fortran 2003) |
 | Julia wrapper | `-DWITH_JULIA=ON` | Julia + lld |
 | MATLAB/Octave wrapper | `-DWITH_MATLAB=ON` | Octave or MATLAB |
 | R wrapper | `-DWITH_R=ON` | R interpreter |
-| SWIG Python bindings | `-DWITH_PYTHON_SWIG=ON` | SWIG |
 | Web portal | `-DMODENA_BUILD_PORTAL=ON` | `dash`, `dash-bootstrap-components`, `plotly` (installed automatically) |
 | Test suite | `-DMODENA_BUILD_TESTS=ON` | pytest |
 | Doxygen docs | `-DMODENA_BUILD_DOCS=ON` | doxygen |
