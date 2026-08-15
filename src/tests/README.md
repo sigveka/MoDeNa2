@@ -116,12 +116,43 @@ MoDeNa stack including R.
 2. Creates a minimal `modena` package stub that points `__path__` at the
    source tree without executing `__init__.py`.  This prevents
    `import_helper()` from trying to load `libmodena.so`.
-3. Sets `MODENA_URI=mongomock://localhost/testdb` so any `mongoengine.connect()`
-   call uses an in-memory database.
+3. Patches `mongoengine.connect` with a MagicMock so importing
+   `modena.SurrogateModel` (which calls `connect()` at module scope)
+   does not require a live database.
+4. Eagerly imports `modena.SurrogateModel` so its module-level
+   `connect()` runs through the MagicMock stub before any test-level
+   fixture can swap the connection.
 
 Individual submodules (`modena.Launchpad`, `modena.Registry`, `modena.Runner`)
 are imported directly in each test file — they work because the stub package's
 `__path__` resolves them from the source tree.
+
+### The `mongo_db` fixture — real MongoEngine query path via mongomock
+
+Some code paths (`exceptionOutOfBounds`, `exceptionParametersNotValid`,
+`loadFailing`, `loadParametersNotValid`, the `_pending_*_launch_id`
+concurrency mechanism) need to actually execute MongoDB queries.  For
+these, request the `mongo_db` fixture — it suspends the MagicMock stub,
+opens an in-memory mongomock connection as the default alias, and
+restores the stub after the test:
+
+```python
+def test_stamps_launch_id(mongo_db):
+    from modena.SurrogateModel import SurrogateModel
+    coll = SurrogateModel._get_collection()
+    coll.insert_one({'_id': 'flowRate', '_cls': 'SurrogateModel'})
+    SurrogateModel.objects(_id='flowRate').update_one(
+        __raw__={'$set': {'_pending_init_launch_id': 'uuid-1234'}}
+    )
+    found = SurrogateModel.objects(
+        __raw__={'_pending_init_launch_id': 'uuid-1234'}
+    ).first()
+    assert found._id == 'flowRate'
+```
+
+Tests using `mongo_db` run in ~5 ms each with per-test DB isolation.
+See `test_mongo_integration.py` for the current suite (10 tests
+covering the launch_id UUID mechanism and fallback loaders).
 
 ### Coverage report
 

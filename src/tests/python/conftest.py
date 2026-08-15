@@ -54,6 +54,14 @@ if 'modena' not in sys.modules:
 if str(_SRC_PYTHON) not in sys.path:
     sys.path.insert(0, str(_SRC_PYTHON))
 
+# Eagerly import modena.SurrogateModel now so its module-level
+# ``mongoengine.connect(...)`` call fires against the MagicMock stub above,
+# not against whatever real connection a later mongomock fixture installs.
+# Otherwise, running an integration test file in isolation triggers the
+# import mid-fixture and blows up with "A different connection with alias
+# `default` was already registered".
+import modena.SurrogateModel  # noqa: F401 — imported for its side effect
+
 
 # ---------------------------------------------------------------------------
 # Custom markers
@@ -63,3 +71,62 @@ def pytest_configure(config):
         'markers',
         'integration: requires a live MongoDB instance and the full modena stack',
     )
+
+
+# ---------------------------------------------------------------------------
+# mongomock fixture — an in-memory MongoDB backing SurrogateModel documents
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mongo_db():
+    """Per-test in-memory MongoDB via mongomock.
+
+    Yields the mongoengine connection alias.  On teardown the database is
+    dropped and the global ``mongoengine.connect`` MagicMock stub reinstated
+    so subsequent unit tests remain isolated.
+
+    Usage::
+
+        def test_saves_model(mongo_db):
+            from modena.SurrogateModel import BackwardMappingModel
+            m = BackwardMappingModel(...)
+            m.save()
+            reloaded = BackwardMappingModel.objects.first()
+            assert reloaded._id == m._id
+
+    Tests using this fixture pay a small setup/teardown cost (~5 ms) but
+    exercise the real MongoEngine query path — the MagicMock stub used
+    everywhere else cannot answer even ``Model.objects(...)`` calls.
+    """
+    import mongomock
+    import mongoengine
+
+    # Suspend the global connect() patch installed at module import.
+    _connect_patcher.stop()
+
+    alias = 'modena-test'
+    mongoengine.disconnect(alias=alias)
+    mongoengine.connect(
+        db='modena-test',
+        host='localhost',
+        alias=alias,
+        mongo_client_class=mongomock.MongoClient,
+    )
+    # Also register as the default alias so SurrogateModel documents (which
+    # were declared without an explicit meta={'db_alias': ...}) resolve here.
+    mongoengine.disconnect()
+    mongoengine.connect(
+        db='modena-test',
+        host='localhost',
+        mongo_client_class=mongomock.MongoClient,
+    )
+    try:
+        yield alias
+    finally:
+        # Drop everything before disconnecting so the next test starts fresh
+        conn = mongoengine.get_connection()
+        conn.drop_database('modena-test')
+        mongoengine.disconnect()
+        mongoengine.disconnect(alias=alias)
+        # Reinstate the global MagicMock stub for other tests
+        _connect_patcher.start()
