@@ -1,0 +1,21 @@
+[build-system]
+requires      = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "structuralSE"
+version         = "0.1.0"
+requires-python = ">=3.9"
+dependencies    = ["modena", "fireworks", "numpy", "scipy"]
+
+# emiShielding — local package, install via: modena install dielectricFunction/ emiShielding/ structuralSE/
+# NGSolve and Netgen must be installed separately: pip install ngsolve netgen-mesher
+
+[tool.setuptools]
+packages = ["structuralSE"]
+
+[tool.setuptools.package-dir]
+structuralSE = "."
+
+[tool.setuptools.package-data]
+structuralSE = ["doc.md", "config.toml"]

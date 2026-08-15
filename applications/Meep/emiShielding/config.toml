@@ -1,0 +1,98 @@
+# emiShielding — Meep 1D FDTD surface impedance model
+#
+# Strategy type names use the exact Python class names from modena.Strategy.
+# Declaration order of [surrogate.outputs.*] and [surrogate.parameters.*]
+# determines argPos (0, 1, 2, …).  Do NOT reorder after model creation.
+
+# ------------------------------------------------------------------ #
+# Surrogate function bounds                                            #
+# ------------------------------------------------------------------ #
+
+[surrogate.inputs.omega_eV]
+min = 0.5
+max = 6.0
+
+[surrogate.inputs.d_nm]
+min = 10.0
+max = 1000.0
+
+[surrogate.outputs.Zs_real]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.outputs.Zs_imag]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.a0]
+min = -1.0e9
+max =  1.0e9
+
+[surrogate.parameters.a1]
+min = -1.0e9
+max =  1.0e9
+
+[surrogate.parameters.a2]
+min = -1.0e9
+max =  1.0e9
+
+[surrogate.parameters.a3]
+min = -1.0e9
+max =  1.0e9
+
+[surrogate.parameters.b0]
+min = -1.0e9
+max =  1.0e9
+
+[surrogate.parameters.b1]
+min = -1.0e9
+max =  1.0e9
+
+[surrogate.parameters.b2]
+min = -1.0e9
+max =  1.0e9
+
+[surrogate.parameters.b3]
+min = -1.0e9
+max =  1.0e9
+
+
+# ------------------------------------------------------------------ #
+# Fitting strategy                                                     #
+# ------------------------------------------------------------------ #
+
+[strategy.initialisationStrategy]
+type = "InitialRange"
+
+[strategy.initialisationStrategy.initialRange.omega_eV]
+min = 0.5
+max = 6.0
+
+[strategy.initialisationStrategy.initialRange.d_nm]
+min = 10.0
+max = 1000.0
+
+[strategy.outOfBoundsStrategy]
+type       = "ExtendSpaceStochasticSampling"
+nNewPoints = 6
+
+[strategy.parameterFittingStrategy]
+type               = "NonLinFitWithErrorContol"
+testDataPercentage = 0.2
+maxError           = 0.05
+maxIterations      = 15
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type       = "StochasticSampling"
+nNewPoints = 6
+
+
+# ------------------------------------------------------------------ #
+# Meep simulation parameters                                           #
+# ------------------------------------------------------------------ #
+
+[simulation]
+resolution = 400     # spatial resolution [pixels/μm]
+pml_um     = 1.0     # PML thickness [μm]
+pad_um     = 1.5     # vacuum padding each side of the slab [μm]
+decay_tol  = 1.0e-9  # field-decay stopping criterion for Meep run()

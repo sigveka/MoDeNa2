@@ -1,0 +1,67 @@
+# structuralSE — NGSolve 3D FEM shielding effectiveness model
+#
+# Strategy type names use the exact Python class names from modena.Strategy.
+# Declaration order of [surrogate.outputs.*] and [surrogate.parameters.*]
+# determines argPos (0, 1, 2, …).  Do NOT reorder after model creation.
+
+# ------------------------------------------------------------------ #
+# Surrogate function bounds                                            #
+# ------------------------------------------------------------------ #
+
+[surrogate.inputs.omega_eV]
+min = 0.5
+max = 6.0
+
+[surrogate.outputs.SE_dB]
+min = 0.0
+max = 1.0e4
+
+[surrogate.parameters.c0]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.c1]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.c2]
+min = -1.0e6
+max =  1.0e6
+
+
+# ------------------------------------------------------------------ #
+# Fitting strategy                                                     #
+# ------------------------------------------------------------------ #
+
+[strategy.initialisationStrategy]
+type = "InitialPoints"
+
+[strategy.initialisationStrategy.initialPoints]
+omega_eV = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0]
+
+[strategy.outOfBoundsStrategy]
+type       = "ExtendSpaceStochasticSampling"
+nNewPoints = 3
+
+[strategy.parameterFittingStrategy]
+type               = "NonLinFitWithErrorContol"
+testDataPercentage = 0.2
+maxError           = 0.5
+maxIterations      = 10
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type       = "StochasticSampling"
+nNewPoints = 3
+
+
+# ------------------------------------------------------------------ #
+# NGSolve / Netgen simulation parameters                               #
+# ------------------------------------------------------------------ #
+
+[simulation]
+box_mm   = 20.0    # cubic enclosure side length [mm]
+apt_mm   = 5.0     # square aperture side length [mm]
+pml_mm   = 5.0     # PML shell thickness [mm]
+d_nm     = 100.0   # Cu wall thickness for Z_s lookup [nm]
+mesh_maxh = 3.0    # Netgen max element size [mm]
+order    = 2       # NGSolve HCurl polynomial order

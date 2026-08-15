@@ -1,0 +1,121 @@
+# dielectricFunction — Quantum ESPRESSO optical dielectric function model
+#
+# Strategy type names use the exact Python class names from modena.Strategy.
+# Declaration order of [surrogate.outputs.*] and [surrogate.parameters.*]
+# determines argPos (0, 1, 2, …).  Do NOT reorder after model creation.
+
+# ------------------------------------------------------------------ #
+# Surrogate function bounds                                            #
+# ------------------------------------------------------------------ #
+
+[surrogate.inputs.omega_eV]
+min = 0.5
+max = 6.0
+
+[surrogate.outputs.eps1]
+min = -1.0e4
+max =  1.0e4
+
+[surrogate.outputs.eps2]
+min = 0.0
+max = 1.0e4
+
+[surrogate.parameters.p0]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.p1]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.p2]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.p3]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.q0]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.q1]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.q2]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.q3]
+min = -1.0e6
+max =  1.0e6
+
+
+# ------------------------------------------------------------------ #
+# Fitting strategy                                                     #
+# ------------------------------------------------------------------ #
+
+[strategy.initialisationStrategy]
+type = "InitialPoints"
+
+[strategy.initialisationStrategy.initialPoints]
+omega_eV = [0.5, 1.0, 1.5, 1.8, 2.0, 2.2, 2.5, 3.0, 4.0, 5.0, 6.0]
+
+[strategy.outOfBoundsStrategy]
+type       = "ExtendSpaceStochasticSampling"
+nNewPoints = 4
+
+[strategy.parameterFittingStrategy]
+type               = "NonLinFitWithErrorContol"
+testDataPercentage = 0.2
+maxError           = 0.1
+maxIterations      = 10
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type       = "StochasticSampling"
+nNewPoints = 4
+
+
+# ------------------------------------------------------------------ #
+# Quantum ESPRESSO simulation parameters                               #
+# ------------------------------------------------------------------ #
+
+[simulation]
+ecutwfc        = 60      # plane-wave kinetic energy cutoff [Ry]
+ecutrho        = 600     # charge density cutoff [Ry]
+kgrid_scf      = 8       # Monkhorst-Pack k-mesh for SCF (NxNxN)
+kgrid_nscf     = 16      # k-mesh for NSCF (denser)
+eps_wmin       = 0.0     # epsilon.x: minimum photon energy [eV]
+eps_wmax       = 7.0     # epsilon.x: maximum photon energy [eV]
+eps_nw         = 1000    # epsilon.x: number of frequency points
+eps_intersmear = 0.1     # Drude-Lorentz interband smearing [eV]
+
+
+# ------------------------------------------------------------------ #
+# Material specifications                                              #
+# ------------------------------------------------------------------ #
+# Each entry drives one BackwardMappingModel instance.
+# celldm1: FCC lattice parameter in Bohr.
+
+[[materials]]
+name        = "Cu"
+celldm1     = 6.831
+mass        = 63.546
+pseudo_file = "Cu.pbe-dn-kjpaw_psl.1.0.0.UPF"
+nbnd        = 20
+
+[[materials]]
+name        = "Au"
+celldm1     = 7.706
+mass        = 196.967
+pseudo_file = "Au.upf"
+nbnd        = 30
+
+[[materials]]
+name        = "Ag"
+celldm1     = 7.720
+mass        = 107.868
+pseudo_file = "Ag.upf"
+nbnd        = 20

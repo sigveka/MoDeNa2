@@ -1,0 +1,21 @@
+[build-system]
+requires      = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "dielectricFunction"
+version         = "0.1.0"
+requires-python = ">=3.9"
+dependencies    = ["modena", "fireworks", "jinja2", "numpy", "scipy"]
+
+# Quantum ESPRESSO (pw.x, epsilon.x) must be installed separately.
+# Put binaries on PATH or set QE_BIN_DIR to the directory containing them.
+
+[tool.setuptools]
+packages = ["dielectricFunction"]
+
+[tool.setuptools.package-dir]
+dielectricFunction = "."
+
+[tool.setuptools.package-data]
+dielectricFunction = ["qe/*.j2", "doc.md", "config.toml", "pseudo/*.UPF"]

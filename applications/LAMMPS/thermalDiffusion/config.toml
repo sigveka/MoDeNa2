@@ -1,0 +1,101 @@
+# thermalDiffusion — LAMMPS Green-Kubo thermal conductivity model
+#
+# Strategy type names use the exact Python class names from modena.Strategy.
+# Declaration order of [surrogate.outputs.*] and [surrogate.parameters.*]
+# determines argPos (0, 1, 2, …).  Do NOT reorder after model creation.
+
+# ------------------------------------------------------------------ #
+# Surrogate function bounds                                            #
+# ------------------------------------------------------------------ #
+
+[surrogate.inputs.T]
+min = 273.0
+max = 1400.0
+
+[surrogate.outputs.k]
+min = 0.0
+max = 1.0e4
+
+[surrogate.parameters.p0]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.p1]
+min = -1.0e6
+max =  1.0e6
+
+[surrogate.parameters.p2]
+min = -1.0e6
+max =  1.0e6
+
+
+# ------------------------------------------------------------------ #
+# Fitting strategy                                                     #
+# ------------------------------------------------------------------ #
+
+[strategy.initialisationStrategy]
+type          = "InitialPoints"
+
+[strategy.initialisationStrategy.initialPoints]
+T = [400.0, 600.0, 750.0]
+
+[strategy.outOfBoundsStrategy]
+type       = "ExtendSpaceStochasticSampling"
+nNewPoints = 4
+
+[strategy.parameterFittingStrategy]
+type               = "NonLinFitWithErrorContol"
+testDataPercentage = 0.2
+maxError           = 0.05
+maxIterations      = 10
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type       = "StochasticSampling"
+nNewPoints = 4
+
+
+# ------------------------------------------------------------------ #
+# LAMMPS simulation parameters (shared across all materials)          #
+# ------------------------------------------------------------------ #
+
+[simulation]
+nx           = 5        # supercell replicas along x
+ny           = 5        # supercell replicas along y
+nz           = 5        # supercell replicas along z
+dt           = 0.001    # timestep [ps] = 1 fs
+n_equil      = 20000    # equilibration steps  (20 ps)
+n_prod       = 100000   # production steps    (100 ps)
+sample_every = 5        # sample heat-flux autocorrelation every N steps
+n_samples    = 200      # number of samples in the autocorrelation window
+seed         = 12345    # random seed for velocity initialisation
+
+
+# ------------------------------------------------------------------ #
+# Material specifications                                              #
+# ------------------------------------------------------------------ #
+# Each entry drives one BackwardMappingModel instance.
+# Add a new metal here — no Python changes needed.
+
+[[materials]]
+name          = "Cu"
+lattice_type  = "fcc"
+lattice_const = 3.615   # Å
+mass          = 63.546  # g/mol
+potential_file = "Cu_u3.eam"
+potential_style = "eam"
+
+[[materials]]
+name          = "Au"
+lattice_type  = "fcc"
+lattice_const = 4.078   # Å
+mass          = 196.967 # g/mol
+potential_file = "Au_u3.eam"
+potential_style = "eam"
+
+[[materials]]
+name          = "Ag"
+lattice_type  = "fcc"
+lattice_const = 4.086   # Å
+mass          = 107.868 # g/mol
+potential_file = "Ag_u3.eam"
+potential_style = "eam"

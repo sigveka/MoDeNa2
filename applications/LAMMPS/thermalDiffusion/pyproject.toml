@@ -1,0 +1,21 @@
+[build-system]
+requires      = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "thermalDiffusion"
+version         = "0.1.0"
+requires-python = ">=3.9"
+dependencies    = ["modena", "fireworks", "jinja2"]
+
+# LAMMPS must be installed separately.
+# Put lmp on PATH or set LAMMPS_EXE to the full path.
+
+[tool.setuptools]
+packages = ["thermalDiffusion"]
+
+[tool.setuptools.package-dir]
+thermalDiffusion = "."
+
+[tool.setuptools.package-data]
+thermalDiffusion = ["*.j2", "doc.md", "config.toml", "potentials/*"]

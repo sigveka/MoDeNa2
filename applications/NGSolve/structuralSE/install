@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""
+Install the full EMI shielding chain:
+
+    dielectricFunction (QE)  →  emiShielding (Meep 1D)  →  structuralSE (NGSolve 3D)
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+APPS = HERE.parent.parent
+
+subprocess.run(
+    [sys.executable, '-m', 'modena', 'install',
+     str(APPS / 'QuantumEspresso/dielectricFunction'),
+     str(APPS / 'Meep/emiShielding'),
+     str(HERE),
+     ],
+    check=True,
+)

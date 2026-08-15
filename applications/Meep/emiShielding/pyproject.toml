@@ -1,0 +1,21 @@
+[build-system]
+requires      = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "emiShielding"
+version         = "0.1.0"
+requires-python = ">=3.9"
+dependencies    = ["modena", "fireworks", "numpy", "scipy"]
+
+# dielectricFunction — local package, install via: modena install dielectricFunction/ emiShielding/
+# meep is optional (1D FDTD verification only).  On Debian/Ubuntu: apt install python3-meep
+
+[tool.setuptools]
+packages = ["emiShielding"]
+
+[tool.setuptools.package-dir]
+emiShielding = "."
+
+[tool.setuptools.package-data]
+emiShielding = ["doc.md", "config.toml"]
