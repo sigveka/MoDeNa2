@@ -1,0 +1,10 @@
+[logging]
+  level = "WARNING"
+  file  = "modena.log"   # optional
+
+[models]
+  paths = ["./models"]
+ 
+[surrogate_functions]                                                                     
+  lib_dir = "../" # '.' results in function compiled inside launcher_ directory
+  # lib_dir = "~/.modena/funcs"   # tilde expanded

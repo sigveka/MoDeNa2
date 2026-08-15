@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""
+@file
+Validation workflow for the N2/O2/Ar mixture density surrogate.
+
+Evaluates the trained surrogate at held-out (T, p, x_N2, x_O2) points and
+reports the maximum and mean relative errors versus CoolProp reference values.
+
+@author    MoDeNa Project
+@copyright 2014-2026, MoDeNa Project. GNU Public License.
+"""
+
+import modena
+import coolPropMixtureTP  # noqa: F401
+from coolPropMixtureTP import MixtureDensityValidationTask
+from fireworks import Firework, Workflow
+
+wf = Workflow(
+    [Firework(
+        MixtureDensityValidationTask(),
+        name='validate mixtureDensity[fluid=N2O2Ar]',
+    )],
+    name='coolPropMixtureTP validation',
+)
+modena.run(wf)
+print("Workflow complete.")

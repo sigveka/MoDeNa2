@@ -1,0 +1,2 @@
+#!/bin/bash
+python3 -m modena init 'mixtureViscosity[fluid=N2O2Ar]'

@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""
+Train the emiShielding surrogate model chain:
+
+    dielectricFunction[material=Cu]  (QE)
+      → surfaceImpedance[material=Cu]  (Meep 1D)
+"""
+
+import modena
+import thermalDiffusion  # registers all models via SurrogateModel.get_instances()
+
+modena.run(list(modena.SurrogateModel.get_instances()))
+print("Initialisation complete.")

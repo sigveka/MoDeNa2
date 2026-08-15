@@ -1,0 +1,98 @@
+# CO2 density surrogate — bivariate 3rd-order polynomial in (T, P)
+#
+# argPos for outputs and parameters is auto-assigned by declaration order.
+# Do NOT reorder after the model has been registered in MongoDB.
+
+[surrogate]
+
+[surrogate.inputs.T]
+min = 250.0
+max = 350.0
+
+[surrogate.inputs.P]
+min = 1.0e5
+max = 2.0e6
+
+[surrogate.outputs.rho]
+min = 0.0
+max = 200.0
+
+[surrogate.parameters.a00]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a10]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a01]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a20]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a11]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a02]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a30]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a21]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a12]
+min = -1.0e10
+max = 1.0e10
+
+[surrogate.parameters.a03]
+min = -1.0e10
+max = 1.0e10
+
+[strategy]
+
+[strategy.initialisationStrategy]
+type = "InitialPoints"
+
+[strategy.initialisationStrategy.initialPoints]
+T = [260.0, 260.0, 260.0, 305.0, 305.0, 305.0, 350.0, 350.0, 350.0]
+P = [1.0e5, 1.0e6, 2.0e6, 1.0e5, 1.0e6, 2.0e6, 1.0e5, 1.0e6, 2.0e6]
+
+[strategy.outOfBoundsStrategy]
+type = "ExtendSpaceStochasticSampling"
+nNewPoints = 4
+
+[strategy.outOfBoundsStrategy.sampler]
+type = "LatinHypercube"
+
+[strategy.parameterFittingStrategy]
+type = "NonLinFitWithErrorContol"
+
+[strategy.parameterFittingStrategy.crossValidation]
+type = "Holdout"
+testDataPercentage = 0.2
+
+[strategy.parameterFittingStrategy.acceptanceCriterion]
+type = "MaxError"
+threshold = 0.02
+
+[strategy.parameterFittingStrategy.acceptanceCriterion.metric]
+type = "RelativeError"
+
+[strategy.parameterFittingStrategy.optimizer]
+type = "TrustRegionReflective"
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type = "StochasticSampling"
+nNewPoints = 4
+
+[strategy.parameterFittingStrategy.improveErrorStrategy.sampler]
+type = "LatinHypercube"

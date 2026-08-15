@@ -1,0 +1,13 @@
+# MoDeNa configuration for the FEniCS/thermalDiffusion example.
+#
+# The thermalDiffusion package is installed into ./models with:
+#
+#   pip install --target=./models \
+#       ../../../MoDeNaModels/thermalDiffusion/python
+
+[models]
+paths = ["./models"]
+
+[surrogate_functions]
+# Compiled surrogate .so files are placed alongside the models directory.
+lib_dir = "./"

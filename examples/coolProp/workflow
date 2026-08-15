@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+"""
+@file
+Validation workflow for the CO2 density surrogate.
+Evaluates the trained surrogate at a held-out test grid and reports the
+maximum and mean absolute relative error versus CoolProp reference values.
+
+@author    MoDeNa Project
+@copyright 2014-2026, MoDeNa Project. GNU Public License.
+"""
+
+import modena
+import coolProp  # noqa: F401
+from coolProp import CoolPropValidationTask
+from fireworks import Firework, Workflow
+
+
+wf = Workflow(
+    [Firework(CoolPropValidationTask(), name='validate density[fluid=CO2]')],
+    name='coolProp validation',
+)
+modena.run(wf)
+print("Workflow complete.")

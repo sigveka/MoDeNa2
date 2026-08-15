@@ -1,0 +1,54 @@
+# Temperature-dependent thermal conductivity surrogate — quadratic polynomial in T
+#
+# Exact simulator: k(T) = k_ref * (T / T_ref)^n
+# argPos for outputs and parameters is auto-assigned by declaration order.
+# Do NOT reorder after the model has been registered in MongoDB.
+
+[surrogate]
+
+[surrogate.inputs.T]
+min = 273.0
+max = 1500.0
+
+[surrogate.outputs.k]
+min = 0.0
+max = 1.0e4
+
+[surrogate.parameters.p0]
+min = -1.0e6
+max = 1.0e6
+
+[surrogate.parameters.p1]
+min = -1.0e6
+max = 1.0e6
+
+[surrogate.parameters.p2]
+min = -1.0e6
+max = 1.0e6
+
+[simulation]
+k_ref = 1.0    # W/(m·K) at T_ref
+T_ref = 300.0  # K
+n     = 0.6    # power-law exponent
+
+[strategy]
+
+[strategy.initialisationStrategy]
+type = "InitialPoints"
+
+[strategy.initialisationStrategy.initialPoints]
+T = [300.0, 450.0, 600.0, 750.0, 900.0, 1050.0, 1200.0, 1350.0, 1500.0]
+
+[strategy.outOfBoundsStrategy]
+type = "ExtendSpaceStochasticSampling"
+nNewPoints = 4
+
+[strategy.parameterFittingStrategy]
+type = "NonLinFitWithErrorContol"
+testDataPercentage = 0.2
+maxError = 0.05
+maxIterations = 10
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type = "StochasticSampling"
+nNewPoints = 4

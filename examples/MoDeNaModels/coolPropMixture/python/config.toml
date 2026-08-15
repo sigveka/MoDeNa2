@@ -1,0 +1,94 @@
+# N2/O2/Ar mixture viscosity surrogate — 2nd-order polynomial in (x_N2, x_O2)
+# Fixed conditions: T = 300 K, P = 1e5 Pa.
+#
+# argPos for outputs and parameters is auto-assigned by declaration order.
+# Do NOT reorder after the model has been registered in MongoDB.
+
+[surrogate]
+
+[surrogate.inputs.x_N2]
+min = 0.70
+max = 0.85
+
+[surrogate.inputs.x_O2]
+min = 0.14
+max = 0.25
+
+[surrogate.outputs.eta]
+min = 0.0
+max = 1.0e-3
+
+[surrogate.parameters.a00]
+min = -1.0e-4
+max = 1.0e-4
+
+[surrogate.parameters.a10]
+min = -1.0e-4
+max = 1.0e-4
+
+[surrogate.parameters.a01]
+min = -1.0e-4
+max = 1.0e-4
+
+[surrogate.parameters.a20]
+min = -1.0e-4
+max = 1.0e-4
+
+[surrogate.parameters.a11]
+min = -1.0e-4
+max = 1.0e-4
+
+[surrogate.parameters.a02]
+min = -1.0e-4
+max = 1.0e-4
+
+[simulation]
+T_fixed = 300.0   # K — fixed evaluation temperature
+P_fixed = 1.0e5   # Pa — fixed evaluation pressure
+
+[strategy]
+
+[strategy.initialisationStrategy]
+type = "CASTROSampling"
+nNewPoints = 20
+seed = 42
+
+[strategy.initialisationStrategy.compositionGroup]
+free = ["x_N2", "x_O2"]
+dependent = "x_Ar"
+
+[strategy.initialisationStrategy.compositionGroup.dependentBounds]
+min = 0.005
+max = 0.08
+
+[strategy.outOfBoundsStrategy]
+type = "ForbidOutOfBounds"
+
+[strategy.parameterFittingStrategy]
+type = "NonLinFitWithErrorContol"
+
+[strategy.parameterFittingStrategy.crossValidation]
+type = "Holdout"
+testDataPercentage = 0.2
+
+[strategy.parameterFittingStrategy.acceptanceCriterion]
+type = "MaxError"
+threshold = 0.005
+
+[strategy.parameterFittingStrategy.acceptanceCriterion.metric]
+type = "RelativeError"
+
+[strategy.parameterFittingStrategy.optimizer]
+type = "TrustRegionReflective"
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type = "CASTROSampling"
+nNewPoints = 5
+
+[strategy.parameterFittingStrategy.improveErrorStrategy.compositionGroup]
+free = ["x_N2", "x_O2"]
+dependent = "x_Ar"
+
+[strategy.parameterFittingStrategy.improveErrorStrategy.compositionGroup.dependentBounds]
+min = 0.005
+max = 0.08

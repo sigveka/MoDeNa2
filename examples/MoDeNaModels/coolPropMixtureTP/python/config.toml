@@ -1,0 +1,146 @@
+# N2/O2/Ar mixture density surrogate — 2nd-order polynomial in (T, p, x_N2, x_O2)
+#
+# Uses ExpandedCASTROSampling: T and p via LHS, composition group via CASTRO.
+# argPos for outputs and parameters is auto-assigned by declaration order.
+# Do NOT reorder after the model has been registered in MongoDB.
+
+[surrogate]
+
+[surrogate.inputs.T]
+min = 250.0
+max = 350.0
+
+[surrogate.inputs.p]
+min = 1.0e5
+max = 2.0e6
+
+[surrogate.inputs.x_N2]
+min = 0.70
+max = 0.85
+
+[surrogate.inputs.x_O2]
+min = 0.14
+max = 0.25
+
+[surrogate.outputs.rho]
+min = 0.0
+max = 200.0
+
+[surrogate.parameters.a0]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aT]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.ap]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aN2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aO2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aTT]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aTp]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aTN2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aTO2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.app]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.apN2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.apO2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aN2N2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aN2O2]
+min = -1.0e5
+max = 1.0e5
+
+[surrogate.parameters.aO2O2]
+min = -1.0e5
+max = 1.0e5
+
+[strategy]
+
+[strategy.initialisationStrategy]
+type = "ExpandedCASTROSampling"
+nNewPoints = 30
+seed = 42
+
+[strategy.initialisationStrategy.compositionGroup]
+free = ["x_N2", "x_O2"]
+dependent = "x_Ar"
+
+[strategy.initialisationStrategy.compositionGroup.dependentBounds]
+min = 0.005
+max = 0.08
+
+[strategy.outOfBoundsStrategy]
+type = "ExtendSpaceExpandedCASTROSampling"
+nNewPoints = 4
+
+[strategy.outOfBoundsStrategy.compositionGroup]
+free = ["x_N2", "x_O2"]
+dependent = "x_Ar"
+
+[strategy.outOfBoundsStrategy.compositionGroup.dependentBounds]
+min = 0.005
+max = 0.08
+
+[strategy.parameterFittingStrategy]
+type = "NonLinFitWithErrorContol"
+
+[strategy.parameterFittingStrategy.crossValidation]
+type = "Holdout"
+testDataPercentage = 0.2
+
+[strategy.parameterFittingStrategy.acceptanceCriterion]
+type = "MaxError"
+threshold = 0.01
+
+[strategy.parameterFittingStrategy.acceptanceCriterion.metric]
+type = "RelativeError"
+
+[strategy.parameterFittingStrategy.optimizer]
+type = "TrustRegionReflective"
+
+[strategy.parameterFittingStrategy.improveErrorStrategy]
+type = "ExpandedCASTROSampling"
+nNewPoints = 6
+
+[strategy.parameterFittingStrategy.improveErrorStrategy.compositionGroup]
+free = ["x_N2", "x_O2"]
+dependent = "x_Ar"
+
+[strategy.parameterFittingStrategy.improveErrorStrategy.compositionGroup.dependentBounds]
+min = 0.005
+max = 0.08
+
+[strategy.nonConvergenceStrategy]
+type = "SkipPoint"

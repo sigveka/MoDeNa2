@@ -1,0 +1,9 @@
+[logging]
+  level = "WARNING"
+  file  = "modena.log"
+
+[models]
+  paths = ["./models"]
+
+[surrogate_functions]
+  lib_dir = "../"
