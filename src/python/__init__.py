@@ -136,7 +136,11 @@ _reg = ModelRegistry().load()        # Resolve model paths from layered config
 # Re-apply logging if modena.toml has a [logging] section AND the env var
 # is not set (env var always wins over the config file).
 if _reg._toml_log_level is not None and 'MODENA_LOG_LEVEL' not in os.environ:
-    configure_logging(level=_reg._toml_log_level, file=_reg._toml_log_file)
+    configure_logging(
+        level=_reg._toml_log_level,
+        file=_reg._toml_log_file,
+        fmt=_reg._toml_log_format or 'text',
+    )
 
 libmodena = import_helper()
 del import_helper

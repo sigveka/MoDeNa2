@@ -18,8 +18,10 @@ Usage by end users / workflow scripts
     # MODENA_LOG_LEVEL=DEBUG_VERBOSE ./initModels
 """
 
+import json
 import logging
 import os
+from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
 # Custom level: DEBUG_VERBOSE (5) — below DEBUG (10).
@@ -27,6 +29,66 @@ import os
 # ---------------------------------------------------------------------------
 DEBUG_VERBOSE = 5
 logging.addLevelName(DEBUG_VERBOSE, 'DEBUG_VERBOSE')
+
+
+# ---------------------------------------------------------------------------
+# JSON formatter — one object per log record, machine-parseable.
+# ---------------------------------------------------------------------------
+
+# Standard LogRecord attributes that are always set by the logging module;
+# anything NOT in this set was added by the caller via ``extra=`` and should
+# be included as a top-level JSON field.
+_LOGRECORD_STANDARD_ATTRS = frozenset({
+    'name', 'msg', 'args', 'levelname', 'levelno', 'pathname', 'filename',
+    'module', 'exc_info', 'exc_text', 'stack_info', 'lineno', 'funcName',
+    'created', 'msecs', 'relativeCreated', 'thread', 'threadName',
+    'processName', 'process', 'message', 'asctime', 'taskName',
+})
+
+
+class JsonFormatter(logging.Formatter):
+    """Emit one JSON object per log record.
+
+    Always-present keys::
+
+        timestamp   ISO 8601 with microseconds, UTC ('Z' suffix)
+        level       'INFO' | 'WARNING' | 'ERROR' | 'DEBUG' | 'DEBUG_VERBOSE'
+        logger      logger name, e.g. 'modena.strategy'
+        message     the formatted message (after % / {} substitution)
+
+    Any attributes attached via ``logger.info(..., extra={'model_id': 'x'})``
+    are added as top-level keys.  ``exc_info`` and ``stack_info`` are
+    serialised into an ``exception`` key when present.
+
+    No external dependency — a small custom formatter is enough for the
+    volume MoDeNa produces and lets ``jq`` do all downstream filtering.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict = {
+            'timestamp': datetime.fromtimestamp(
+                record.created, tz=timezone.utc
+            ).isoformat(timespec='microseconds').replace('+00:00', 'Z'),
+            'level': record.levelname,
+            'logger': record.name,
+            'message': record.getMessage(),
+        }
+        # Merge in caller-supplied extras (anything not in the standard set).
+        for k, v in record.__dict__.items():
+            if k in _LOGRECORD_STANDARD_ATTRS or k.startswith('_'):
+                continue
+            try:
+                json.dumps(v)   # cheap serialisability probe
+                payload[k] = v
+            except (TypeError, ValueError):
+                payload[k] = repr(v)
+
+        if record.exc_info:
+            payload['exception'] = self.formatException(record.exc_info)
+        if record.stack_info:
+            payload['stack'] = self.formatStack(record.stack_info)
+
+        return json.dumps(payload, default=str)
 
 # ---------------------------------------------------------------------------
 # Package-level logger.  All child loggers ('modena.strategy', etc.) inherit
@@ -50,7 +112,11 @@ logging.getLogger('mongoengine').setLevel(logging.WARNING)
 logging.getLogger('pymongo').setLevel(logging.WARNING)
 
 
-def configure_logging(level: str = 'INFO', file: str = None) -> None:
+def configure_logging(
+    level: str = 'INFO',
+    file: str = None,
+    fmt: str = 'text',
+) -> None:
     """Configure MoDeNa and FireWorks log levels, and optionally log to a file.
 
     Parameters
@@ -70,8 +136,14 @@ def configure_logging(level: str = 'INFO', file: str = None) -> None:
         Can also be set via the ``MODENA_LOG_LEVEL`` environment variable
         (the environment variable takes precedence over the argument).
     file : str or None
-        If given, also write all modena + FireWorks messages to this file
-        with full timestamps.  The file is opened in append mode.
+        If given, also write all modena + FireWorks messages to this file.
+        The file is opened in append mode.  Format is controlled by ``fmt``.
+    fmt : str
+        File format: ``'text'`` (default) or ``'json'``.  ``'text'`` writes
+        one human-readable line per record with a timestamp prefix; ``'json'``
+        writes one JSON object per record with any caller-supplied ``extra=``
+        fields promoted to top-level keys.  Ignored when ``file`` is None.
+        Overridable via ``MODENA_LOG_FORMAT`` environment variable.
     """
     effective_level = os.environ.get('MODENA_LOG_LEVEL', level).upper()
 
@@ -104,6 +176,23 @@ def configure_logging(level: str = 'INFO', file: str = None) -> None:
     logging.getLogger('fireworks').setLevel(fw_numeric)
 
     if file:
+        effective_fmt = os.environ.get('MODENA_LOG_FORMAT', fmt).lower()
+        _VALID_FMTS = {'text', 'json'}
+        if effective_fmt not in _VALID_FMTS:
+            logger.warning(
+                "Unrecognised log format %r — falling back to 'text'. "
+                "Valid values: %s",
+                effective_fmt, ', '.join(sorted(_VALID_FMTS)),
+            )
+            effective_fmt = 'text'
+
+        if effective_fmt == 'json':
+            formatter: logging.Formatter = JsonFormatter()
+        else:
+            formatter = logging.Formatter(
+                '%(asctime)s  %(levelname)-8s  %(name)s: %(message)s'
+            )
+
         # Remove any existing FileHandlers added by a previous configure_logging()
         # call so that repeated calls don't accumulate duplicate handlers.
         for _log_name in ('modena', 'fireworks'):
@@ -115,9 +204,7 @@ def configure_logging(level: str = 'INFO', file: str = None) -> None:
 
         fh = logging.FileHandler(file, mode='a')
         fh.setLevel(logging.DEBUG)
-        fh.setFormatter(logging.Formatter(
-            '%(asctime)s  %(levelname)-8s  %(name)s: %(message)s'
-        ))
+        fh.setFormatter(formatter)
         logger.addHandler(fh)
         logging.getLogger('fireworks').addHandler(fh)
         logging.getLogger('fireworks').setLevel(logging.DEBUG)

@@ -157,8 +157,9 @@ class ModelRegistry:
             inst._packages: dict = {}
             inst._surrogate_lib_dir: 'str | None' = None
             inst._bin_dirs: list = []
-            inst._toml_log_level: 'str | None' = None   # from [logging] level
-            inst._toml_log_file:  'str | None' = None   # from [logging] file
+            inst._toml_log_level:  'str | None' = None   # from [logging] level
+            inst._toml_log_file:   'str | None' = None   # from [logging] file
+            inst._toml_log_format: 'str | None' = None   # from [logging] format
             inst._loaded: bool = False
             cls._instance = inst
         return cls._instance
@@ -182,14 +183,17 @@ class ModelRegistry:
         surrogate_lib_dir: 'str | None' = None
         toml_log_level:    'str | None' = None
         toml_log_file:     'str | None' = None
+        toml_log_format:   'str | None' = None
 
         def _read_logging(cfg: dict) -> None:
-            nonlocal toml_log_level, toml_log_file
+            nonlocal toml_log_level, toml_log_file, toml_log_format
             lc = cfg.get('logging', {})
             if 'level' in lc:
                 toml_log_level = str(lc['level']).upper()
             if 'file' in lc:
                 toml_log_file = str(lc['file'])
+            if 'format' in lc:
+                toml_log_format = str(lc['format']).lower()
 
         # Layer 1: system-wide
         sys_cfg = _load_toml('/etc/modena/config.toml')
@@ -239,6 +243,7 @@ class ModelRegistry:
         self._surrogate_lib_dir = surrogate_lib_dir
         self._toml_log_level    = toml_log_level
         self._toml_log_file     = toml_log_file
+        self._toml_log_format   = toml_log_format
 
         # Resolve binary search dirs; de-duplicate preserving order
         seen_bin: set = set()

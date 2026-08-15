@@ -582,13 +582,15 @@ paths = ["./models/bin"]     # omit to rely on the package-relative bin/ fallbac
 lib_dir = "./surrogate_functions"   # omit to use ~/.modena/surrogate_functions
 
 [logging]
-level = "INFO"       # WARNING | INFO | DEBUG | DEBUG_VERBOSE
-# file = "run.log"   # optional: also write to a log file
+level  = "INFO"          # WARNING | INFO | DEBUG | DEBUG_VERBOSE
+# file   = "run.log"     # optional: also write to a log file
+# format = "text"        # text (default) | json — file format only
 ```
 
-The `[logging]` and `[binaries]` sections are optional.  The `MODENA_LOG_LEVEL`
-environment variable overrides the log level when set.  Use `DEBUG_VERBOSE` to
-also enable full FireWorks output (useful when diagnosing workflow failures).
+The `[logging]` and `[binaries]` sections are optional.  Environment variables
+override the toml values: `MODENA_LOG_LEVEL` for the level, `MODENA_LOG_FORMAT`
+for the file format.  Use `DEBUG_VERBOSE` to also enable full FireWorks output
+(useful when diagnosing workflow failures).
 
 See the [environment variable reference](model-registry.md#environment-variable-reference)
 for session-level overrides via `MODENA_URI`, `MODENA_PATH`, `MODENA_BIN_PATH`,
@@ -629,8 +631,48 @@ Persistent setting in `modena.toml`:
 
 ```toml
 [logging]
-level = "DEBUG"
-# file = "run.log"   # optional: also write to a file
+level  = "DEBUG"
+# file   = "run.log"     # optional: also write to a file
+# format = "text"        # text (default) | json
+```
+
+### Structured logging for machine consumption
+
+Set `format = "json"` (or `MODENA_LOG_FORMAT=json`) alongside a `file =` to
+write one JSON object per log record — one line per event, `jq`-friendly.
+This applies to the file only; the console keeps its human-readable text.
+
+```toml
+[logging]
+level  = "INFO"
+file   = "run.jsonl"
+format = "json"
+```
+
+Every record includes `timestamp`, `level`, `logger`, `message`.  Key events
+also carry structured fields you can filter on:
+
+| `event` | Emitted when | Extra fields |
+|---|---|---|
+| `exact_sim_start` | `ModenaFireTask` begins an exact simulation | `model_id` |
+| `exact_sim_point` | The specific point being evaluated | `model_id`, `point` (dict) |
+| `run_binary` | `run_binary` completes (success or failure) | `binary`, `return_code`, `model_id` |
+| `return_code` | `handleReturnCode` receives a non-zero code | `return_code`, `launch_id` |
+| `out_of_bounds` | An `OutOfBounds` triggers a detour workflow | `model_id`, `outside_point` (dict) |
+| `parameters_not_valid` | Models need initialisation before use | `model_ids` (list), `model_count` |
+| `binary_not_found` | `run_binary` / `find_binary` cannot locate the executable | `binary`, `searched` (list), `model_id` |
+
+Sample queries with `jq`:
+
+```bash
+# All out-of-bounds events, showing which model and where
+jq -c 'select(.event=="out_of_bounds") | {ts:.timestamp, model:.model_id, point:.outside_point}' run.jsonl
+
+# All non-zero exact-sim return codes
+jq -c 'select(.event=="return_code") | {ts:.timestamp, rc:.return_code}' run.jsonl
+
+# All failures of a specific binary
+jq -c 'select(.event=="run_binary" and .return_code!=0 and .binary=="flowRateExact")' run.jsonl
 ```
 
 ### What DEBUG reveals

@@ -2419,15 +2419,21 @@ class ModenaFireTask(FireTaskBase):
             text=isinstance(input, (str, type(None))),
             timeout=timeout,
         )
+        _extras = {
+            'event': 'run_binary',
+            'binary': name,
+            'return_code': result.returncode,
+            'model_id': self.get('modelId'),
+        }
         if result.stdout:
-            _log.debug('%s stdout:\n%s', name, result.stdout)
+            _log.debug('%s stdout:\n%s', name, result.stdout, extra=_extras)
         if result.returncode == 0:
             if result.stderr:
-                _log.info('%s stderr:\n%s', name, result.stderr)
+                _log.info('%s stderr:\n%s', name, result.stderr, extra=_extras)
             return result
         if result.stderr:
             _log.error('%s (rc=%d) stderr:\n%s',
-                       name, result.returncode, result.stderr)
+                       name, result.returncode, result.stderr, extra=_extras)
         if not check_return_code:
             return result
         if result.returncode in (200, 201, 202):
@@ -2452,8 +2458,19 @@ class ModenaFireTask(FireTaskBase):
             # the C library wrote just before exiting, not a potentially stale
             # in-memory value from earlier in this task's lifetime.
             model = modena.SurrogateModel.load(e.model._id)
-            _log.info('%s out-of-bounds, executing outOfBoundsStrategy for model %s',
-                      text, model._id)
+            _log.info(
+                '%s out-of-bounds, executing outOfBoundsStrategy for model %s',
+                text, model._id,
+                extra={
+                    'event': 'out_of_bounds',
+                    'model_id': model._id,
+                    'outside_point': (
+                        {k: v for k, v in model.outsidePoint._data.items()
+                         if not k.startswith('_')}
+                        if getattr(model, 'outsidePoint', None) is not None else None
+                    ),
+                },
+            )
 
             # Continue with exact tasks, parameter estimation and (finally) this
             # task in order to resume normal operation
@@ -2471,8 +2488,15 @@ class ModenaFireTask(FireTaskBase):
         except ParametersNotValid as e:
             models = e.models
             model_ids = ', '.join(m._id for m in models)
-            _log.info('%s: %d model(s) not initialised — %s',
-                      text, len(models), model_ids)
+            _log.info(
+                '%s: %d model(s) not initialised — %s',
+                text, len(models), model_ids,
+                extra={
+                    'event': 'parameters_not_valid',
+                    'model_ids': [m._id for m in models],
+                    'model_count': len(models),
+                },
+            )
 
             # Persist all models to MongoDB before building the workflow.
             # The init workflow's exact tasks call SurrogateModel.load(modelId)
@@ -2523,12 +2547,26 @@ class ModenaFireTask(FireTaskBase):
         """
         _model = None   # sentinel — used by the except handler below
         try:
-            _log.info('Performing exact simulation (microscopic code recipe) for model %s',
-                      self['modelId'])
+            _log.info(
+                'Performing exact simulation (microscopic code recipe) for model %s',
+                self['modelId'],
+                extra={
+                    'event': 'exact_sim_start',
+                    'model_id': self['modelId'],
+                },
+            )
 
             p = self['point']
 
-            _log.info('point = {%s}', ', '.join(f'{k}: {v:g}' for k, v in p.items()))
+            _log.info(
+                'point = {%s}',
+                ', '.join(f'{k}: {v:g}' for k, v in p.items()),
+                extra={
+                    'event': 'exact_sim_point',
+                    'model_id': self['modelId'],
+                    'point': dict(p),
+                },
+            )
 
             _model = modena.SurrogateModel.load(self['modelId'])
             oldP = copy.copy(p)
@@ -2566,6 +2604,12 @@ class ModenaFireTask(FireTaskBase):
                 "MODENA_BIN_PATH, or install the binary in "
                 "<package>/bin/. Searched: %s",
                 e.name, self.get('modelId', '?'), e.searched,
+                extra={
+                    'event': 'binary_not_found',
+                    'binary': e.name,
+                    'searched': list(e.searched),
+                    'model_id': self.get('modelId'),
+                },
             )
             return FWAction(defuse_workflow=True)
 
@@ -2606,7 +2650,15 @@ class ModenaFireTask(FireTaskBase):
 
         """
         if returnCode > 0:
-            _log.error('return code = %s', returnCode)
+            _log.error(
+                'return code = %s',
+                returnCode,
+                extra={
+                    'event': 'return_code',
+                    'return_code': returnCode,
+                    'launch_id': launch_id,
+                },
+            )
 
         if returnCode == 200:
             model = None
