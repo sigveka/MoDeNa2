@@ -48,6 +48,30 @@ configure_file(
   @ONLY
 )
 
+# Resolve the shared-library directory to an absolute path for the env script.
+# INSTALL_LIB_DIR is declared as a CACHE PATH, which CMake absolutises, but it
+# is documented as a relative directory -- handle both so the script is correct
+# either way.
+if(IS_ABSOLUTE "${INSTALL_LIB_DIR}")
+    set(MODENA_ENV_LIB_DIR "${INSTALL_LIB_DIR}/modena")
+else()
+    set(MODENA_ENV_LIB_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIB_DIR}/modena")
+endif()
+
+# Generate the shell environment script.
+#
+# This lives here rather than at the top level because PYTHON_SITE is computed
+# above and is the one path the script cannot derive on its own.  Sourcing it
+# is never required for a default $HOME install -- Python and the $ORIGIN
+# RUNPATH already resolve everything -- but it is the supported answer for a
+# custom prefix, for virtualenvs (where user site-packages is dropped from
+# sys.path), and for applications that link against libmodena.
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/modena-env.sh.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/modena-env.sh"
+  @ONLY
+)
+
 add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/build"
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
@@ -61,6 +85,10 @@ install(FILES ${DEPS}
 )
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/_paths.py"
   DESTINATION "${PYTHON_SITE}/modena"
+)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/modena-env.sh"
+  DESTINATION "share/modena"
 )
 
 file(MAKE_DIRECTORY

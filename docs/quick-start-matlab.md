@@ -11,7 +11,7 @@ extension that backs it.
 |-------------|-------|
 | MATLAB R2016b+ or GNU Octave ≥ 5 | |
 | `modena_gateway` MEX/OCT file | Built and installed by MoDeNa's CMake |
-| Python 3 with `modena` on `PYTHONPATH` | Used by the gateway to locate `libmodena` |
+| Python 3 with `modena` importable | Used by the gateway to locate `libmodena` |
 | MongoDB running | `MODENA_URI` must point to a populated database |
 
 ---
@@ -35,9 +35,13 @@ addpath('/home/user/share/modena/matlab');
 The gateway also needs Python to be reachable so it can locate `libmodena`:
 
 ```bash
-export PYTHONPATH="${PYTHONPATH}:${HOME}/lib/python3.10/site-packages"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${HOME}/lib"
+source ~/share/modena/modena-env.sh
 ```
+
+That script also exports `MODENA_MATLAB_DIR`, so sourcing it before starting
+MATLAB or Octave makes the `addpath` above work without hard-coding a path.
+CMake generates it at install time with the paths this build actually used.
+Use `<prefix>/share/modena/modena-env.sh` if you did not install to `$HOME`.
 
 ---
 

@@ -36,17 +36,41 @@ mongod --dbpath ~/.mongodb/data --fork --logpath ~/.mongodb/mongod.log
 
 ## Environment
 
-The following variables must be set in every shell that runs MoDeNa commands.
-Add them to your shell profile (`~/.bashrc` or `~/.zshrc`) to avoid repeating
-this step.
+**For a default `$HOME` install, running Python code needs no setup at all.**
+CMake puts the `modena` package in your user site-packages directory, which
+Python adds to `sys.path` by itself, and `libmodena.so` carries
+`RUNPATH=$ORIGIN` so it finds its sibling libraries unaided.  Check with:
 
 ```bash
-# Where Python finds the modena package and model packages
-export PYTHONPATH="${PYTHONPATH}:${HOME}/lib/python3.10/site-packages"
-
-# Where the runtime linker finds libmodena.so
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${HOME}/lib"
+python3 -c "import modena; print(modena.__file__)"
 ```
+
+You do need the environment script in three cases: you installed to a custom
+prefix, you are working inside a virtualenv, or you are building a C, C++,
+Fortran, Julia or MATLAB application that links against `libmodena`.
+
+```bash
+source ~/share/modena/modena-env.sh
+```
+
+CMake generates that script at install time from the paths this build actually
+used, so it cannot drift from the installed tree the way a hand-written
+`export` does.  It sets `LD_LIBRARY_PATH`, `PYTHONPATH`, `PATH` and
+`MODENA_MATLAB_DIR`, skips any directory that does not exist, and is safe to
+source repeatedly — so it can go straight into `~/.bashrc`.  Replace `~` with
+your prefix if you did not install to `$HOME`.
+
+> **Virtualenvs.**  Python drops user site-packages from `sys.path` inside a
+> virtualenv, so `import modena` fails there even though the package is
+> installed.  Sourcing the script sets `PYTHONPATH` explicitly and fixes that
+> for ordinary Python use.  It does **not** make a venv work for C, C++ or
+> Fortran applications: the interpreter embedded in `libmodena` ignores
+> `$VIRTUAL_ENV` entirely, so dependencies installed inside a venv stay
+> invisible to it — see
+> [core-developer-guide.md](core-developer-guide.md#why-not-a-venv).
+> Note also that `pip install --user` is not an alternative on Ubuntu 24.04
+> and other PEP 668 distributions, which is why the package is installed by
+> CMake rather than by pip.
 
 If your MongoDB instance is not on `localhost:27017/test`, set:
 

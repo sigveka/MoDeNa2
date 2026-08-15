@@ -204,9 +204,17 @@ always found via the absolute path in `_paths.py`, not by searching
 @endwbs
 ```
 
-For the custom prefix, the admin must add
-`/opt/modena/lib/python3.12/site-packages` to `PYTHONPATH` (e.g. via a
-module file) so the embedded interpreter can find the `modena` package.
+For the custom prefix, the embedded interpreter needs that directory on
+`PYTHONPATH`.  Rather than hard-coding it in a module file, source the script
+CMake generates at install time — it is written from the same variables that
+drove the install, so it cannot fall out of step with the tree:
+
+```bash
+source /opt/modena/share/modena/modena-env.sh
+```
+
+It is generated from `src/python/modena-env.sh.in` and also sets
+`LD_LIBRARY_PATH`, `PATH` and `MODENA_MATLAB_DIR`.
 
 **Adding a Python dependency:** add it to `install_requires` in
 `src/python/setup.py.in` for documentation purposes, and also update the
@@ -604,13 +612,17 @@ The `surrogate_lib_dir` is resolved from (highest priority first):
 ### Linux
 
 Fully supported.  If MoDeNa is installed to a non-standard prefix (e.g.
-`$HOME` via the convenience `install` script), the install directory must
-be on `LD_LIBRARY_PATH` so that applications can locate `libmodena.so` at
-load time:
+`$HOME` via the convenience `install` script), the library directory must be
+on `LD_LIBRARY_PATH` so that applications can locate `libmodena.so` at load
+time.  Note that this is `<prefix>/lib/modena`, not `<prefix>/lib`:
 
 ```bash
-export LD_LIBRARY_PATH="$HOME/lib:$LD_LIBRARY_PATH"
+source ~/share/modena/modena-env.sh
 ```
+
+The installed libraries carry `RUNPATH=$ORIGIN`, so this is only needed for
+the application to find `libmodena` — the MoDeNa libraries already find each
+other.
 
 If installed to a standard system prefix (`/usr/local`) and `ldconfig` has
 been run, no environment variable is needed.

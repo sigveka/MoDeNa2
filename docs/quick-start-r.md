@@ -45,13 +45,16 @@ order as the Julia wrapper:
 2. `python3 -c "import modena; print(modena.MODENA_LIB_DIR)"` (always
    available if MoDeNa is installed)
 
-Set `MODENA_LIB_DIR` in your shell profile to avoid the Python subprocess
-call at package load time:
+Source the environment script in your shell profile to avoid the Python
+subprocess call at package load time — it exports `MODENA_LIB_DIR` and
+`LD_LIBRARY_PATH` with the values CMake resolved at install time:
 
 ```bash
-export MODENA_LIB_DIR="${HOME}/lib"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${HOME}/lib"
+source ~/share/modena/modena-env.sh
 ```
+
+Use `<prefix>/share/modena/modena-env.sh` if you did not install to `$HOME`.
+Note that the libraries live in `<prefix>/lib/modena`, not `<prefix>/lib`.
 
 ---
 

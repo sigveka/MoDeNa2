@@ -14,9 +14,14 @@ prefer RAII and exceptions see [quick-start-cpp.md](quick-start-cpp.md).
 | MongoDB running | `MODENA_URI` must point to a populated database |
 
 ```bash
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${HOME}/lib"
-export PYTHONPATH="${PYTHONPATH}:${HOME}/lib/python3.10/site-packages"
+source ~/share/modena/modena-env.sh
 ```
+
+CMake generates that script at install time with the paths this build actually
+used, so it stays correct across Python versions and install prefixes.  Use
+`<prefix>/share/modena/modena-env.sh` if you did not install to `$HOME`.  See
+[quick-start-user.md](quick-start-user.md#environment) for what it sets and
+when you can skip it.
 
 ---
 

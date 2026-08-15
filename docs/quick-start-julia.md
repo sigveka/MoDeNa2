@@ -12,13 +12,18 @@ exceptions.
 |-------------|-------|
 | Julia ≥ 1.6 | |
 | `libmodena` | Installed by MoDeNa's CMake build |
-| Python 3 with `modena` on `PYTHONPATH` | Used at startup to locate `libmodena` |
+| Python 3 with `modena` importable | Used at startup to locate `libmodena` |
 | MongoDB running | `MODENA_URI` must point to a populated database |
 
 ```bash
-export PYTHONPATH="${PYTHONPATH}:${HOME}/lib/python3.10/site-packages"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${HOME}/lib"
+source ~/share/modena/modena-env.sh
 ```
+
+CMake generates that script at install time with the paths this build actually
+used, so it stays correct across Python versions and install prefixes.  Use
+`<prefix>/share/modena/modena-env.sh` if you did not install to `$HOME`.  See
+[quick-start-user.md](quick-start-user.md#environment) for what it sets and
+when you can skip it.
 
 ---
 
@@ -177,7 +182,7 @@ end
 | `Model(id)` | Load surrogate model by ID; registers GC finaliser |
 | `input_pos(m, name)` | Return 0-based position of input `name` |
 | `output_pos(m, name)` | Return 0-based position of output `name` |
-| `check(m)` | Assert every declared input has been queried |
+| `check(m)` | End the setup phase and release the GIL for the loop |
 | `set!(m, pos, value)` | Set input at position `pos` |
 | `output(m, pos)` | Read output at position `pos` after a successful `call!` |
 | `call!(m)` | Evaluate the surrogate; throws on non-zero return code |

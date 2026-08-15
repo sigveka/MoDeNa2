@@ -52,6 +52,7 @@
 !*.cmake.in
 !*.py.in
 !*.h.in
+!*.sh.in
 
 # Repo essentials that the allowlist would otherwise exclude
 !.gitignore
