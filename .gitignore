@@ -69,5 +69,10 @@ func_*/
 launcher_*/
 modena.log
 models/
+# Application packages (LAMMPS/Meep/NGSolve/QuantumEspresso/OpenFoam
+# wrappers) live outside the core repository — they are user data that
+# happens to sit in the working tree.  Excluding the whole directory
+# stops them from appearing in every `git status` output.
+applications/
 
 CMakeUserPresets.json

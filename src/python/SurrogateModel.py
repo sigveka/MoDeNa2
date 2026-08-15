@@ -1467,30 +1467,44 @@ class SurrogateModel(DynamicDocument):
 
         i = [0.0] * self.surrogateFunction.inputs_size()
 
-        # Precompute argPos and output ranges once — avoids repeated dict lookups
-        # inside the innermost loop (O(nSamples × nInputs/nOutputs) saved).
-        input_keys_and_pos = [(k, self.inputs_argPos(k)) for k in self.inputs]
+        # Bind everything the inner loop touches as locals once, before
+        # iterating.  Each ``self.fitData[k]`` is a MongoEngine DictField
+        # lookup (~50 ns per access on Python 3.12) that would otherwise
+        # fire on every sample × every column.  For a 10k-sample fit with
+        # 5 inputs + 1 output and 100 optimizer iterations that's ~6 M
+        # avoidable dict lookups.  Pre-fetching each column as a plain
+        # list reference makes the inner loop pure list indexing.
+        input_bindings = [
+            (self.inputs_argPos(k), self.fitData[k])
+            for k in self.inputs
+        ]
+        fitData_get = self.fitData.__getitem__   # keep for the outputs
         if metric is None:
-            output_info = [(name, self.outputs_argPos(name)) for name in self.outputs]
+            output_bindings = [
+                (self.outputs_argPos(name), fitData_get(name))
+                for name in self.outputs
+            ]
         else:
-            output_info = [
-                (name, self.outputs_argPos(name),
+            output_bindings = [
+                (self.outputs_argPos(name),
+                 fitData_get(name),
                  v.max - v.min if v.max != v.min else 1.0)
                 for name, v in self.outputs.items()
             ]
+            residual = metric.residual   # bound method → local
 
         for idx in idxGenerator:
-            for k, pos in input_keys_and_pos:
-                i[pos] = self.fitData[k][idx]
+            for pos, col in input_bindings:
+                i[pos] = col[idx]
 
             out = cModel(i, checkBounds=checkBounds)
 
             if metric is None:
-                for name, argPos in output_info:
-                    yield self.fitData[name][idx] - out[argPos]
+                for argPos, col in output_bindings:
+                    yield col[idx] - out[argPos]
             else:
-                for name, argPos, rng in output_info:
-                    yield metric.residual(out[argPos], self.fitData[name][idx], rng)
+                for argPos, col, rng in output_bindings:
+                    yield residual(out[argPos], col[idx], rng)
 
 
     def __getattribute__(self, name):
