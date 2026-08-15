@@ -173,9 +173,12 @@ def _model_show(args):
         sys.exit(1)
 
     sf = m.surrogateFunction
-    inputs  = sorted(sf['inputs'],     key=lambda k: sf['inputs'][k]['argPos'])
-    outputs = sorted(sf['outputs'],    key=lambda k: sf['outputs'][k]['argPos'])
-    params  = sorted(sf['parameters'], key=lambda k: sf['parameters'][k]['argPos'])
+    # Inputs still carry argPos on the embedded doc (vector inputs have
+    # non-trivial block-start argPos).  Outputs and parameters are ordered
+    # by dict-key insertion — that IS the argPos ordering.
+    inputs  = sorted(sf['inputs'], key=lambda k: sf['inputs'][k]['argPos'])
+    outputs = list(sf['outputs'])
+    params  = list(sf['parameters'])
 
     print(f'Model:      {m._id}')
     print(f'Type:       {type(m).__name__}')
@@ -184,9 +187,11 @@ def _model_show(args):
     print(f'Outputs:    {", ".join(outputs)}')
     print(f'Parameters: {", ".join(params)}')
     if m.parameters:
+        # m.parameters is a DictField(FloatField) — {name: value}.
+        # Print in argPos order (matches ``Parameters:`` line above).
         print(f'Fitted parameters:')
-        for k, v in zip(params, m.parameters):
-            print(f'  {k} = {v}')
+        for name in params:
+            print(f'  {name} = {m.parameters.get(name, "<unset>")}')
     else:
         print('Status:     untrained')
     if m.substituteModels:

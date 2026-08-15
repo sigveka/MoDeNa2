@@ -558,7 +558,16 @@ def _model_entry(model) -> dict:
         vals = next(iter(model.fitData.values()), [])
         entry['n_samples'] = len(vals)
     if model.parameters:
-        entry['parameters'] = list(model.parameters)
+        # ``model.parameters`` is a DictField (post Phase 3) — {name: value}.
+        # Store as a dict in the lock file so downstream tooling reads the
+        # values by name, and add an argPos-ordered array under a separate
+        # key so a consumer that wants the flat vector doesn't need to
+        # join with the SurrogateFunction.
+        entry['parameters'] = dict(model.parameters)
+        try:
+            entry['parameters_array'] = model.parameters_array()
+        except Exception:
+            pass
     if hasattr(model, 'last_fitted') and model.last_fitted:
         entry['last_fitted'] = model.last_fitted.strftime('%Y-%m-%dT%H:%M:%S')
     return entry
