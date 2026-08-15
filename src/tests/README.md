@@ -206,9 +206,10 @@ ctest -L integration --output-on-failure
 
 | Executable | Wrapper | What it tests |
 |---|---|---|
-| `test_cpp_smoke` | C++ (`modena::Model`) | RAII ctor + `input_pos`/`output_pos`/`set`/`call`/`output` end-to-end; asserts finite positive output in a plausible range |
+| `test_cpp_smoke` | C++ (`modena::Model`) | RAII ctor + `input_pos`/`output_pos`/`set`/`call`/`output` end-to-end; asserts finite positive output in a plausible range; exercises the Phase 3 named-parameter accessors (`m.parameters()`, `m.parameter("P0")`) |
 | `test_fortran_smoke` | Fortran 2003 (`fmodena_oop`) | Same coverage via `m%init` / `m%input_pos` / `m%set` / `m%call` / `m%get_output` |
 | `test_thread_safety` | C (`libmodena` directly, `std::thread`) | N pthreads share one `modena_model_t` with per-thread I/O vectors; every call must reproduce the reference `mdot` bit-for-bit.  Regression guard for the `modena_substitute_model_t` per-call allocation fix and the internal GIL protocol. |
+| `test_matlab_smoke` | MATLAB / Octave (via MEX gateway + `Modena.m` class) | Same coverage via `m.set_input`/`m.call`/`m.get_output`, plus Phase 3 named-parameter accessors (`m.parameters()` returning a struct, `m.get_parameter('P0')`).  Registered when `WITH_MATLAB=ON`; prefers Octave over MATLAB (faster startup, no license). |
 
 ### Notes
 

@@ -55,3 +55,34 @@ add_test(NAME modena_iface_thread_safety COMMAND test_thread_safety)
 set_tests_properties(modena_iface_thread_safety
     PROPERTIES LABELS "cpp;integration;thread"
 )
+
+# -- MATLAB / Octave (via MEX gateway + Modena.m class) -------------------
+# Runs test_matlab_smoke.m through Octave (or MATLAB when available).
+# Only wired up when WITH_MATLAB=ON so that the MEX gateway is built
+# and installed to MATLAB_PKG_DIR — the test relies on
+# ``octave --path <MATLAB_PKG_DIR>`` finding both the .mex and
+# Modena.m there.
+#
+# Prefer Octave when both are available (faster startup, no license).
+if(WITH_MATLAB)
+    find_program(OCTAVE_EXECUTABLE octave)
+    find_program(MATLAB_EXECUTABLE matlab)
+    if(OCTAVE_EXECUTABLE)
+        add_test(NAME modena_iface_matlab_smoke
+            COMMAND "${OCTAVE_EXECUTABLE}" --no-gui --quiet
+                --path "${MATLAB_PKG_DIR}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/test_matlab_smoke.m"
+        )
+        set_tests_properties(modena_iface_matlab_smoke PROPERTIES
+            LABELS "octave;integration"
+        )
+    elseif(MATLAB_EXECUTABLE)
+        add_test(NAME modena_iface_matlab_smoke
+            COMMAND "${MATLAB_EXECUTABLE}" -batch
+                "addpath('${MATLAB_PKG_DIR}'); run('${CMAKE_CURRENT_SOURCE_DIR}/test_matlab_smoke.m');"
+        )
+        set_tests_properties(modena_iface_matlab_smoke PROPERTIES
+            LABELS "matlab;integration"
+        )
+    endif()
+endif()
