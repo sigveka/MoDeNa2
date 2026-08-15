@@ -1,0 +1,2 @@
+#!/bin/bash
+python3 -m modena init 'fullerEtAlDiffusion[A=H2O,B=N2]'

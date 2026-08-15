@@ -1,0 +1,26 @@
+#!/bin/bash
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# @brief  Build binaries and install Python packages for twoTanksAutoInit models.
+#
+# Each model uses scikit-build-core as its build backend (pyproject.toml at the
+# model root).  A single "modena install" call triggers cmake to compile and
+# install both the Python package files and the compiled binary under INSTALL_DIR,
+# then registers that prefix in ~/.modena/config.toml for auto-discovery.
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+MODENA_MODELS=("flowRate" "twoTank")
+MODENA_MODELS_DIR="../MoDeNaModels"
+
+BUILD_DIR="${PWD}/build"
+INSTALL_DIR="${PWD}/models"
+
+echo "Compiling and Installing ${#MODENA_MODELS[@]} models"
+
+for MODEL in "${MODENA_MODELS[@]}"; do
+  echo ""
+  echo "=== ${MODEL} ==="
+  SKBUILD_BUILD_DIR="${BUILD_DIR}/${MODEL}" \
+    python3 -m modena install --prefix "${INSTALL_DIR}" \
+        "${MODENA_MODELS_DIR}/${MODEL}"
+done

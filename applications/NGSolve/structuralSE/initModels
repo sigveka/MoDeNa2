@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""
+@file
+Initialise all three MoDeNa surrogate levels for the structuralSE chain.
+
+Submits the top-level initialisation workflow; MoDeNa resolves the
+dependency order automatically:
+
+    dielectricFunction[material=Cu]  (QE)
+      → surfaceImpedance[material=Cu]  (Meep 1D)
+        → structuralSE[geometry=enclosure]  (NGSolve 3D)
+"""
+
+import modena
+from structuralSE import m
+
+for model_id in [
+    'dielectricFunction[material=Cu]',
+    'surfaceImpedance[material=Cu]',
+    'structuralSE[geometry=enclosure]',
+]:
+    modena.SurrogateModel._get_collection().delete_one({'_id': model_id})
+
+lp = modena.lpad()
+lp.add_wf(m.initialisationWorkflow())
+modena.run()

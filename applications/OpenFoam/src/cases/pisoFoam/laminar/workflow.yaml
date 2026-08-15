@@ -1,0 +1,61 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# @brief      YAML representation of a Fireworks Workflow
+# @author     Sigve Karolius (SK)
+# @date       2017-10-18
+# @copyright  2017 (SK)
+# @license    GPLv3
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+name    : "Example::workflow"                                   # Workflow Name
+version : 1.0
+
+fws     :                                                    # Defines Workflow
+  - fw_id : &first 99                                        # Defines Firework
+    name : "Meshing"
+    spec :
+      _pass_job_info: true
+      _gmsh_file : ../gmsh/s-bend.geo
+      _tasks:  
+        - _fw_name: ScriptTask
+          shell_exe: /bin/bash
+          stdin_key: _gmsh_file
+          script: |
+            fname=$(read < ${1:-/dev/stdin})
+            echo ${fname}
+            gmsh -3 -o "s-bend.msh" "../gmsh/s-bend.geo"
+
+  - fw_id : &second 12
+    name : "Test FW 2"
+    spec :
+      _pass_job_info: true
+      _use_global_spec : true
+      _tasks:
+        - _fw_name: FileTransferTask
+          shell_interpret: true     # interpret "." and "~" in 'rtransfer' mode
+          dest: case
+          files:
+              - ../case
+          mode: copytree
+
+        - _fw_name: FoamApplication
+          script: |
+              # Source tutorial run functions
+              . "${WM_PROJECT_DIR}/bin/tools/RunFunctions"
+              # Get application directory
+              application=$(getApplication)
+              # GMSH
+              runApplication gmshToFoam -case case case/s-bend.msh
+              runApplication simpleFoam -case case
+
+
+links    :                                            # Links Between Fireworks
+  *first: 
+    - *second
+  *second: []
+
+metadata :                                                    # Shared metadata
+    inputs:
+        T: 200
+# Vim 'modelines', standardise settings for the 'vim' text editor...
+# vim: filetype=yaml fileencoding=ascii syntax=on colorcolumn=79
+# vim: ff=unix tabstop=2 softtabstop=0 expandtab shiftwidth=2 smarttab

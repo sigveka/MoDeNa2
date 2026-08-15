@@ -1,0 +1,25 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+name     : "Simulation--TwoTank"
+
+fws      :
+- fw_id : -1
+  spec :
+    _tasks      :
+      - _fw_name      : "{{modena.InitialisationStrategy}}"
+        model         : 'flowRate'
+        use_shell     : true
+        defuse_bad_rc : true
+- fw_id : -2
+  spec :
+    _tasks      :
+      - _fw_name      : "TwoTankModel"
+        use_shell     : true
+        defuse_bad_rc : true
+
+links: { -2: [ -1 ], -1: [ ] }
+metadata : { }
+
+
