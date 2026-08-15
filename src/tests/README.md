@@ -175,6 +175,30 @@ returns `0` on success and non-zero on failure (detected by CTest).
 | `test_siunits` | `modena_siunits_new`, `modena_siunits_destroy`, exponent read/write |
 | `test_inputsoutputs` | `modena_inputs_new/destroy`, `modena_outputs_new/destroy`, and the inline `modena_inputs_set/get` / `modena_outputs_get` roundtrip helpers — the C API almost every application uses |
 
+## Interface / integration tests
+
+Language-wrapper smoke tests live under `src/tests/interface-tests/`.
+Each links a real language binding against libmodena and evaluates the
+`flowRate` surrogate to end-to-end verify the wrapper is wired
+correctly.  Registered under the `integration` label because they
+require:
+
+* a live MongoDB pointed to by `MODENA_URI` (default `mongodb://localhost:27017/test`),
+* the `flowRate` model already initialized (`cd examples/twoTanks && ./initModels`).
+
+Run with:
+
+```bash
+cd build/src
+ctest -L integration --output-on-failure
+```
+
+| Executable | Wrapper | What it tests |
+|---|---|---|
+| `test_cpp_smoke` | C++ (`modena::Model`) | RAII ctor + `input_pos`/`output_pos`/`set`/`call`/`output` end-to-end; asserts finite positive output in a plausible range |
+| `test_fortran_smoke` | Fortran 2003 (`fmodena_oop`) | Same coverage via `m%init` / `m%input_pos` / `m%set` / `m%call` / `m%get_output` |
+| `test_thread_safety` | C (`libmodena` directly, `std::thread`) | N pthreads share one `modena_model_t` with per-thread I/O vectors; every call must reproduce the reference `mdot` bit-for-bit.  Regression guard for the `modena_substitute_model_t` per-call allocation fix and the internal GIL protocol. |
+
 ### Notes
 
 - The tests link against `libmodena` but never call `Py_Initialize()`.
