@@ -1,0 +1,5 @@
+#!/bin/bash
+export MODENA_URI='mongodb://localhost:27017/test'
+export LD_LIBRARY_PATH="/path/to/libmodena:${LD_LIBRARY_PATH}"
+python "src/portal/app.py"   # dev server at http://localhost:8050
+

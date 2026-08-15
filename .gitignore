@@ -1,0 +1,71 @@
+# Exclude all files by default
+**/*
+# Include all directories and Explicitly include relevant file-types
+!**/
+
+# Scripting languages
+!*.py
+!*.m
+!*.rb
+!.mat
+!.jl
+
+# Misc
+!*.svg
+!*.gp
+!*.gpl
+
+# Compiled programming languages
+!*.c
+!*.h
+!*.cpp
+!*.C
+!*.hpp
+!*.H
+!*.f
+!*.F
+!*.f90
+!*.F90
+
+# Document markup files
+!*.md
+
+# MkDocs and CI configuration
+!mkdocs.yml
+!.github/workflows/*.yml
+!*.toml
+# !*.txt
+# !*.tex
+# !*.bib
+# !*.sty
+# !*.cls
+#
+
+# Build system — CMake configuration and cmake/pip templates.  Without
+# these the project cannot be built from a fresh clone; the allowlist
+# pattern above would otherwise exclude them all.
+!CMakeLists.txt
+!CMakePresets.json
+!*.cmake
+!*.cmake.in
+!*.py.in
+!*.h.in
+
+# Repo essentials that the allowlist would otherwise exclude
+!.gitignore
+!README.md
+!install
+!run_portal
+
+
+# Exclude
+CLAUDE.md
+.claude/
+build/
+site/
+func_*/
+launcher_*/
+modena.log
+models/
+
+CMakeUserPresets.json

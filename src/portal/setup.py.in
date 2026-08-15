@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+from setuptools import setup
+
+args = {
+    'name'        : 'modena_portal',
+    'description' : 'Web portal for viewing, documenting and evaluating MoDeNa surrogate models',
+    'version'     : '${PROJECT_VERSION}',
+    'package_dir' : { 'modena_portal': '${CMAKE_CURRENT_SOURCE_DIR}' },
+    'packages'    : [
+        'modena_portal',
+        'modena_portal.pages',
+        'modena_portal.components',
+        'modena_portal.data',
+        'modena_portal.callbacks',
+    ],
+    'package_data': {
+        'modena_portal': ['assets/*.css'],
+    },
+    'install_requires': [
+        'dash>=2.7.0',
+        'dash-bootstrap-components>=1.4.0',
+        'dash-cytoscape>=0.3.0',
+        'plotly>=5.0.0',
+    ],
+    'extras_require': {
+        'production': ['gunicorn>=21.0.0'],
+    },
+    'entry_points': {
+        'console_scripts': [
+            'modena-portal = modena_portal.run:main',
+        ],
+    },
+    'classifiers': [
+        'License :: GNU - General Public License (GPL)',
+        'Programming Language :: Python',
+        'Development Status :: 0 - Beta',
+        'Intended Audience :: Science and Engineering',
+        'Topic :: Multi-scale Modelling',
+    ],
+    'python_requires': '>=3.10',
+    'keywords': 'multi-scale modelling surrogate model portal',
+}
+
+setup(**args)

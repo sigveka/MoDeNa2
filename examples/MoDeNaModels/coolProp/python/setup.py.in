@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+
+from setuptools import setup
+
+args = {
+    'name'         : '${PROJECT_NAME}',
+    'version'      : '${PROJECT_VERSION}',
+    'install_requires': ['modena'],
+    'packages'     : ['${PROJECT_NAME}'],
+    'package_dir'  : {'${PROJECT_NAME}': '${CMAKE_CURRENT_SOURCE_DIR}'},
+    'classifiers'  : [
+        "Intended Audience :: Science and Engineering",
+        "Topic :: Multi-scale Modelling",
+    ],
+    'license' : "GNU - General Public License (GPL)",
+    'keywords': 'multi-scale modelling',
+}
+
+setup(**args)

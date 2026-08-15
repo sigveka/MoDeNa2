@@ -1,0 +1,60 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}",
+        "CMAKE_BUILD_TYPE": "Release",
+        "MODENA_BUILD_DOCS":   "OFF",
+        "MODENA_BUILD_PORTAL": "OFF"
+      }
+    },
+    {
+      "name": "default",
+      "displayName": "Default — user install, Release",
+      "description": "Install to $HOME, Release build, no tests.",
+      "inherits": "base",
+      "cacheVariables": {
+        "MODENA_BUILD_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Developer — user install, Debug + tests",
+      "description": "Install to $HOME, Debug build, tests enabled.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE":   "Debug",
+        "MODENA_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "hpc",
+      "displayName": "HPC — system install, Release",
+      "description": "Install to /opt/modena, Release build, Fortran wrapper. Override CMAKE_INSTALL_PREFIX as needed.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "/opt/modena",
+        "CMAKE_BUILD_TYPE":     "Release",
+        "WITH_FORTRAN":         "ON",
+        "MODENA_BUILD_TESTS":   "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "default", "configurePreset": "default" },
+    { "name": "dev",     "configurePreset": "dev"     },
+    { "name": "hpc",     "configurePreset": "hpc"     }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

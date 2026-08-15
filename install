@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Convenience wrapper — equivalent to:
+#   cmake --preset dev
+#   cmake --build --preset dev
+#   cmake --install build
+#
+# Pass extra -D flags after the script name to override preset defaults, e.g.:
+#   ./install -DWITH_MATLAB=ON
+
+rm -f build/CMakeCache.txt
+
+cmake --preset dev "$@"
+cmake --build --preset dev
+cmake --install build
