@@ -49,6 +49,7 @@ MoDeNa C++ interface library
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace modena {
@@ -171,6 +172,12 @@ public:
 
     /**
      * @brief Construct by fetching @p id from the MoDeNa database.
+     *
+     * All input and output positions are resolved once at construction
+     * time and cached, so subsequent named access via operator[] and
+     * output(std::string_view) is a plain hash-map lookup — no Python
+     * calls, and safe to use after check() has released the GIL.
+     *
      * @throws ModelNotFound if the model does not exist.
      */
     explicit Model(const std::string& id)
@@ -181,6 +188,22 @@ public:
 
         inputs_  = modena_inputs_new(model_);
         outputs_ = modena_outputs_new(model_);
+
+        // Cache all input and output positions up front.  These calls go
+        // through libmodena's Python bindings, so they must happen BEFORE
+        // any downstream check() releases the GIL for the time-step loop.
+        const std::size_t nin  = inputs_size();
+        const std::size_t nout = outputs_size();
+        const char** in_names  = modena_model_inputs_names(model_);
+        const char** out_names = modena_model_outputs_names(model_);
+        input_pos_.reserve(nin);
+        output_pos_.reserve(nout);
+        for (std::size_t i = 0; i < nin;  ++i)
+            input_pos_.emplace(in_names[i],
+                               modena_model_inputs_argPos(model_, in_names[i]));
+        for (std::size_t i = 0; i < nout; ++i)
+            output_pos_.emplace(out_names[i],
+                                modena_model_outputs_argPos(model_, out_names[i]));
     }
 
     ~Model()
@@ -197,7 +220,9 @@ public:
     Model& operator=(const Model&) = delete;
 
     Model(Model&& o) noexcept
-        : model_(o.model_), inputs_(o.inputs_), outputs_(o.outputs_)
+        : model_(o.model_), inputs_(o.inputs_), outputs_(o.outputs_),
+          input_pos_(std::move(o.input_pos_)),
+          output_pos_(std::move(o.output_pos_))
     {
         o.model_ = nullptr; o.inputs_ = nullptr; o.outputs_ = nullptr;
     }
@@ -212,9 +237,11 @@ public:
                 modena_outputs_destroy(outputs_);
                 modena_model_destroy(model_);
             }
-            model_   = o.model_;
-            inputs_  = o.inputs_;
-            outputs_ = o.outputs_;
+            model_      = o.model_;
+            inputs_     = o.inputs_;
+            outputs_    = o.outputs_;
+            input_pos_  = std::move(o.input_pos_);
+            output_pos_ = std::move(o.output_pos_);
             o.model_ = nullptr; o.inputs_ = nullptr; o.outputs_ = nullptr;
         }
         return *this;
@@ -244,29 +271,36 @@ public:
     /**
      * @brief Return the argument position of input variable @p name.
      *
-     * Cache the result before the time-step loop and pass it to set() for
-     * zero-overhead indexed access.
+     * O(1) hash-map lookup against the cache built at construction time.
+     * Safe to call after check() has released the GIL.
+     *
+     * @throws std::out_of_range if @p name is not a declared input.
      */
     std::size_t input_pos(std::string_view name) const
     {
-        // string_view::data() is not null-terminated; build a std::string to
-        // ensure the C API receives a proper null-terminated string.
-        return modena_model_inputs_argPos(model_, std::string(name).c_str());
+        return input_pos_.at(std::string(name));
     }
 
     /**
      * @brief Return the argument position of output variable @p name.
+     *
+     * O(1) hash-map lookup against the cache built at construction time.
+     * Safe to call after check() has released the GIL.
+     *
+     * @throws std::out_of_range if @p name is not a declared output.
      */
     std::size_t output_pos(std::string_view name) const
     {
-        return modena_model_outputs_argPos(model_, std::string(name).c_str());
+        return output_pos_.at(std::string(name));
     }
 
     /**
-     * @brief Assert that every input and output position has been queried.
+     * @brief Assert that every input position has been claimed.
      *
-     * Call once after all input_pos() / output_pos() calls to guard against
-     * typos in variable names.
+     * With the position-caching ctor above this is now a no-op contract
+     * (all positions are claimed during construction) but the call
+     * still forwards to modena_model_argPos_check so libmodena can
+     * release the GIL for a subsequent multi-threaded time-step loop.
      */
     void check() const { modena_model_argPos_check(model_); }
 
@@ -342,6 +376,13 @@ private:
     modena_model_t   *model_;
     modena_inputs_t  *inputs_;
     modena_outputs_t *outputs_;
+
+    // Position caches — populated once at construction time from
+    // modena_model_inputs_argPos / modena_model_outputs_argPos so
+    // named access via operator[] / output(name) is a pure C++
+    // lookup, safe after check() has released the GIL.
+    std::unordered_map<std::string, std::size_t> input_pos_;
+    std::unordered_map<std::string, std::size_t> output_pos_;
 
     static std::vector<std::string>
     names_from(const char** arr, std::size_t n)

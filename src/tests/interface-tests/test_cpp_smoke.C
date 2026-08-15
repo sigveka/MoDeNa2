@@ -63,12 +63,27 @@ int main()
     // value that would break on refit.
     assert(mdot > 1e-4 && mdot < 1.0);
 
-    // Note: the named-access proxy (m["D"] = 0.01) is deliberately NOT
-    // exercised here.  It calls modena_model_inputs_argPos on every
-    // access, which is a Python call — after m.check() has released the
-    // GIL for the "time-step loop", such calls segfault deep inside
-    // libpython.  The positional API is the intended fast path (per the
-    // wrapper's own docstring) and what production code uses.
+    // ── Named-access API (proxy) — same computation, different path ─────
+    // The ctor caches all input/output positions, so operator[] and
+    // output(name) are pure C++ hash-map lookups.  Safe after check()
+    // has released the GIL — the earlier segfault was a real wrapper
+    // bug (fixed in modena.hpp).
+    m["D"]      = 0.01;
+    m["rho0"]   = 3.4;
+    m["p0"]     = 3.0e5;
+    m["p1Byp0"] = 0.03;
+    m.call();
+    const double mdot2 = m.output("flowRate");
+    assert(std::abs(mdot - mdot2) < 1e-12);
+
+    // ── Regression guard: unknown input name must raise ─────────────────
+    try
+    {
+        (void) m.input_pos("does_not_exist");
+        std::cerr << "FAIL  input_pos on unknown name should throw" << std::endl;
+        return 1;
+    }
+    catch (const std::out_of_range&) { /* expected */ }
 
     std::cout << "PASS  test_cpp_smoke  (flowRate mdot = " << mdot
               << " kg/s at D=0.01, rho0=3.4, p0=3e5, p1/p0=0.03)"
