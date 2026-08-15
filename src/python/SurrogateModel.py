@@ -67,7 +67,7 @@ import jinja2
 __all__ = (
   "IndexSet", "ForwardMappingModel", "BackwardMappingModel", "CFunction",
   "SurrogateFunction", "Function", "SurrogateModel", "MODENA_URI",
-  "MODENA_PARSED_URI", "DoesNotExist",
+  "MODENA_PARSED_URI", "DoesNotExist", "ArgPosNotFound",
 )
 
 # Create connection to database
@@ -1371,14 +1371,13 @@ class SurrogateModel(DynamicDocument):
         @brief    Calling surrogate model with inputs as a dict or sequence.
         @param    inputs  dict mapping input names to values, or a sequence
                   of floats already ordered by argPos.
-        @details
-                  The surrogate model is called
         @returns  outputs (dict) outputs from the surrogate model
-        @note     If an input is outside the trained region, the process exits
-                  with code 200.  BackwardMappingScriptTask.handleReturnCode(200)
-                  intercepts this to run the out-of-bounds strategy and restart.
-                  This mirrors the behaviour of C applications linked against
-                  libmodena.
+        @raises   OutOfBounds  when an input falls outside the trained region.
+                  The framework's ``executeAndCatchExceptions`` catches this
+                  and dispatches to the model's ``outOfBoundsStrategy``.  A
+                  pure-Python caller (e.g. a user script exploring a model)
+                  can catch it directly to inspect ``e.model.outsidePoint``
+                  or to translate it into their own exit convention.
         """
         _log.debug('callModel %s', self._id)
         # Instantiate the surrogate model
@@ -1396,16 +1395,12 @@ class SurrogateModel(DynamicDocument):
                     f"Model '{self._id}' expects {expected} inputs, got {len(i)}."
                 )
 
-        # Call the surrogate model.
-        # OutOfBounds is raised by the C layer when an input falls outside the
-        # trained region.  Mirror the C-app convention: exit with code 200 so
-        # that BackwardMappingScriptTask.handleReturnCode(200) can trigger the
-        # out-of-bounds strategy and restart the simulation.
-        import sys as _sys
-        try:
-            out = cModel(i)
-        except OutOfBounds:
-            _sys.exit(200)
+        # Propagate OutOfBounds from the C layer so callers can handle it.
+        # Framework code paths (executeAndCatchExceptions) already catch this
+        # and run the out-of-bounds strategy; pure-Python callers can catch
+        # it to decide their own behaviour instead of the framework killing
+        # the process via sys.exit(200).
+        out = cModel(i)
 
         outputs = {
             self.expandIndices(k): out[v.argPos]

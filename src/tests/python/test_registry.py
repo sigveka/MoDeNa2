@@ -543,3 +543,28 @@ class TestBinSearchPath:
         reg = ModelRegistry().load()
         with pytest.raises(FileNotFoundError, match='ghost'):
             reg.find_binary('ghost', caller_file=str(caller_file))
+
+    def test_find_binary_raises_binary_not_found(self, tmp_path, monkeypatch):
+        """The dedicated BinaryNotFound subclass exposes name + searched."""
+        from modena.Registry import ModelRegistry, BinaryNotFound
+        bin_dir = tmp_path / 'bin'
+        bin_dir.mkdir()
+        caller_file = tmp_path / 'pkg' / 'myModel.py'
+        caller_file.parent.mkdir()
+        caller_file.write_text('')
+        monkeypatch.setenv('MODENA_BIN_PATH', str(bin_dir))
+        monkeypatch.chdir(tmp_path)
+        reg = ModelRegistry().load()
+        with pytest.raises(BinaryNotFound) as excinfo:
+            reg.find_binary('missing', caller_file=str(caller_file))
+        assert excinfo.value.name == 'missing'
+        # searched paths include the configured dir and the package-relative fallback dir
+        assert str(bin_dir.resolve()) in excinfo.value.searched
+        assert any('bin' in p for p in excinfo.value.searched)
+
+    def test_binary_not_found_is_file_not_found_error(self):
+        """Existing `except FileNotFoundError` handlers must keep working."""
+        from modena.Registry import BinaryNotFound
+        assert issubclass(BinaryNotFound, FileNotFoundError)
+        exc = BinaryNotFound('ghost', ['/nowhere'])
+        assert isinstance(exc, FileNotFoundError)

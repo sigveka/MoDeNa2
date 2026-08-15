@@ -55,7 +55,24 @@ except ImportError:
     except ImportError:
         tomllib = None      # type: ignore[assignment]
 
-__all__ = ('ModelRegistry',)
+__all__ = ('ModelRegistry', 'BinaryNotFound')
+
+
+class BinaryNotFound(FileNotFoundError):
+    """Raised by :meth:`ModelRegistry.find_binary` when a named binary cannot
+    be located in any configured search directory.
+
+    Subclasses ``FileNotFoundError`` so existing ``except FileNotFoundError``
+    handlers keep working, but exposes ``name`` and ``searched`` attributes
+    for structured error reporting.
+    """
+
+    def __init__(self, name: str, searched: 'list[str]'):
+        self.name = name
+        self.searched = list(searched)
+        super().__init__(
+            f"Binary '{name}' not found. Searched: {self.searched}"
+        )
 
 _LOCK_FILE = 'modena.lock'
 _CONFIG_FILE = 'modena.toml'
@@ -326,7 +343,8 @@ class ModelRegistry:
             Absolute path to the binary.
 
         Raises:
-            FileNotFoundError: if the binary is not found in any location.
+            BinaryNotFound: if the binary is not found in any location.
+                Subclasses ``FileNotFoundError`` for backwards compatibility.
         """
         for d in self._bin_dirs:
             candidate = Path(d) / name
@@ -343,9 +361,7 @@ class ModelRegistry:
         searched = list(self._bin_dirs)
         if fallback_dir is not None:
             searched.append(fallback_dir)
-        raise FileNotFoundError(
-            f"Binary '{name}' not found. Searched: {searched}"
-        )
+        raise BinaryNotFound(name, searched)
 
     def active_packages(self) -> dict:
         """

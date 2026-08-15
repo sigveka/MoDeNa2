@@ -9,6 +9,8 @@
 @copyright 2014-2026, MoDeNa Project. GNU Public License.
 """
 
+import logging
+
 import modena
 from modena import BackwardMappingModel, CFunction, ModenaFireTask
 import modena.Strategy as Strategy
@@ -18,6 +20,7 @@ from fireworks.utilities.fw_utilities import explicit_serialize
 from fireworks import FireTaskBase
 
 _CFG = load_model_config(__file__)
+_log = logging.getLogger('modena.coolProp')
 
 
 @explicit_serialize
@@ -34,7 +37,7 @@ class CoolPropExactSim(ModenaFireTask):
         P = self['point']['P']
         rho = CP.PropsSI('D', 'T', T, 'P', P, 'CO2')
         self['point']['rho'] = rho
-        print(f'T = {T:.1f} K   P = {P:.0f} Pa   rho = {rho:.4f} kg/m³')
+        _log.info('T = %.1f K   P = %.0f Pa   rho = %.4f kg/m^3', T, P, rho)
 
 
 # 3rd-order bivariate polynomial in T and P (10 parameters).

@@ -35,8 +35,6 @@ License
 @ingroup   twoTank
 """
 
-from os import system
-
 import modena
 from modena import ForwardMappingModel, BackwardMappingModel, SurrogateModel, CFunction, ModenaFireTask
 import modena.Strategy as Strategy
@@ -53,7 +51,7 @@ class FlowRateExactSim(ModenaFireTask):
     """
 
     def task(self, fw_spec):
-        # Write input
+        # Write input.  The legacy microscopic code reads from in.txt.
         # See http://jinja.pocoo.org/docs/dev/templates/
         Template('''
 {{ s['point']['D'] }}
@@ -62,19 +60,16 @@ class FlowRateExactSim(ModenaFireTask):
 {{ s['point']['p1Byp0'] }}
         '''.strip()).stream(s=self).dump('in.txt')
 
-        # Execute the application
-        # In this simple example, this call stands for a complex microscopic
-        # code - such as full 3D CFD simulation.
-        # Source code in src/flowRateExact.C
-        ret = system(self.find_binary('flowRateExact'))
-
-        # This enables backward mapping capabilities (not needed in this example)
-        self.handleReturnCode(ret)
+        # Execute the application.  In this simple example the binary stands
+        # for a complex microscopic code such as a full 3D CFD simulation.
+        # ``run_binary`` locates the executable, captures stdout/stderr into
+        # the modena logger, and dispatches return codes 200/201/202 through
+        # ``handleReturnCode`` automatically.  Source in src/flowRateExact.C.
+        self.run_binary('flowRateExact')
 
         # Analyse output
-        f = open('out.txt', 'r')
-        self['point']['flowRate'] = float(f.readline())
-        f.close()
+        with open('out.txt', 'r') as f:
+            self['point']['flowRate'] = float(f.readline())
 
 
 f = CFunction(

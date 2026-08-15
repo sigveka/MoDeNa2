@@ -43,7 +43,7 @@ import copy
 import concurrent.futures
 from datetime import datetime, timezone
 import modena
-from modena.Registry import ModelRegistry
+from modena.Registry import ModelRegistry, BinaryNotFound
 #from fabric.tasks import Task
 from fireworks import Firework, Workflow, FWAction, FireTaskBase, ScriptTask
 from fireworks.utilities.fw_serializers import FWSerializable, \
@@ -90,6 +90,7 @@ __all__ = (
 'BackwardMappingScriptTask',
 # Exceptions
 'ParametersNotValid', 'OutOfBounds', 'FatalModelError',
+'TerminateWorkflow', 'ModifyWorkflow', 'BinaryNotFound',
 # OOB strategies
 'ExtendSpaceStochasticSampling', 'ForbidOutOfBounds', 'ExtendSpaceExpandedCASTROSampling',
 # Non-convergence strategies
@@ -2346,12 +2347,96 @@ class ModenaFireTask(FireTaskBase):
             Absolute path to the binary.
 
         Raises:
-            FileNotFoundError: if not found in any configured or package-relative path.
+            BinaryNotFound: if not found in any configured or package-relative
+                path.  Subclasses ``FileNotFoundError``.
         """
         import inspect
         from modena.Registry import ModelRegistry
         caller_file = inspect.getfile(type(self))
         return ModelRegistry().find_binary(name, caller_file=caller_file)
+
+    def run_binary(
+        self,
+        name: str,
+        args: 'list[str] | None' = None,
+        *,
+        cwd: 'str | None' = None,
+        env: 'dict | None' = None,
+        input: 'str | bytes | None' = None,
+        timeout: 'float | None' = None,
+        check_return_code: bool = True,
+    ) -> 'subprocess.CompletedProcess':
+        """
+        Run an exact-simulation binary and interpret its return code.
+
+        This is the recommended way for a ``task()`` implementation to invoke
+        a legacy simulator.  It replaces the historical pattern::
+
+            ret = os.system(self.find_binary('flowRateExact'))
+            self.handleReturnCode(ret)
+
+        with a single call::
+
+            self.run_binary('flowRateExact')
+
+        The helper:
+
+        * Locates the binary via :meth:`find_binary`.
+        * Executes it with :func:`subprocess.run` capturing both stdout and
+          stderr.
+        * Logs stdout at DEBUG and any non-empty stderr at INFO on success
+          or ERROR on non-zero return code.
+        * When ``check_return_code`` is ``True`` (default) and the return code
+          is 200/201/202, dispatches to :meth:`handleReturnCode` so that the
+          out-of-bounds and initialisation protocols fire correctly.
+        * Any other non-zero return code is re-raised as ``RuntimeError``
+          with the captured stderr in the message.
+
+        Args:
+            name: Binary filename to locate and execute.
+            args: Additional command-line arguments to pass after the binary.
+            cwd:  Working directory for the subprocess (default: inherit).
+            env:  Environment overrides (default: inherit full parent env).
+            input: Data written to the subprocess stdin.
+            timeout: Kill the subprocess after this many seconds.
+            check_return_code: If ``True`` (default), interpret 200/201/202
+                via :meth:`handleReturnCode` and raise on other non-zero
+                codes.  Set to ``False`` to inspect the return code yourself.
+
+        Returns:
+            The :class:`subprocess.CompletedProcess` from :func:`subprocess.run`.
+        """
+        import subprocess
+        binary = self.find_binary(name)
+        cmd = [binary] + list(args or [])
+        _log.debug('run_binary: %s', ' '.join(cmd))
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            env=env,
+            input=input,
+            capture_output=True,
+            text=isinstance(input, (str, type(None))),
+            timeout=timeout,
+        )
+        if result.stdout:
+            _log.debug('%s stdout:\n%s', name, result.stdout)
+        if result.returncode == 0:
+            if result.stderr:
+                _log.info('%s stderr:\n%s', name, result.stderr)
+            return result
+        if result.stderr:
+            _log.error('%s (rc=%d) stderr:\n%s',
+                       name, result.returncode, result.stderr)
+        if not check_return_code:
+            return result
+        if result.returncode in (200, 201, 202):
+            self.handleReturnCode(result.returncode)
+            return result
+        raise RuntimeError(
+            f"'{name}' exited with return code {result.returncode}: "
+            f"{(result.stderr or '').strip() or '(no stderr)'}"
+        )
 
     def executeAndCatchExceptions(self, op, text):
         """
@@ -2470,6 +2555,19 @@ class ModenaFireTask(FireTaskBase):
 
         except ModifyWorkflow as e:
             return e.action
+
+        except BinaryNotFound as e:
+            # Missing binary is a configuration error, not a per-point
+            # convergence failure — skipping every point would silently
+            # produce an empty fit.  Defuse the workflow with a clear log.
+            _log.error(
+                "Exact simulation binary '%s' not found for model %s. "
+                "Configure [binaries] paths in modena.toml, set "
+                "MODENA_BIN_PATH, or install the binary in "
+                "<package>/bin/. Searched: %s",
+                e.name, self.get('modelId', '?'), e.searched,
+            )
+            return FWAction(defuse_workflow=True)
 
         except Exception as e:
             _log.debug('Exact simulation exception for model %s',
@@ -2609,7 +2707,7 @@ class ModenaFireTask(FireTaskBase):
 
         elif returnCode > 0:
             raise TerminateWorkflow(
-                'An unknow error occurred calling exact simulation',
+                'An unknown error occurred calling exact simulation',
                 returnCode
             )
 

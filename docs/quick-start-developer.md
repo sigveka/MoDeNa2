@@ -320,7 +320,6 @@ and writes its output back into `self['point']`.
 from fireworks.utilities.fw_utilities import explicit_serialize
 from modena import ModenaFireTask
 from jinja2 import Template
-import os
 
 @explicit_serialize
 class FlowRateExactSim(ModenaFireTask):
@@ -329,16 +328,33 @@ class FlowRateExactSim(ModenaFireTask):
         # Write inputs to a file the simulation executable expects
         Template('{{ s.point.D }}\n{{ s.point.p0 }}\n').stream(s=self).dump('in.txt')
 
-        # Locate the binary: checks MODENA_BIN_PATH / [binaries] paths in
-        # modena.toml, then falls back to bin/ alongside this .py file.
-        binary = self.find_binary('flowRateExact')
-        ret = os.system(binary)
-        self.handleReturnCode(ret)
+        # Locate the binary, execute it, capture stdout/stderr, and dispatch
+        # return codes 200/201/202 through handleReturnCode automatically.
+        # Search order: [binaries] paths in modena.toml → MODENA_BIN_PATH →
+        # bin/ alongside this .py file.
+        self.run_binary('flowRateExact')
 
         # Read output and store it back so MoDeNa can use it for fitting
         with open('out.txt') as fh:
             self['point']['flowRate'] = float(fh.readline())
 ```
+
+**`run_binary(name, args=None, ...)`** is the recommended pattern.  It:
+
+- Locates the binary via `find_binary` (raises `BinaryNotFound` if missing).
+- Invokes `subprocess.run` with `capture_output=True`.
+- Routes stdout to the modena logger at `DEBUG` and stderr at `INFO` on
+  success or `ERROR` on non-zero return code.
+- On return codes 200/201/202, calls `handleReturnCode` so the out-of-bounds
+  and auto-initialisation protocols fire correctly.
+- Raises `RuntimeError` (with captured stderr) for any other non-zero code.
+
+Optional keyword arguments: `args`, `cwd`, `env`, `input` (stdin),
+`timeout`, and `check_return_code=False` to inspect the return code yourself.
+
+For in-process simulations (Python or bindings, no subprocess) you skip
+`run_binary` entirely — just compute the value and assign it, as in the
+`examples/MoDeNaModels/coolProp/` reference.
 
 ### 3 — Surrogate model
 
@@ -650,6 +666,76 @@ This is the most detailed level.  Use it to verify that the index maps between
 the outer model and a substitute are wired correctly, or to diagnose
 unexpected values being passed between models.  It will be very noisy in a
 long simulation — use it only during initial model development.
+
+---
+
+## Exceptions and return codes
+
+All framework exceptions are re-exported at the `modena` top level, so a
+task or user script can catch them without knowing which submodule they
+live in:
+
+```python
+import modena
+
+try:
+    outputs = modena.load('flowRate')({'D': 0.01, 'rho0': 3.4, 'p0': 3e5,
+                                        'p1Byp0': 0.03})
+except modena.OutOfBounds as e:
+    # Called a surrogate outside its trained region.  The framework's
+    # BackwardMappingScriptTask already handles this and queues a retrain;
+    # a pure-Python caller can inspect e.model / e.model.outsidePoint.
+    ...
+except modena.BinaryNotFound as e:
+    # Exact-simulation binary missing.  e.name and e.searched pinpoint it.
+    ...
+```
+
+| Exception | Raised when | Framework response |
+|---|---|---|
+| `modena.OutOfBounds` | Surrogate input falls outside trained region | Retrain via `outOfBoundsStrategy`, resume simulation |
+| `modena.ParametersNotValid` | Surrogate has no fitted parameters (return code 202) | Run `initialisationStrategy`, resume simulation |
+| `modena.TerminateWorkflow` | Unknown non-zero return code from exact simulation | Defuse workflow, log the code |
+| `modena.FatalModelError` | Model author signals unrecoverable state | Defuse workflow with the exception message |
+| `modena.BinaryNotFound` | `find_binary` / `run_binary` cannot locate the executable | Defuse workflow with an explicit "check `[binaries]` / `MODENA_BIN_PATH`" log |
+| `modena.ArgPosNotFound` | Named input/output/parameter has no `argPos` | Model definition bug — surfaces during `initModels` |
+
+**Return-code contract (C library → Python):**
+
+The C runtime exits the subprocess with a specific code when it needs
+Python to take action.  `BackwardMappingScriptTask.handleReturnCode`
+translates each code into the exception above:
+
+| Code | Meaning | Exception raised |
+|---|---|---|
+| `0` | Success | — |
+| `200` | Out of bounds | `OutOfBounds` |
+| `201` | Model missing from database | `ParametersNotValid` |
+| `202` | Parameters not yet fitted | `ParametersNotValid` |
+| other | Simulator crashed or returned unexpected code | `TerminateWorkflow` |
+
+`run_binary` calls `handleReturnCode` automatically.  If you use a lower-level
+subprocess call, invoke it yourself:
+
+```python
+result = subprocess.run([binary, ...], check=False)
+self.handleReturnCode(result.returncode)
+```
+
+**Non-convergence strategies** control what happens when the *exact*
+simulation raises a Python exception (numerical failure, timeout, etc.)
+rather than exiting cleanly with a non-zero code.  Attach one to a
+`BackwardMappingModel` with `nonConvergenceStrategy=`:
+
+| Strategy | Behaviour |
+|---|---|
+| `SkipPoint()` *(default)* | Log warning, skip the failing point, continue fitting with the remaining data |
+| `FizzleOnFailure()` | Mark firework `FIZZLED`; workflow stops for investigation |
+| `DefuseWorkflowOnFailure()` | Defuse entire workflow (legacy behaviour) |
+
+`BinaryNotFound` bypasses the non-convergence strategy — a missing binary
+is a configuration error, not a per-point failure, and skipping every
+point would silently produce an empty fit.
 
 ---
 

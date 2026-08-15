@@ -573,3 +573,186 @@ class TestModenaFireTaskFindBinary:
 
         assert captured.get('caller_file') is not None
         assert captured['caller_file'] == inspect.getfile(type(task))
+
+
+# ---------------------------------------------------------------------------
+# ModenaFireTask.run_binary — subprocess wrapper
+# ---------------------------------------------------------------------------
+
+class TestRunBinary:
+    """
+    ``run_binary`` is the recommended replacement for the legacy
+    ``os.system(self.find_binary(...)) + self.handleReturnCode(ret)`` pattern.
+    It must:
+      1. Look up the binary via ``find_binary``.
+      2. Invoke subprocess.run with capture_output=True.
+      3. On return code in {200, 201, 202}, call ``handleReturnCode``.
+      4. On other non-zero return codes, raise RuntimeError with stderr.
+      5. Propagate ``BinaryNotFound`` unchanged when the binary is missing.
+    """
+
+    def setup_method(self):
+        from modena.Registry import ModelRegistry
+        ModelRegistry._instance = None
+
+    def _make_task(self):
+        from modena.Strategy import ModenaFireTask
+        return ModenaFireTask({'modelId': 'testModel', 'point': {}})
+
+    def test_run_binary_success_returns_completed_process(self, tmp_path):
+        task = self._make_task()
+        with patch.object(task, 'find_binary', return_value='/bin/true'):
+            result = task.run_binary('true')
+        assert result.returncode == 0
+
+    def test_run_binary_missing_binary_raises_binary_not_found(self, tmp_path, monkeypatch):
+        from modena.Registry import BinaryNotFound
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv('MODENA_BIN_PATH', raising=False)
+        task = self._make_task()
+        with pytest.raises(BinaryNotFound):
+            task.run_binary('definitely_not_installed_xyz')
+
+    def test_run_binary_nonzero_raises_runtime_error(self):
+        task = self._make_task()
+        with patch.object(task, 'find_binary', return_value='/bin/false'):
+            with pytest.raises(RuntimeError, match='return code 1'):
+                task.run_binary('false')
+
+    def test_run_binary_return_code_202_dispatches_to_handler(self):
+        """A subprocess exiting with 202 must trigger handleReturnCode."""
+        from unittest.mock import ANY
+        task = self._make_task()
+        # /bin/sh -c 'exit 202' — portable, no need for a bespoke binary
+        with patch.object(task, 'find_binary', return_value='/bin/sh'):
+            with patch.object(task, 'handleReturnCode') as mock_handle:
+                task.run_binary('sh', args=['-c', 'exit 202'])
+        mock_handle.assert_called_once_with(202)
+
+    def test_run_binary_return_code_200_dispatches_to_handler(self):
+        task = self._make_task()
+        with patch.object(task, 'find_binary', return_value='/bin/sh'):
+            with patch.object(task, 'handleReturnCode') as mock_handle:
+                task.run_binary('sh', args=['-c', 'exit 200'])
+        mock_handle.assert_called_once_with(200)
+
+    def test_run_binary_check_return_code_false_returns_result(self):
+        """When check_return_code=False, non-zero codes must not raise."""
+        task = self._make_task()
+        with patch.object(task, 'find_binary', return_value='/bin/sh'):
+            result = task.run_binary(
+                'sh', args=['-c', 'exit 42'], check_return_code=False,
+            )
+        assert result.returncode == 42
+
+    def test_run_binary_captures_stderr_in_error_message(self):
+        task = self._make_task()
+        with patch.object(task, 'find_binary', return_value='/bin/sh'):
+            with pytest.raises(RuntimeError, match='boom'):
+                task.run_binary('sh', args=['-c', 'echo boom >&2; exit 3'])
+
+
+# ---------------------------------------------------------------------------
+# ModenaFireTask.run_task — BinaryNotFound handling
+# ---------------------------------------------------------------------------
+
+class TestRunTaskBinaryNotFound:
+    """
+    A missing binary is a configuration error, not a per-point convergence
+    failure.  ``run_task`` must catch ``BinaryNotFound`` before the generic
+    ``Exception`` handler and defuse the workflow with a clear ERROR log,
+    instead of silently skipping every point via the default SkipPoint().
+    """
+
+    def setup_method(self):
+        from modena.Registry import ModelRegistry
+        ModelRegistry._instance = None
+
+    def _make_task(self):
+        from modena.Strategy import ModenaFireTask
+        return ModenaFireTask({'modelId': 'testModel', 'point': {'D': 0.01}})
+
+    def _install_model_stub(self):
+        """Stub modena.SurrogateModel.load so run_task reaches self.task()."""
+        modena_stub = sys.modules['modena']
+        mock_sm = MagicMock()
+        mock_model = MagicMock()
+        mock_model.substituteModels = []
+        mock_sm.load.return_value = mock_model
+        original = getattr(modena_stub, 'SurrogateModel', None)
+        modena_stub.SurrogateModel = mock_sm
+        return original, mock_sm
+
+    def _restore_model_stub(self, original):
+        modena_stub = sys.modules['modena']
+        if original is not None:
+            modena_stub.SurrogateModel = original
+        else:
+            del modena_stub.SurrogateModel
+
+    def test_binary_not_found_defuses_workflow(self):
+        from modena.Registry import BinaryNotFound
+        task = self._make_task()
+        original, _ = self._install_model_stub()
+        try:
+            with patch.object(
+                task, 'executeAndCatchExceptions',
+                side_effect=BinaryNotFound('ghost', ['/bin']),
+            ):
+                result = task.run_task({'_fw_env': {}})
+        finally:
+            self._restore_model_stub(original)
+        assert result.defuse_workflow is True
+
+    def test_binary_not_found_logs_name_and_paths(self, caplog):
+        import logging
+        from modena.Registry import BinaryNotFound
+        task = self._make_task()
+        original, _ = self._install_model_stub()
+        try:
+            with caplog.at_level(logging.ERROR, logger='modena.strategy'):
+                with patch.object(
+                    task, 'executeAndCatchExceptions',
+                    side_effect=BinaryNotFound('ghost', ['/opt/bin', '/pkg/bin']),
+                ):
+                    task.run_task({'_fw_env': {}})
+        finally:
+            self._restore_model_stub(original)
+        # Log must name the missing binary and searched paths
+        assert 'ghost' in caplog.text
+        assert '/opt/bin' in caplog.text or '/pkg/bin' in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# modena top-level exception re-exports
+# ---------------------------------------------------------------------------
+
+class TestExceptionsReExported:
+    """The framework exceptions must be part of the submodule ``__all__`` so
+    that ``modena/__init__.py``'s ``from .Strategy import *`` / ``from
+    .SurrogateModel import *`` pulls them onto the top-level namespace.
+
+    (The runtime ``modena`` package is deliberately stubbed by ``conftest.py``
+    so ``__init__.py`` never executes — we assert on the export contract
+    instead of poking the stub.)
+    """
+
+    def test_strategy_exceptions_in_all(self):
+        import modena.Strategy as _s
+        for name in (
+            'OutOfBounds', 'ParametersNotValid', 'TerminateWorkflow',
+            'ModifyWorkflow', 'FatalModelError', 'BinaryNotFound',
+        ):
+            assert name in _s.__all__, f'{name} missing from Strategy.__all__'
+            assert hasattr(_s, name), f'{name} not defined in modena.Strategy'
+
+    def test_surrogatemodel_exceptions_in_all(self):
+        import modena.SurrogateModel as _sm
+        assert 'ArgPosNotFound' in _sm.__all__
+        assert hasattr(_sm, 'ArgPosNotFound')
+
+    def test_binary_not_found_bound_in_strategy_module(self):
+        """BinaryNotFound lives in Registry; Strategy must import + re-export it."""
+        import modena.Strategy as _s
+        from modena.Registry import BinaryNotFound
+        assert _s.BinaryNotFound is BinaryNotFound
