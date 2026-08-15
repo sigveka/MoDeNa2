@@ -1141,7 +1141,16 @@ static int modena_model_t_init
 
     if(!pParameters)
     {
-        pParameters = PyObject_GetAttrString(self->pModel, "parameters");
+        /* Post Phase 3 SurrogateModel.parameters is a DictField, so
+         * reading the raw attribute gives {'k0': 0.6, 'k1': 0.7} — not
+         * usable as a sequence of floats.  Ask the model for the
+         * argPos-ordered array via parameters_array() instead; that
+         * method also fills bound-midpoints for any parameter that
+         * hasn't been fitted yet, matching what the fitting loop
+         * would have used as the initial guess. */
+        pParameters = PyObject_CallMethod(
+            self->pModel, "parameters_array", NULL
+        );
         if(!pParameters){ Modena_PyErr_Print(); }
     }
     else

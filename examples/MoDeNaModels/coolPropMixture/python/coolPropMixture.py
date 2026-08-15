@@ -119,7 +119,7 @@ class MixtureViscosityValidationTask(FireTaskBase):
         model = modena.SurrogateModel.load('mixtureViscosity[fluid=N2O2Ar]')
         cModel = modena.libmodena.modena_model_t(
             model=model,
-            parameters=list(model.parameters),
+            parameters=model.parameters_array(),
         )
 
         # Held-out grid: 3×3 in (x_N2, x_O2), excluding training compositions

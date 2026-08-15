@@ -900,7 +900,13 @@ class SurrogateModel(DynamicDocument):
 
     _id = StringField(primary_key=True)
     surrogateFunction = ReferenceField(SurrogateFunction, required=True)
-    parameters = ListField(FloatField())
+    # Fitted parameter values keyed by name — argPos is derived at the
+    # C boundary via parameters_array() / set_parameters_array().  On
+    # disk: {"P0": 0.6134, "P1": 0.6143}.  Reordering the surrogate
+    # function's parameters dict is safe: values stay attached to their
+    # names, and the .so hash includes declaration order so any real
+    # semantic change forces a recompile.
+    parameters = DictField(FloatField())
     documentation = StringField(default='')
     last_fitted = DateTimeField()
     meta = {'allow_inheritance': True}
@@ -961,6 +967,40 @@ class SurrogateModel(DynamicDocument):
             for k, v in kwargs['inputs'].items():
                 if 'argPos' in v and not v['argPos'] == kwargs['surrogateFunction'].inputs[k].argPos:
                     raise Exception('argPos in function and model must be the same -- delete argPos from model')
+
+            # ── Parameter storage validation ────────────────────────────
+            # SurrogateModel.parameters is a DictField(FloatField) keyed
+            # by declared parameter name.  Reject the legacy positional
+            # list format with an actionable message.
+            if 'parameters' in kwargs:
+                p = kwargs['parameters']
+                sf_param_names = set(kwargs['surrogateFunction'].parameters.keys())
+
+                if isinstance(p, (list, tuple)):
+                    ordered = list(kwargs['surrogateFunction'].parameters.keys())
+                    example = ', '.join(
+                        f"{n!r}: {v}" for n, v in zip(ordered, list(p) + [1.0] * len(ordered))
+                    )
+                    raise TypeError(
+                        f"parameters must be a dict keyed by declared "
+                        f"parameter names — positional lists are no "
+                        f"longer supported.  Convert to a dict, e.g. "
+                        f"parameters={{{example}}}."
+                    )
+
+                if not isinstance(p, dict):
+                    raise TypeError(
+                        f"parameters must be a dict of "
+                        f"{{name: initial_value}}; got {type(p).__name__}"
+                    )
+
+                unknown = set(p.keys()) - sf_param_names
+                if unknown:
+                    raise ValueError(
+                        f"unknown parameter name(s) in initial parameters: "
+                        f"{sorted(unknown)}.  Declared parameters are: "
+                        f"{sorted(sf_param_names)}."
+                    )
 
             self.initKwargs(kwargs)
 
@@ -1196,6 +1236,110 @@ class SurrogateModel(DynamicDocument):
             return self.surrogateFunction.parameter_names_ordered().index(name)
         except ValueError:
             raise ArgPosNotFound(f'argPos for {name} not found in parameters')
+
+    # ── Named-parameter API ──────────────────────────────────────────
+    #
+    # ``self.parameters`` is a DictField(FloatField) keyed by declared
+    # parameter name.  The methods below are thin, validated wrappers
+    # around it plus the array-marshalling helpers used by the fitting
+    # loop and C-binding calls.  The C API stays positional (double*);
+    # marshalling happens at the boundary.
+
+    def get_parameter(self, name: str) -> float:
+        """Return the fitted value of parameter ``name``.
+
+        Raises:
+            KeyError: if ``name`` is not declared on the SurrogateFunction
+                or has no fitted value yet.
+        """
+        if name not in self.surrogateFunction.parameters:
+            raise KeyError(
+                f"unknown parameter {name!r}; declared parameters are "
+                f"{list(self.surrogateFunction.parameters.keys())}"
+            )
+        return self.parameters[name]
+
+    def set_parameter(self, name: str, value: float) -> None:
+        """Update a single parameter by name.
+
+        Raises:
+            KeyError: if ``name`` is not a declared parameter on the
+                SurrogateFunction.
+        """
+        if name not in self.surrogateFunction.parameters:
+            raise KeyError(
+                f"unknown parameter {name!r}; declared parameters are "
+                f"{list(self.surrogateFunction.parameters.keys())}"
+            )
+        self.parameters[name] = float(value)
+
+    def set_parameters(self, named: dict) -> None:
+        """Batch-update parameter values from a ``{name: value}`` dict.
+
+        Every key must be a declared parameter on the SurrogateFunction —
+        unknown keys raise ``KeyError`` (silent ignores would defeat the
+        purpose of naming).  Keys not present in ``named`` are left as
+        they were.
+        """
+        sf_keys = set(self.surrogateFunction.parameters.keys())
+        unknown = set(named.keys()) - sf_keys
+        if unknown:
+            raise KeyError(
+                f"unknown parameter name(s): {sorted(unknown)}; "
+                f"declared parameters are {sorted(sf_keys)}."
+            )
+        for k, v in named.items():
+            self.parameters[k] = float(v)
+
+    def named_parameters(self) -> dict:
+        """Return the fitted parameters as a plain ``{name: value}`` dict.
+
+        This is a defensive copy — mutating the return value does NOT
+        modify ``self.parameters``.  For batch updates use
+        :meth:`set_parameters`.
+        """
+        return dict(self.parameters)
+
+    def parameter_names(self) -> list:
+        """Argument-position-ordered list of declared parameter names.
+
+        Convenience wrapper around
+        ``self.surrogateFunction.parameter_names_ordered()``.
+        """
+        return self.surrogateFunction.parameter_names_ordered()
+
+    def parameters_array(self) -> list:
+        """Return parameters as an argPos-ordered list (C-boundary format).
+
+        Called by the fitting loop and by pure-Python callers that need
+        to invoke the compiled ``.so`` via
+        ``modena.libmodena.modena_model_t(model=self, parameters=...)``.
+        Values are taken from ``self.parameters`` (a dict); missing
+        entries are filled with the midpoint of the SurrogateFunction's
+        declared bounds (initial-guess convention).
+        """
+        arr = []
+        for name, bounds in self.surrogateFunction.parameters.items():
+            if name in self.parameters:
+                arr.append(float(self.parameters[name]))
+            else:
+                arr.append((bounds.min + bounds.max) / 2)
+        return arr
+
+    def set_parameters_array(self, arr) -> None:
+        """Set parameters from an argPos-ordered iterable of floats.
+
+        Used at the scipy boundary of the fitting loop where the optimizer
+        returns an ``ndarray``.  Length must match the declared parameter
+        count exactly.
+        """
+        names = self.surrogateFunction.parameter_names_ordered()
+        arr = list(arr)
+        if len(arr) != len(names):
+            raise ValueError(
+                f"expected {len(names)} parameter values, got {len(arr)}"
+            )
+        self.parameters = {name: float(v) for name, v in zip(names, arr)}
 
 
     def calculate_maps(self, sm):
@@ -1722,14 +1866,22 @@ class SurrogateModel(DynamicDocument):
     @classmethod
     def loadParametersNotValid(cls) -> 'list[SurrogateModel]':
         """
-        Return ALL surrogate models whose ``parameters`` list is empty.
+        Return ALL surrogate models whose ``parameters`` dict is empty.
 
         Returning all uninitialized models (not just the first) ensures that
         a single 202 detour initializes every model that will be needed,
         regardless of the order MongoDB returns documents.
+
+        ``parameters`` is a DictField (post Phase 3) — a fresh model has
+        ``parameters == {}``.  Older docs (pre-Phase-3) stored a list; the
+        query below matches both empty dict and empty list to remain robust.
         """
         return list(cls.objects(
-            __raw__={'parameters': {'$size': 0}}
+            __raw__={'$or': [
+                {'parameters': {}},
+                {'parameters': {'$exists': False}},
+                {'parameters': {'$size': 0}},   # legacy: empty list
+            ]}
         ).exclude('fitData'))
 
 

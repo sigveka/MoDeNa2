@@ -320,10 +320,34 @@ write `argPos: N` in a declaration.  Supplying it explicitly raises a
 `const double <name> = ...;`.  Validated at `CFunction` construction time.
 
 **Reordering is safe.**  Parameter values on the model are stored keyed by
-name (dict on disk) — swapping the order of `'P0'` and `'P1'` in the
-`parameters={}` declaration renumbers argPos but leaves the fitted values
-correctly attached to their names.  Adding a new parameter mid-list is a
-non-event: existing values keep their meaning.
+name (`DictField(FloatField)` on disk — `{"P0": 0.6134, "P1": 0.6143}`)
+— swapping the order of `'P0'` and `'P1'` in the `parameters={}`
+declaration renumbers argPos but leaves the fitted values correctly
+attached to their names.  Adding a new parameter mid-list is a
+non-event: existing values keep their meaning; the new parameter starts
+from `(min+max)/2` unless a specific initial value is supplied.
+
+**Named parameter API on `SurrogateModel`:**
+
+```python
+m = modena.load('flowRate')
+
+m.parameters                 # {'P0': 0.6134, 'P1': 0.6143}  — DictField
+m.get_parameter('P0')        # 0.6134
+m.set_parameter('P0', 0.7)   # in-place; unknown name → KeyError
+
+m.set_parameters({'P0': 0.5, 'P1': 0.6})   # batch; unknown key → KeyError
+m.named_parameters()         # defensive copy
+
+m.parameter_names()          # ['P0', 'P1']  — argPos-ordered
+m.parameters_array()         # [0.7, 0.6143] — argPos-ordered, for C boundary
+```
+
+The array marshalling helpers (`parameters_array` / `set_parameters_array`)
+are what the fitting loop uses at the scipy boundary and what wrappers
+should pass to `libmodena.modena_model_t(model=m, parameters=...)`.
+Never pass `list(m.parameters)` — that gives an iteration over dict keys
+(names), not values.
 
 ### 2 — Exact task
 

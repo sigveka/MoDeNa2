@@ -126,7 +126,7 @@ class MixtureDensityValidationTask(FireTaskBase):
         model = modena.SurrogateModel.load('mixtureDensity[fluid=N2O2Ar]')
         cModel = modena.libmodena.modena_model_t(
             model=model,
-            parameters=list(model.parameters),
+            parameters=model.parameters_array(),
         )
 
         # Held-out points offset from training distribution

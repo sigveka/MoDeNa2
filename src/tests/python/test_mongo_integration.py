@@ -264,19 +264,25 @@ class TestFallbackLoaders:
     def test_load_parameters_not_valid_returns_uninitialized_models(
         self, mongo_db,
     ):
-        """loadParametersNotValid scans for models whose parameters list is
+        """loadParametersNotValid scans for models whose parameters dict is
         missing or empty — the marker signalling that ``initModels`` has
-        not been run yet for that model."""
+        not been run yet for that model.
+
+        Post Phase 3, ``parameters`` is a DictField (empty ``{}`` marks an
+        uninitialised model).  The query also matches the legacy
+        empty-list format so pre-Phase-3 docs that survive a partial
+        migration still get picked up.
+        """
         from modena.SurrogateModel import SurrogateModel
 
-        # A saved model with no parameters — should be picked up
+        # A saved model with no parameters (fresh model) — should be picked up
         coll = SurrogateModel._get_collection()
         coll.replace_one(
             {'_id': 'uninitialized'},
             {
                 '_id': 'uninitialized',
                 '_cls': 'SurrogateModel.BackwardMappingModel',
-                'parameters': [],
+                'parameters': {},
             },
             upsert=True,
         )
@@ -286,14 +292,18 @@ class TestFallbackLoaders:
             {
                 '_id': 'initialized',
                 '_cls': 'SurrogateModel.BackwardMappingModel',
-                'parameters': [1.0, 2.0],
+                'parameters': {'k0': 1.0, 'k1': 2.0},
             },
             upsert=True,
         )
 
         # Direct query mirroring what loadParametersNotValid does
         found = list(SurrogateModel._get_collection().find(
-            {'$or': [{'parameters': []}, {'parameters': {'$exists': False}}]}
+            {'$or': [
+                {'parameters': {}},
+                {'parameters': {'$exists': False}},
+                {'parameters': {'$size': 0}},   # legacy
+            ]}
         ))
         ids = {d['_id'] for d in found}
         assert 'uninitialized' in ids

@@ -1668,9 +1668,9 @@ class Test(ParameterFittingStrategy):
         # the SurrogateFunction dict-key insertion order (parameters no
         # longer carry an argPos embedded field).
         sf_params = model.surrogateFunction.parameters
-        new_parameters = model.parameters[:]
-        if not len(new_parameters):
-            new_parameters = [(v.min + v.max) / 2 for v in sf_params.values()]
+        # ``parameters_array()`` returns declared-order values, filling
+        # bound-midpoints for names not yet fitted (initial guess).
+        new_parameters = model.parameters_array()
 
         min_parameters = [v.min for v in sf_params.values()]
         max_parameters = [v.max for v in sf_params.values()]
@@ -1748,10 +1748,27 @@ class Test(ParameterFittingStrategy):
             return FWAction(detours=self['improveErrorStrategy'].workflow(model))
 
         else:
-            _log.debug('old parameters = [%s]', ', '.join(f'{k:g}' for k in model.parameters))
-            _log.info('new parameters = [%s]', ', '.join(f'{k:g}' for k in new_parameters))
-
-            model["parameters"] = new_parameters
+            _log.debug(
+                'old parameters = %s',
+                model.named_parameters(),
+                extra={
+                    'event': 'parameters_fitted',
+                    'model_id': model._id,
+                    'stage': 'old',
+                    'parameters': model.named_parameters(),
+                },
+            )
+            model.set_parameters_array(new_parameters)
+            _log.info(
+                'new parameters = %s',
+                model.named_parameters(),
+                extra={
+                    'event': 'parameters_fitted',
+                    'model_id': model._id,
+                    'stage': 'new',
+                    'parameters': model.named_parameters(),
+                },
+            )
             model.updateMinMax()
             model.last_fitted = datetime.now(timezone.utc)
             model.save()
@@ -1804,13 +1821,11 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
             threshold = self.get('maxError', 0.1)
             criterion = MaxError(threshold=threshold)
 
-        # Common parameter initialisation.  Parameters are argPos-ordered
-        # by SurrogateFunction dict-key insertion order (no separate
-        # argPos field on the embedded doc).
+        # Common parameter initialisation.  ``parameters_array()`` returns
+        # declared-order values, filling bound-midpoints for any name not
+        # yet fitted (initial-guess convention).
         sf_params = model.surrogateFunction.parameters
-        init_parameters = model.parameters[:]
-        if not len(init_parameters):
-            init_parameters = [(v.min + v.max) / 2 for v in sf_params.values()]
+        init_parameters = model.parameters_array()
 
         min_parameters = [v.min for v in sf_params.values()]
         max_parameters = [v.max for v in sf_params.values()]
@@ -1910,19 +1925,39 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
 
         if not criterion.accepts(cv_error):
             _log.warning('Parameters not valid, adding samples.')
-            _log.debug('current parameters = [%s]', ', '.join(f'{k:g}' for k in best_params))
+            _log.debug(
+                'current parameters = %s',
+                dict(zip(model.parameter_names(), best_params)),
+            )
 
             model.save()
             return FWAction(detours=self['improveErrorStrategy'].workflow(model))
 
         else:
-            _log.debug('old parameters = [%s]', ', '.join(f'{k:g}' for k in model.parameters))
+            _log.debug(
+                'old parameters = %s',
+                model.named_parameters(),
+                extra={
+                    'event': 'parameters_fitted',
+                    'model_id': model._id,
+                    'stage': 'old',
+                    'parameters': model.named_parameters(),
+                },
+            )
 
             # Refit on full dataset after CV acceptance
             new_parameters = _fit_serial(list(range(model.nSamples)))
-            _log.info('new parameters = [%s]', ', '.join(f'{k:g}' for k in new_parameters))
-
-            model.parameters = new_parameters
+            model.set_parameters_array(new_parameters)
+            _log.info(
+                'new parameters = %s',
+                model.named_parameters(),
+                extra={
+                    'event': 'parameters_fitted',
+                    'model_id': model._id,
+                    'stage': 'new',
+                    'parameters': model.named_parameters(),
+                },
+            )
             model.updateMinMax()
             model.last_fitted = datetime.now(timezone.utc)
             model.save()
@@ -1961,9 +1996,7 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
     def newPointsFWAction(self, model, **kwargs):
 
         sf_params = model.surrogateFunction.parameters
-        new_parameters = model.parameters[:]
-        if not len(new_parameters):
-            new_parameters = [(v.min + v.max) / 2 for v in sf_params.values()]
+        new_parameters = model.parameters_array()
 
         min_parameters = [v.min for v in sf_params.values()]
         max_parameters = [v.max for v in sf_params.values()]
@@ -2020,11 +2053,30 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
                 new_parameters = fitted_params
 
         _log.info('Maximum Error = %g', maxError)
-        _log.debug('old parameters = [%s]', ', '.join(f'{k:g}' for k in model.parameters))
-        _log.info('new parameters = [%s]', ', '.join(f'{k:g}' for k in new_parameters))
+        _log.debug(
+            'old parameters = %s',
+            model.named_parameters(),
+            extra={
+                'event': 'parameters_fitted',
+                'model_id': model._id,
+                'stage': 'old',
+                'parameters': model.named_parameters(),
+            },
+        )
 
-        # Update the in-memory object so update_lock() sees the new state.
-        model.parameters = new_parameters
+        # Update the in-memory object (dict-typed) so update_lock() sees
+        # the new state.
+        model.set_parameters_array(new_parameters)
+        _log.info(
+            'new parameters = %s',
+            model.named_parameters(),
+            extra={
+                'event': 'parameters_fitted',
+                'model_id': model._id,
+                'stage': 'new',
+                'parameters': model.named_parameters(),
+            },
+        )
         model.updateMinMax()
         model.last_fitted = datetime.now(timezone.utc)
 
@@ -2032,7 +2084,7 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
         # overwrite concurrent changes (e.g. fitData appended by another task).
         # $set on individual fields is safe regardless of execution order.
         _update = {
-            'set__parameters':  new_parameters,
+            'set__parameters':  model.named_parameters(),   # dict, MongoDB-native
             'set__last_fitted': model.last_fitted,
         }
         for k, v in model.inputs.items():

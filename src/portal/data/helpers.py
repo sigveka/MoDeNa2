@@ -7,27 +7,25 @@ These are separated so they can be unit-tested without a database connection.
 
 def get_parameter_table(model) -> list[dict]:
     """
-    Build a list-of-dicts table joining model.parameters (positional list)
-    with surrogateFunction.parameters (MapField, each entry has argPos).
+    Build a list-of-dicts table of the model's fitted parameters.
 
-    Returns rows sorted by argPos with keys: name, value, min, max, argPos.
+    Post Phase 3, ``model.parameters`` is a dict keyed by declared name;
+    ``surrogateFunction.parameters`` provides the bounds and argPos
+    (dict-key insertion order).  Rows are returned in argPos order with
+    keys: name, value, min, max, argPos.
     """
-    sf_params = model.surrogateFunction.parameters  # MapField[name -> MinMaxArgPos]
-    model_values = model.parameters                # ListField[float] - indexed by argPos
+    sf_params = model.surrogateFunction.parameters  # MapField[name -> MinMax]
+    fitted = model.parameters or {}                 # DictField[name -> float]
 
     rows = []
-    for name, entry in sf_params.items():
-        arg_pos = entry.argPos
-        value = model_values[arg_pos] if arg_pos < len(model_values) else None
+    for arg_pos, (name, entry) in enumerate(sf_params.items()):
         rows.append({
             'name': name,
-            'value': value,
+            'value': fitted.get(name),
             'min': entry.min,
             'max': entry.max,
             'argPos': arg_pos,
         })
-
-    rows.sort(key=lambda r: r['argPos'])
     return rows
 
 

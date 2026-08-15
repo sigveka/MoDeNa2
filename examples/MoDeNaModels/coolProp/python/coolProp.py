@@ -91,7 +91,7 @@ class CoolPropValidationTask(FireTaskBase):
         model = modena.SurrogateModel.load('density[fluid=CO2]')
         cModel = modena.libmodena.modena_model_t(
             model=model,
-            parameters=list(model.parameters),
+            parameters=model.parameters_array(),
         )
 
         # Test grid — deliberately offset from training points

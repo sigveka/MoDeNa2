@@ -180,6 +180,12 @@ rework: auto-assigned argPos for outputs+parameters, rejection of
 user-supplied argPos, invalid-name rejection, SHA256 hash mixes in
 declaration order (reordering forces recompile), `MinMaxArgPos` deleted.
 
+`src/tests/python/test_named_parameters.py` — Phase 3+4: dict-typed
+`SurrogateModel.parameters` schema, named accessors (get/set_parameter,
+set_parameters, named_parameters, parameter_names, parameters_array,
+set_parameters_array), constructor rejection of positional list,
+dict persistence via mongomock, reordering-safety guarantee.
+
 ## Interface / integration tests
 
 Language-wrapper smoke tests live under `src/tests/interface-tests/`.
