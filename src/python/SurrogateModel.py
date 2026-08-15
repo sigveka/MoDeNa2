@@ -1169,12 +1169,19 @@ class SurrogateModel(DynamicDocument):
         access.  Reordering or inserting before the last element silently
         corrupts bounds and/or causes a segfault in the C application.
 
-        Current layout (indices 0–4):
-          0  list[float]   input minimums     (argPos-ordered)
-          1  list[float]   input maximums     (argPos-ordered)
-          2  keys view     input names        (argPos-ordered)
-          3  keys view     output names       (argPos-ordered)
-          4  keys view     parameter names    (argPos-ordered)
+        Current layout (indices 0–4) — all *argPos-ordered*, so element
+        ``i`` of every list refers to the same input/output/parameter slot:
+          0  list[float]   input minimums
+          1  list[float]   input maximums
+          2  list[str]     input names
+          3  list[str]     output names
+          4  list[str]     parameter names
+
+        argPos ordering is enforced explicitly by sorting the name views
+        before returning — see ``test_minmax_abi.py`` for the contract.
+        Relying on dict insertion order matching argPos is fragile because
+        outputs and parameters have user-specified argPos values that need
+        not follow declaration order.
 
         To extend: append new elements at the END and update
         modena_model_get_minMax() in src/src/model.c in the same commit.
@@ -1188,10 +1195,23 @@ class SurrogateModel(DynamicDocument):
             minValues[self.inputs_argPos(k)] = v.min
             maxValues[self.inputs_argPos(k)] = v.max
 
-        return minValues, maxValues, \
-            self.inputs.keys(), \
-            self.outputs.keys(), \
-            self.surrogateFunction.parameters.keys()
+        # Sort each name category by argPos so element i in the returned
+        # sequence corresponds to slot i in the C-side arrays.  This is a
+        # no-op when dict insertion order already matches argPos (the
+        # common case) but hardens the contract for models that declare
+        # outputs/parameters with out-of-order argPos values.
+        input_names = sorted(
+            self.inputs.keys(), key=lambda k: self.inputs_argPos(k)
+        )
+        output_names = sorted(
+            self.outputs.keys(), key=lambda k: self.outputs[k]['argPos']
+        )
+        parameter_names = sorted(
+            self.surrogateFunction.parameters.keys(),
+            key=lambda k: self.surrogateFunction.parameters[k]['argPos'],
+        )
+
+        return minValues, maxValues, input_names, output_names, parameter_names
 
 
     def updateMinMax(self):
