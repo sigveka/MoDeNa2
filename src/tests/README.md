@@ -173,6 +173,7 @@ returns `0` on success and non-zero on failure (detected by CTest).
 | Executable | What it tests |
 |---|---|
 | `test_siunits` | `modena_siunits_new`, `modena_siunits_destroy`, exponent read/write |
+| `test_inputsoutputs` | `modena_inputs_new/destroy`, `modena_outputs_new/destroy`, and the inline `modena_inputs_set/get` / `modena_outputs_get` roundtrip helpers — the C API almost every application uses |
 
 ### Notes
 
