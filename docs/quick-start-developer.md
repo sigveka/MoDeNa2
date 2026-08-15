@@ -267,9 +267,10 @@ void two_tank_flowRate
 {
     {% block variables %}{% endblock %}   /* MoDeNa injects variable bindings here */
 
-    const double P0 = parameters[0];
-    const double P1 = parameters[1];
-
+    // No manual `parameters[0]` — the Jinja2 block above synthesized
+    //     const double P0 = parameters[0];
+    //     const double P1 = parameters[1];
+    // for you.  Reference parameters by their declared names.
     outputs[0] = M_PI * pow(D, 2.0) * P1 * sqrt(P0 * rho0 * p0);
 }
 ''',
@@ -280,36 +281,49 @@ void two_tank_flowRate
         'p1Byp0': {'min': 0,    'max': 1.0 },
     },
     outputs={
-        'flowRate': {'min': 9e99, 'max': -9e99, 'argPos': 0},
+        'flowRate': {'min': 9e99, 'max': -9e99},
     },
     parameters={
-        'param0': {'min': 0.0, 'max': 10.0, 'argPos': 0},
-        'param1': {'min': 0.0, 'max': 10.0, 'argPos': 1},
+        'P0': {'min': 0.0, 'max': 10.0},
+        'P1': {'min': 0.0, 'max': 10.0},
     },
 )
 ```
 
 The `{% block variables %}` block is filled in by MoDeNa's Jinja2 template
-engine, which generates `const double D = inputs[0];` style bindings for each
-declared input.  You use those variable names directly in the C body.
+engine, which generates named C bindings for every declared variable:
+
+```c
+const double D  = inputs[0];       // for each input
+const double P0 = parameters[0];   // for each parameter
+```
+
+You reference `D` and `P0` directly in the C body — no `inputs[0]` or
+`parameters[0]` bookkeeping.
 
 **`argPos` — the index contract between Python and C:**
 
-`argPos` is the integer index into the `double[]` arrays that the C runtime and
-the compiled surrogate exchange.  It is set once at model creation and stored in
-MongoDB.  The rules are:
+`argPos` is the integer index into the `double[]` arrays exchanged with the
+compiled surrogate.  It is **assigned automatically from declaration order**
+for all three variable categories (inputs, outputs, parameters) — you never
+write `argPos: N` in a declaration.  Supplying it explicitly raises a
+`TypeError` with a message pointing at the named-parameter convention.
 
-| Variable kind | argPos | Rule |
-|---|---|---|
-| **inputs** | not specified | Assigned automatically: scalars first (0, 1, 2, …), then `IndexSet`-backed vector inputs |
-| **outputs** | required | Must be unique, starting from 0.  `outputs[argPos]` in your C code. |
-| **parameters** | required | Must be unique, starting from 0.  `parameters[argPos]` in your C code. |
+| Variable kind | Rule |
+|---|---|
+| **inputs** | Scalars first (0, 1, 2, …), then `IndexSet`-backed vector inputs (each occupies a contiguous block) |
+| **outputs** | Dict-key insertion order |
+| **parameters** | Dict-key insertion order |
 
-**Never change `argPos` on a model that already has data in MongoDB.**  Doing so
-silently shifts which array slot the C application reads, corrupting all
-existing results without any error message.  If you need to add a new input
-to an existing model, append it at the next available index and update the C
-application code.
+**Naming rule:** every variable name must be a valid C identifier
+(`^[a-zA-Z_][a-zA-Z0-9_]*$`) so the Jinja2 template can bind it as
+`const double <name> = ...;`.  Validated at `CFunction` construction time.
+
+**Reordering is safe.**  Parameter values on the model are stored keyed by
+name (dict on disk) — swapping the order of `'P0'` and `'P1'` in the
+`parameters={}` declaration renumbers argPos but leaves the fitted values
+correctly attached to their names.  Adding a new parameter mid-list is a
+non-event: existing values keep their meaning.
 
 ### 2 — Exact task
 

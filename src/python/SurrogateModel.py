@@ -278,31 +278,6 @@ class MinMaxOpt(EmbeddedDocument):
     max = FloatField()
 
 
-class MinMaxArgPos(EmbeddedDocument):
-    """Class containing minimum and maximum values of the variables in a
-    surrogate function.
-
-    The parent class comes from MongoEngine and makes it possible to embed the
-    document into a existing database collection.
-
-    @var min (float) MongoEngine data field for a float, required by default
-    @var max (float) MongoEngine data field for a float, required by default
-    @var argPos (int) MongoEngine data field, specifies argument position
-    @var index (document) Reference to a "IndexSet" document.
-    """
-    min = FloatField(required=True, default=None)
-    max = FloatField(required=True, default=None)
-    argPos = IntField(required=True)
-    index = ReferenceField(IndexSet)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-    def printIndex(self):
-        _log.debug('%s', self.index)
-
-
 class MinMaxArgPosOpt(EmbeddedDocument):
     """
     @brief  Class containing minimum and maximum values of the variables in a
@@ -388,13 +363,25 @@ class SurrogateFunction(DynamicDocument):
 
     name = StringField(primary_key=True)
     inputs = MapField(EmbeddedDocumentField(MinMaxArgPosOpt))
-    outputs = MapField(EmbeddedDocumentField(MinMaxArgPos))
-    parameters = MapField(EmbeddedDocumentField(MinMaxArgPos))
+    outputs = MapField(EmbeddedDocumentField(MinMax))
+    parameters = MapField(EmbeddedDocumentField(MinMax))
     functionName = StringField(required=True)
     libraryName = StringField(required=True)
     indices = MapField(ReferenceField(IndexSet))
     Ccode = StringField()
     meta = {'allow_inheritance': True}
+
+    # Reject legacy positional-argPos declarations at model-definition time
+    # so authors get an actionable error instead of a silent behaviour change.
+    _ARGPOS_REJECT_MSG = (
+        "'argPos' is auto-assigned from declaration order for {kind}: "
+        "delete 'argPos' from the {kind} declaration of '{name}'. "
+        "See docs/quick-start-developer.md for the named-parameter convention."
+    )
+
+    # C identifier regex — parameter and variable names must be usable as
+    # `const double <name> = ...;` in the synthesized Jinja2 bindings.
+    _C_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
     @abc.abstractmethod
     def __init__(self, *args, **kwargs):
@@ -420,42 +407,63 @@ class SurrogateFunction(DynamicDocument):
         else:
             super().__init__()
 
-            argPos = kwargs.pop('argPos', False)
-            if not argPos:
-                nInp = 0;
-                for k, v in kwargs['inputs'].items():
-                    if 'argPos' in v:
-                        raise Exception(
-                            f'argPos in function for inputs {k} (old format)'
-                            ' -- delete argPos from function'
-                        )
-                    if not 'index' in v:
-                        v['argPos'] = nInp
-                        nInp += 1
+            # ── argPos auto-assignment ─────────────────────────────────
+            # For all three categories argPos is now derived from
+            # declaration order.  Users must not supply it themselves;
+            # doing so is rejected with a clear error pointing at the
+            # named-parameter convention.
+            #
+            # Inputs get argPos on the embedded doc because vector inputs
+            # (IndexSet-backed) span a contiguous block whose start
+            # position is baked into the compiled surrogate.
+            # Outputs and parameters no longer store argPos — dict-key
+            # order is authoritative (see parameter_names_ordered() etc.)
+            nInp = 0
+            for k, v in kwargs['inputs'].items():
+                if 'argPos' in v:
+                    raise TypeError(self._ARGPOS_REJECT_MSG.format(
+                        kind='inputs', name=k,
+                    ))
+                if 'index' not in v:
+                    v['argPos'] = nInp
+                    nInp += 1
 
             for k, v in kwargs['inputs'].items():
                 if 'index' in v:
                     v['argPos'] = nInp
                     nInp += v['index'].iterator_size()
 
+            for k, v in kwargs['outputs'].items():
+                if isinstance(v, dict) and 'argPos' in v:
+                    raise TypeError(self._ARGPOS_REJECT_MSG.format(
+                        kind='outputs', name=k,
+                    ))
+
+            for k, v in kwargs['parameters'].items():
+                if isinstance(v, dict) and 'argPos' in v:
+                    raise TypeError(self._ARGPOS_REJECT_MSG.format(
+                        kind='parameters', name=k,
+                    ))
+
             for k, v in kwargs['inputs'].items():
                 if not isinstance(v, MinMaxArgPosOpt):
                     self.inputs[k] = MinMaxArgPosOpt(**v)
 
             for k, v in kwargs['outputs'].items():
-                if not isinstance(v, MinMaxArgPos):
-                    self.outputs[k] = MinMaxArgPos(**v)
+                if not isinstance(v, MinMax):
+                    self.outputs[k] = MinMax(**v)
 
             for k, v in kwargs['parameters'].items():
-                if not isinstance(v, MinMaxArgPos):
-                    self.parameters[k] = MinMaxArgPos(**v)
+                if not isinstance(v, MinMax):
+                    self.parameters[k] = MinMax(**v)
 
             if 'indices' in kwargs:
                 for k, v in kwargs['indices'].items():
                     self.indices[k] = kwargs['indices'][k]
 
-            self.initKwargs(kwargs)
-
+            # Validate every declared name is a valid C identifier BEFORE
+            # invoking initKwargs (which runs the CFunction compile step
+            # and would otherwise hit an obscure gcc error for a bad name).
             for k in self.inputs.keys():
                 self.checkVariableName(k)
 
@@ -464,6 +472,8 @@ class SurrogateFunction(DynamicDocument):
 
             for k in self.parameters.keys():
                 self.checkVariableName(k)
+
+            self.initKwargs(kwargs)
 
             self.Ccode = kwargs['Ccode']
             self.save()
@@ -488,11 +498,27 @@ class SurrogateFunction(DynamicDocument):
 
     def checkVariableName(self, name):
         """
-        @brief   Method checking whether 'name' exists in the 'IndexSet'
+        @brief   Validate a declared variable name.
+        @details
+                 Two checks:
+                 1. If the name references an index set (contains brackets),
+                    that index set must be declared in ``self.indices``.
+                 2. The bare name (base name minus any index suffix) must be
+                    a valid C identifier — it is synthesized into the
+                    generated surrogate code as
+                    ``const double <name> = ...;`` by the Jinja2 template.
         """
-        m = re.search(r'[(.*)]', name)
+        m = re.search(r'\[(.*)\]', name)
         if m and not m.group(1) in self.indices:
             raise Exception(f'Index {m.group(1)} not defined')
+
+        base = re.sub(r'\[.*\]$', '', name)
+        if not self._C_IDENTIFIER_RE.match(base):
+            raise ValueError(
+                f"variable name {name!r} is not a valid C identifier "
+                "(required for the synthesized Jinja2 binding "
+                "'const double <name> = ...;')."
+            )
 
 
     def inputs_iterAll(self):
@@ -520,6 +546,35 @@ class SurrogateFunction(DynamicDocument):
                 size += 1
 
         return size
+
+    def parameters_size(self):
+        """
+        @brief   Number of scalar parameters.  argPos-ordered by dict-key order.
+        """
+        return len(self.parameters)
+
+    def outputs_size(self):
+        """
+        @brief   Number of scalar outputs.  argPos-ordered by dict-key order.
+        """
+        return len(self.outputs)
+
+    def parameter_names_ordered(self) -> list:
+        """
+        @brief   Parameter names in argPos order.
+
+        Since parameters no longer carry an ``argPos`` field, dict-key
+        insertion order IS the canonical argPos ordering.  Consumers that
+        need the array-boundary ordering (e.g. the fitting marshalling
+        or the compiled ``.so`` invocation) call this.
+        """
+        return list(self.parameters.keys())
+
+    def output_names_ordered(self) -> list:
+        """
+        @brief   Output names in argPos order (dict-key insertion order).
+        """
+        return list(self.outputs.keys())
 
 
     @classmethod
@@ -636,8 +691,20 @@ class CFunction(SurrogateFunction):
         @brief   Helper function to compile a model into local library.
         @return  (str) path to the compiled surrogate shared library.
         """
+        # Hash the Ccode PLUS the declaration order of inputs / outputs /
+        # parameters.  Reordering any of these changes the Jinja2-synthesized
+        # bindings (`const double <name> = parameters[<i>];`), so the compiled
+        # .so must not be reused when order changes — otherwise the .so
+        # would silently keep the OLD name→index mapping while the
+        # SurrogateFunction record advertised the new one.
         m = hashlib.sha256()
         m.update(kwargs['Ccode'].encode('utf-8'))
+        m.update(b'\x00')
+        m.update('|'.join(kwargs['inputs'].keys()).encode('utf-8'))
+        m.update(b'\x00')
+        m.update('|'.join(kwargs['outputs'].keys()).encode('utf-8'))
+        m.update(b'\x00')
+        m.update('|'.join(kwargs['parameters'].keys()).encode('utf-8'))
         h = m.hexdigest()[:32]
 
         # Resolve the output directory from the registry so the user can
@@ -666,6 +733,9 @@ const size_t {{k}}_size = {{ v.index.iterator_size() }};
 const size_t {{k}}_argPos = {{v['argPos']}};
 const double {{k}} = inputs[{{k}}_argPos];
 {% endif %}
+{% endfor %}
+{% for k in pFunction.parameters %}
+const double {{k}} = parameters[{{loop.index0}}];
 {% endfor %}
 {% endblock %}
             ''')
@@ -1105,33 +1175,27 @@ class SurrogateModel(DynamicDocument):
     def outputs_argPos(self, name: str) -> int:
         """
         @brief   Method mapping output argument positions.
+
+        Outputs no longer carry an ``argPos`` embedded field — dict-key
+        insertion order in the SurrogateFunction is authoritative.
         """
         try:
-            return existsAndHasArgPos(self.outputs, name)
-        except ArgPosNotFound:
-            try:
-                return existsAndHasArgPos(
-                    self.surrogateFunction.outputs,
-                    name
-                )
-            except ArgPosNotFound:
-                raise ArgPosNotFound(f'argPos for {name} not found in outputs')
+            return self.surrogateFunction.output_names_ordered().index(name)
+        except ValueError:
+            raise ArgPosNotFound(f'argPos for {name} not found in outputs')
 
 
     def parameters_argPos(self, name: str) -> int:
         """
         @brief   Mapping parameter argument position.
+
+        Parameters no longer carry an ``argPos`` embedded field — dict-key
+        insertion order in the SurrogateFunction is authoritative.
         """
         try:
-            return existsAndHasArgPos(self.parameters, name)
-        except ArgPosNotFound:
-            try:
-                return existsAndHasArgPos(
-                    self.surrogateFunction.parameters,
-                    name
-                )
-            except ArgPosNotFound:
-                raise ArgPosNotFound(f'argPos for {name} not found in parameters')
+            return self.surrogateFunction.parameter_names_ordered().index(name)
+        except ValueError:
+            raise ArgPosNotFound(f'argPos for {name} not found in parameters')
 
 
     def calculate_maps(self, sm):
@@ -1147,10 +1211,14 @@ class SurrogateModel(DynamicDocument):
             except ArgPosNotFound:
                 pass
 
-        for k, v in sm.surrogateFunction.outputs.items():
+        # Outputs of the substitute model are ordered by dict-key order in
+        # its SurrogateFunction; argPos derives from position in that list.
+        for output_argPos, k in enumerate(
+            sm.surrogateFunction.output_names_ordered()
+        ):
             try:
                 map_outputs.extend(
-                    [v.argPos, self.inputs_argPos(sm.expandIndices(k))]
+                    [output_argPos, self.inputs_argPos(sm.expandIndices(k))]
                 )
             except ArgPosNotFound:
                 pass
@@ -1195,21 +1263,16 @@ class SurrogateModel(DynamicDocument):
             minValues[self.inputs_argPos(k)] = v.min
             maxValues[self.inputs_argPos(k)] = v.max
 
-        # Sort each name category by argPos so element i in the returned
-        # sequence corresponds to slot i in the C-side arrays.  This is a
-        # no-op when dict insertion order already matches argPos (the
-        # common case) but hardens the contract for models that declare
-        # outputs/parameters with out-of-order argPos values.
+        # Inputs may carry a non-trivial argPos (vector inputs backed by
+        # IndexSet get argPos blocks that don't match declaration index),
+        # so keep the explicit sort for input names.
         input_names = sorted(
             self.inputs.keys(), key=lambda k: self.inputs_argPos(k)
         )
-        output_names = sorted(
-            self.outputs.keys(), key=lambda k: self.outputs[k]['argPos']
-        )
-        parameter_names = sorted(
-            self.surrogateFunction.parameters.keys(),
-            key=lambda k: self.surrogateFunction.parameters[k]['argPos'],
-        )
+        # Outputs and parameters are argPos-ordered by dict-key insertion
+        # order in the SurrogateFunction (no separate argPos field).
+        output_names = self.surrogateFunction.output_names_ordered()
+        parameter_names = self.surrogateFunction.parameter_names_ordered()
 
         return minValues, maxValues, input_names, output_names, parameter_names
 

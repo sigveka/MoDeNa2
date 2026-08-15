@@ -1664,17 +1664,16 @@ class Test(ParameterFittingStrategy):
         """
         test_set = set(testIndices)
 
+        # Parameter min/max/init lists are argPos-ordered — which now IS
+        # the SurrogateFunction dict-key insertion order (parameters no
+        # longer carry an argPos embedded field).
+        sf_params = model.surrogateFunction.parameters
         new_parameters = model.parameters[:]
         if not len(new_parameters):
-            new_parameters = [None] * len(model.surrogateFunction.parameters)
-            for k, v in model.surrogateFunction.parameters.items():
-                new_parameters[v.argPos] = (v.min + v.max)/2
+            new_parameters = [(v.min + v.max) / 2 for v in sf_params.values()]
 
-        max_parameters = [None]*len(new_parameters)
-        min_parameters = [None]*len(new_parameters)
-        for k, v in model.surrogateFunction.parameters.items():
-            min_parameters[v.argPos] = v.min
-            max_parameters[v.argPos] = v.max
+        min_parameters = [v.min for v in sf_params.values()]
+        max_parameters = [v.max for v in sf_params.values()]
 
         # One cModel reused across all optimizer iterations via the parameters
         # setter (modena_model_t_set_parameters updates the internal double[]
@@ -1805,18 +1804,16 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
             threshold = self.get('maxError', 0.1)
             criterion = MaxError(threshold=threshold)
 
-        # Common parameter initialisation
+        # Common parameter initialisation.  Parameters are argPos-ordered
+        # by SurrogateFunction dict-key insertion order (no separate
+        # argPos field on the embedded doc).
+        sf_params = model.surrogateFunction.parameters
         init_parameters = model.parameters[:]
         if not len(init_parameters):
-            init_parameters = [None] * len(model.surrogateFunction.parameters)
-            for k, v in model.surrogateFunction.parameters.items():
-                init_parameters[v.argPos] = (v.min + v.max) / 2
+            init_parameters = [(v.min + v.max) / 2 for v in sf_params.values()]
 
-        max_parameters = [None] * len(init_parameters)
-        min_parameters = [None] * len(init_parameters)
-        for k, v in model.surrogateFunction.parameters.items():
-            min_parameters[v.argPos] = v.min
-            max_parameters[v.argPos] = v.max
+        min_parameters = [v.min for v in sf_params.values()]
+        max_parameters = [v.max for v in sf_params.values()]
 
         # Serialize optimizer and metric once for use in workers.
         optimizer = self.get('optimizer', TrustRegionReflective())
@@ -1963,17 +1960,13 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
 
     def newPointsFWAction(self, model, **kwargs):
 
+        sf_params = model.surrogateFunction.parameters
         new_parameters = model.parameters[:]
         if not len(new_parameters):
-            new_parameters = [None] * len(model.surrogateFunction.parameters)
-            for k, v in model.surrogateFunction.parameters.items():
-                new_parameters[v.argPos] = (v.min + v.max)/2
+            new_parameters = [(v.min + v.max) / 2 for v in sf_params.values()]
 
-        max_parameters = [None]*len(new_parameters)
-        min_parameters = [None]*len(new_parameters)
-        for k, v in model.surrogateFunction.parameters.items():
-            min_parameters[v.argPos] = v.min
-            max_parameters[v.argPos] = v.max
+        min_parameters = [v.min for v in sf_params.values()]
+        max_parameters = [v.max for v in sf_params.values()]
 
         maxError = 1000
         for i in range(model.nSamples):

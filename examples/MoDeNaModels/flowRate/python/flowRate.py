@@ -86,27 +86,36 @@ void two_tank_flowRate
 {
     {% block variables %}{% endblock %}
 
-    const double p1 = p0*inputs[3];
-
-    const double P0 = parameters[0];
-    const double P1 = parameters[1];
+    // The Jinja2 template above synthesizes:
+    //   const double D      = inputs[0];
+    //   const double rho0   = inputs[1];
+    //   const double p0     = inputs[2];
+    //   const double p1Byp0 = inputs[3];
+    //   const double P0     = parameters[0];   // named binding for the parameter
+    //   const double P1     = parameters[1];
+    //
+    // Reference parameters by their declared names instead of raw indices —
+    // reordering the `parameters={}` dict below then never risks a silent
+    // corruption of an existing fit.
 
     outputs[0] = M_PI*pow(D, 2.0)*P1*sqrt(P0*rho0*p0);
 }
 ''',
-    # These are global bounds for the function
+    # Global bounds for the function.  argPos is auto-assigned from dict
+    # insertion order for all three categories (inputs, outputs, parameters);
+    # supplying it explicitly is now rejected with a TypeError.
     inputs={
-        'D': { 'min': 0, 'max': 9e99 },
-        'rho0': { 'min': 0, 'max': 9e99 },
-        'p0': { 'min': 0, 'max': 9e99 },
+        'D':      { 'min': 0, 'max': 9e99 },
+        'rho0':   { 'min': 0, 'max': 9e99 },
+        'p0':     { 'min': 0, 'max': 9e99 },
         'p1Byp0': { 'min': 0, 'max': 1.0 },
     },
     outputs={
-        'flowRate': { 'min': 9e99, 'max': -9e99, 'argPos': 0 },
+        'flowRate': { 'min': 9e99, 'max': -9e99 },
     },
     parameters={
-        'param0': { 'min': 0.0, 'max': 10.0, 'argPos': 0 },
-        'param1': { 'min': 0.0, 'max': 10.0, 'argPos': 1 },
+        'P0': { 'min': 0.0, 'max': 10.0 },
+        'P1': { 'min': 0.0, 'max': 10.0 },
     },
 )
 

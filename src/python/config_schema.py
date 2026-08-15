@@ -86,19 +86,24 @@ class SurrogateConfig(BaseModel):
     parameters: dict[str, BoundSpec] = Field(default_factory=dict)
 
     def inputs_dict(self) -> dict[str, dict]:
-        """CFunction-compatible inputs dict (no argPos on inputs)."""
+        """CFunction-compatible inputs dict.
+
+        ``CFunction`` auto-assigns ``argPos`` from insertion order for all
+        three variable categories.  Declaration order in this config
+        drives argPos in the compiled surrogate.
+        """
         return {k: {'min': v.min, 'max': v.max}
                 for k, v in self.inputs.items()}
 
     def outputs_dict(self) -> dict[str, dict]:
-        """CFunction-compatible outputs dict with auto-assigned argPos."""
-        return {k: {'min': v.min, 'max': v.max, 'argPos': i}
-                for i, (k, v) in enumerate(self.outputs.items())}
+        """CFunction-compatible outputs dict.  argPos auto-assigned."""
+        return {k: {'min': v.min, 'max': v.max}
+                for k, v in self.outputs.items()}
 
     def parameters_dict(self) -> dict[str, dict]:
-        """CFunction-compatible parameters dict with auto-assigned argPos."""
-        return {k: {'min': v.min, 'max': v.max, 'argPos': i}
-                for i, (k, v) in enumerate(self.parameters.items())}
+        """CFunction-compatible parameters dict.  argPos auto-assigned."""
+        return {k: {'min': v.min, 'max': v.max}
+                for k, v in self.parameters.items()}
 
 
 # ------------------------------------------------------------------ #

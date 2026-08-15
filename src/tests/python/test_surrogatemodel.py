@@ -413,9 +413,27 @@ class TestParameterFittingStrategyChangedFieldsFilter:
 
 class TestCompileCcode:
 
-    def _make_so(self, tmp_path, code):
+    def _hash(self, code, inputs=(), outputs=(), parameters=()):
+        """Compute the SHA256 hash CFunction.compileCcode uses.
+
+        Post-Phase-1: the hash mixes in declaration order of every
+        variable category so reordering forces a recompile (otherwise
+        the stale .so's baked-in name→index bindings would silently
+        disagree with the SurrogateFunction record).
+        """
+        m = hashlib.sha256()
+        m.update(code.encode('utf-8'))
+        m.update(b'\x00')
+        m.update('|'.join(inputs).encode('utf-8'))
+        m.update(b'\x00')
+        m.update('|'.join(outputs).encode('utf-8'))
+        m.update(b'\x00')
+        m.update('|'.join(parameters).encode('utf-8'))
+        return m.hexdigest()[:32]
+
+    def _make_so(self, tmp_path, code, **cat):
         """Pre-create the .so file so that compileCcode skips compilation."""
-        h = hashlib.sha256(code.encode()).hexdigest()[:32]
+        h = self._hash(code, **cat)
         so = tmp_path / f'func_{h}' / f'lib{h}.so'
         so.parent.mkdir(parents=True, exist_ok=True)
         so.touch()
@@ -424,6 +442,12 @@ class TestCompileCcode:
     def _registry_mock(self, tmp_path):
         return lambda: SimpleNamespace(surrogate_lib_dir=tmp_path)
 
+    def _kwargs(self, code):
+        return {'Ccode': code, 'inputs': {}, 'outputs': {}, 'parameters': {}}
+
+    def _mock_self(self):
+        return SimpleNamespace(surrogateFunction=SimpleNamespace(inputs={}), inputs={})
+
     def test_hash_is_deterministic(self, tmp_path, monkeypatch):
         """Same Ccode → same returned library path on two independent calls."""
         from modena.SurrogateModel import CFunction
@@ -431,11 +455,9 @@ class TestCompileCcode:
 
         code = 'void f(const modena_model_t*m,const double*i,double*o){o[0]=i[0];}'
         self._make_so(tmp_path, code)
-        kwargs = {'Ccode': code, 'inputs': {}}
-        m = SimpleNamespace(surrogateFunction=SimpleNamespace(inputs={}), inputs={})
 
-        ln1 = CFunction.compileCcode(m, kwargs)
-        ln2 = CFunction.compileCcode(m, kwargs)
+        ln1 = CFunction.compileCcode(self._mock_self(), self._kwargs(code))
+        ln2 = CFunction.compileCcode(self._mock_self(), self._kwargs(code))
         assert ln1 == ln2
 
     def test_different_code_produces_different_path(self, tmp_path, monkeypatch):
@@ -447,9 +469,8 @@ class TestCompileCcode:
         self._make_so(tmp_path, code_a)
         self._make_so(tmp_path, code_b)
 
-        m = SimpleNamespace(surrogateFunction=SimpleNamespace(inputs={}), inputs={})
-        ln_a = CFunction.compileCcode(m, {'Ccode': code_a, 'inputs': {}})
-        ln_b = CFunction.compileCcode(m, {'Ccode': code_b, 'inputs': {}})
+        ln_a = CFunction.compileCcode(self._mock_self(), self._kwargs(code_a))
+        ln_b = CFunction.compileCcode(self._mock_self(), self._kwargs(code_b))
         assert ln_a != ln_b
 
     def test_skips_cmake_when_so_already_exists(self, tmp_path, monkeypatch):
@@ -459,11 +480,9 @@ class TestCompileCcode:
 
         code = 'void skip(){}'
         self._make_so(tmp_path, code)
-        kwargs = {'Ccode': code, 'inputs': {}}
-        m = SimpleNamespace(surrogateFunction=SimpleNamespace(inputs={}), inputs={})
 
         with patch('subprocess.run') as mock_run:
-            CFunction.compileCcode(m, kwargs)
+            CFunction.compileCcode(self._mock_self(), self._kwargs(code))
 
         mock_run.assert_not_called()
 
@@ -472,11 +491,30 @@ class TestCompileCcode:
         monkeypatch.setattr('modena.Registry.ModelRegistry', self._registry_mock(tmp_path))
 
         code = 'void check(){}'
-        h = hashlib.sha256(code.encode()).hexdigest()[:32]
+        h = self._hash(code)
         self._make_so(tmp_path, code)
-        kwargs = {'Ccode': code, 'inputs': {}}
-        m = SimpleNamespace(surrogateFunction=SimpleNamespace(inputs={}), inputs={})
 
-        ln = CFunction.compileCcode(m, kwargs)
+        ln = CFunction.compileCcode(self._mock_self(), self._kwargs(code))
         assert f'func_{h}' in ln
         assert ln.endswith(f'lib{h}.so')
+
+    def test_swapping_parameter_order_forces_recompile(self, tmp_path, monkeypatch):
+        """The hash must differ when parameter declaration order swaps —
+        otherwise a stale .so with baked-in old bindings would be reused."""
+        from modena.SurrogateModel import CFunction
+        monkeypatch.setattr('modena.Registry.ModelRegistry', self._registry_mock(tmp_path))
+
+        code = 'void reordered(){}'
+
+        kw_a = {'Ccode': code, 'inputs': {}, 'outputs': {},
+                'parameters': {'k0': None, 'k1': None}}
+        kw_b = {'Ccode': code, 'inputs': {}, 'outputs': {},
+                'parameters': {'k1': None, 'k0': None}}
+
+        # Pre-create both .so files so compileCcode returns without compiling
+        self._make_so(tmp_path, code, parameters=['k0', 'k1'])
+        self._make_so(tmp_path, code, parameters=['k1', 'k0'])
+
+        ln_a = CFunction.compileCcode(self._mock_self(), kw_a)
+        ln_b = CFunction.compileCcode(self._mock_self(), kw_b)
+        assert ln_a != ln_b

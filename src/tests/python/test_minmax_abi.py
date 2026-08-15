@@ -37,12 +37,13 @@ import pytest
 def _make_model(inputs, outputs, parameters):
     """Build a mock model with the attributes minMax() reaches for.
 
-    ``inputs``, ``outputs``, ``parameters`` are ordered dicts mapping name →
-    ``{'min': float, 'max': float, 'argPos': int}``.  For inputs, argPos is
-    the position in the min/max arrays; for outputs and parameters, argPos
-    is required for name ordering (though minMax itself just uses .keys()
-    for those two — position is expected to match dict insertion order,
-    which in Python 3.7+ is guaranteed for dict literals).
+    ``inputs``, ``outputs``, ``parameters`` are ordered dicts mapping name
+    → ``{'min': float, 'max': float}``.  Inputs may also carry ``argPos``
+    (the framework auto-assigns for scalar inputs, but vector inputs
+    carry an explicit block-start argPos).  Outputs and parameters have
+    NO ``argPos`` — dict-key insertion order is authoritative
+    (parameter_names_ordered / output_names_ordered on the
+    SurrogateFunction).
     """
     inputs_size = len(inputs)
 
@@ -61,12 +62,16 @@ def _make_model(inputs, outputs, parameters):
 
     model_inputs = {k: MinMaxSlot(v) for k, v in inputs.items()}
     model_outputs = {k: MinMaxSlot(v) for k, v in outputs.items()}
+    sf_outputs = {k: MinMaxSlot(v) for k, v in outputs.items()}
     sf_parameters = {k: MinMaxSlot(v) for k, v in parameters.items()}
 
     sf = SimpleNamespace(
-        inputs=model_inputs,       # for the fallback branch of inputs_argPos
+        inputs=model_inputs,           # for the fallback branch of inputs_argPos
+        outputs=sf_outputs,
         parameters=sf_parameters,
         inputs_size=lambda: inputs_size,
+        output_names_ordered=lambda: list(sf_outputs.keys()),
+        parameter_names_ordered=lambda: list(sf_parameters.keys()),
     )
     m = SimpleNamespace(
         inputs=model_inputs,
