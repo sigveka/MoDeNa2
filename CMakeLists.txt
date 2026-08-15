@@ -10,6 +10,15 @@ project(modena VERSION 2.0 LANGUAGES C CXX)
 # Options ------------------------------------------------------------------- #
 option(MODENA_BUILD_DOCS  "Build Doxygen API documentation"                 OFF)
 
+# Testing ------------------------------------------------------------------- #
+# enable_testing() must be called here, in the TOP-LEVEL CMakeLists, for ctest
+# to emit a root CTestTestfile.cmake that recurses into the subdirectories.
+# src/CMakeLists.txt also calls it (it is dual-use and must work standalone),
+# but a call in a subdirectory only registers that subtree — without this line
+# `ctest --preset dev` from the root build dir reports "Total Tests: 0" while
+# every test is in fact registered under build/src/tests/.
+enable_testing()
+
 # Library source (defines modena targets and all sub-options) --------------- #
 add_subdirectory(src)
 

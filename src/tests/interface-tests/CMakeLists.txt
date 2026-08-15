@@ -86,3 +86,40 @@ if(WITH_MATLAB)
         )
     endif()
 endif()
+
+# -- Julia (Modena.jl, pure ccall bindings) -------------------------------
+# Runs test_julia_smoke.jl through the julia executable.  Only wired up when
+# WITH_JULIA=ON, which is also what makes src/wrappers/julia the configured
+# wrapper.
+#
+# ``--project`` points at the wrapper SOURCE directory rather than the
+# installed copy in JULIA_PKG_DIR: Modena.jl is pure Julia, copied verbatim at
+# install time, so testing the source tree catches wrapper edits without
+# requiring `cmake --install` first.  The C side is still the installed one —
+# Modena.__init__ resolves libmodena.so through the installed modena Python
+# package.
+#
+# Julia is located by the parent CMakeLists' probe (_JULIA_EXECUTABLE, set
+# under WITH_JULIA); fall back to a local search if that cache entry is empty.
+if(WITH_JULIA)
+    if(_JULIA_EXECUTABLE)
+        set(_julia_test_exe "${_JULIA_EXECUTABLE}")
+    else()
+        find_program(_julia_test_exe julia)
+    endif()
+    if(_julia_test_exe)
+        add_test(NAME modena_iface_julia_smoke
+            COMMAND "${_julia_test_exe}" --startup-file=no
+                --project=${CMAKE_CURRENT_LIST_DIR}/../../wrappers/julia
+                "${CMAKE_CURRENT_SOURCE_DIR}/test_julia_smoke.jl"
+        )
+        set_tests_properties(modena_iface_julia_smoke PROPERTIES
+            LABELS "julia;integration"
+        )
+    else()
+        message(WARNING
+            "WITH_JULIA=ON but no julia executable was found — "
+            "skipping modena_iface_julia_smoke."
+        )
+    endif()
+endif()

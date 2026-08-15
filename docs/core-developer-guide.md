@@ -223,13 +223,22 @@ step for dependencies.
 
 ### Presets
 
-`CMakePresets.json` at the project root defines three presets:
+`CMakePresets.json` at the project root defines four presets:
 
 | Preset | Prefix | Build type | Tests | Use case |
 |---|---|---|---|---|
 | `default` | `$HOME` | Release | off | end-user install |
 | `dev` | `$HOME` | Debug | on | library development |
 | `hpc` | `/opt/modena` | Release | off | system/cluster install |
+| `full` | `$HOME` | Release | on | everything: all wrappers, portal, docs |
+
+`full` turns on every optional component — the Fortran, Julia, MATLAB/Octave
+and R wrappers, the test suite, the web portal, and the Doxygen docs target.
+Components whose toolchain is missing are skipped with a warning rather than
+failing the configure, so it stays usable on a partially provisioned machine.
+The `Wrappers` block of the build summary reports which ones were actually
+found; Doxygen is probed after that summary is printed, so watch for its
+warning separately.
 
 ```bash
 cmake --preset dev           # configure

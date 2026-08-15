@@ -43,17 +43,39 @@
         "WITH_FORTRAN":         "ON",
         "MODENA_BUILD_TESTS":   "OFF"
       }
+    },
+    {
+      "name": "full",
+      "displayName": "Full — user install, every wrapper + tests + portal + docs",
+      "description": "Install to $HOME with all optional components enabled: Fortran, Julia, MATLAB/Octave and R wrappers, the test suite, the web portal, and Doxygen docs. Any component whose toolchain is missing is skipped with a warning rather than failing the configure, so this stays usable on a partially provisioned machine. The build summary reports which wrappers were found; Doxygen is probed after that summary prints, so watch for its warning separately.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE":     "Release",
+        "WITH_FORTRAN":         "ON",
+        "WITH_JULIA":           "ON",
+        "WITH_MATLAB":          "ON",
+        "WITH_R":               "ON",
+        "MODENA_BUILD_TESTS":   "ON",
+        "MODENA_BUILD_PORTAL":  "ON",
+        "MODENA_BUILD_DOCS":    "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "default", "configurePreset": "default" },
     { "name": "dev",     "configurePreset": "dev"     },
-    { "name": "hpc",     "configurePreset": "hpc"     }
+    { "name": "hpc",     "configurePreset": "hpc"     },
+    { "name": "full",    "configurePreset": "full"    }
   ],
   "testPresets": [
     {
       "name": "dev",
       "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "full",
+      "configurePreset": "full",
       "output": { "outputOnFailure": true }
     }
   ]

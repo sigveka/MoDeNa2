@@ -200,7 +200,7 @@ require:
 Run with:
 
 ```bash
-cd build/src
+cd build
 ctest -L integration --output-on-failure
 ```
 
@@ -210,6 +210,7 @@ ctest -L integration --output-on-failure
 | `test_fortran_smoke` | Fortran 2003 (`fmodena_oop`) | Same coverage via `m%init` / `m%input_pos` / `m%set` / `m%call` / `m%get_output` |
 | `test_thread_safety` | C (`libmodena` directly, `std::thread`) | N pthreads share one `modena_model_t` with per-thread I/O vectors; every call must reproduce the reference `mdot` bit-for-bit.  Regression guard for the `modena_substitute_model_t` per-call allocation fix and the internal GIL protocol. |
 | `test_matlab_smoke` | MATLAB / Octave (via MEX gateway + `Modena.m` class) | Same coverage via `m.set_input`/`m.call`/`m.get_output`, plus Phase 3 named-parameter accessors (`m.parameters()` returning a struct, `m.get_parameter('P0')`).  Registered when `WITH_MATLAB=ON`; prefers Octave over MATLAB (faster startup, no license). |
+| `test_julia_smoke.jl` | Julia (`Modena.jl`, pure `ccall` bindings) | Same coverage via `set!`/`call!`/`output`, plus `parameters(m)` / `parameter(m, "P0")` and the 1-based↔0-based argPos conversion.  Also covers the Libdl discovery of `libmodena.so`, the `RTLD_GLOBAL` libpython priming, and named access *after* `check` (the GIL-release segfault class).  Registered when `WITH_JULIA=ON`. |
 
 ### Notes
 

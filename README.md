@@ -333,6 +333,19 @@ cmake --build --preset hpc
 cmake --install build
 ```
 
+To install everything — all four language wrappers, the test suite, the web
+portal, and the Doxygen docs target — use the `full` preset:
+
+```bash
+cmake --preset full
+cmake --build --preset full
+cmake --install build
+ctest --preset full
+```
+
+Any component whose toolchain is missing is skipped with a warning instead of
+failing the configure; the build summary lists what was found.
+
 #### 4 — Configure the environment
 
 ```bash

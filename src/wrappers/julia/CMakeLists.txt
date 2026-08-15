@@ -37,12 +37,16 @@ file(WRITE "${_REG_SCRIPT}"
 find_program(Julia_EXECUTABLE julia)
 find_program(lld_EXECUTABLE lld)
 
+# Some Julia installations shell out to a system lld to precompile packages;
+# others (juliaup binaries, for instance) ship their own linker and need
+# nothing from the system.  Warn rather than fail — a missing system lld is
+# only a problem for the former, and Pkg.develop below reports it clearly if
+# precompilation does break.
 if(Julia_EXECUTABLE AND NOT lld_EXECUTABLE)
-  message(FATAL_ERROR
+  message(WARNING
     "lld (LLVM linker) not found.\n"
-    "Julia requires lld to precompile packages.\n"
-    "Install it with:  sudo apt install lld\n"
-    "Then re-run cmake."
+    "Some Julia builds need it to precompile packages; others bundle their own.\n"
+    "If Modena.jl fails to precompile, install it with:  sudo apt install lld"
   )
 endif()
 

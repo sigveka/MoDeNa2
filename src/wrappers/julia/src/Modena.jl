@@ -175,19 +175,40 @@ Base.showerror(io::IO, e::ModenaError) =
 Load a MoDeNa surrogate model by its database ID and allocate input/output
 vectors.  The model, inputs, and outputs are freed automatically when the
 `Model` object is garbage-collected.
+
+All input and output positions are resolved once here and cached, so later
+named access via `set!(m, name, v)` and `output(m, name)` is a plain `Dict`
+lookup — no calls into the embedded Python.  This matters because `check`
+releases the GIL for the time-step loop; resolving a name after that point
+would call `PyObject_CallMethod` without the GIL and segfault the process.
+
+The same caching happens in the C++ wrapper (`modena::Model`).  It has one
+consequence worth knowing: `modena_model_inputs_argPos` marks a position as
+"used", so after construction every input counts as queried and `check` can
+no longer catch an input the application forgot to `set!`.
 """
 mutable struct Model
     _model  ::Ptr{Cvoid}
     _inputs ::Ptr{Cvoid}
     _outputs::Ptr{Cvoid}
+    _input_pos ::Dict{String, Int}
+    _output_pos::Dict{String, Int}
 
     function Model(id::AbstractString)
         mptr = ccall(_sym(:modena_model_new), Ptr{Cvoid}, (Cstring,), id)
         mptr == C_NULL && error("modena_model_new: model '$id' not found in database")
         iptr = ccall(_sym(:modena_inputs_new),  Ptr{Cvoid}, (Ptr{Cvoid},), mptr)
         optr = ccall(_sym(:modena_outputs_new), Ptr{Cvoid}, (Ptr{Cvoid},), mptr)
-        m = new(mptr, iptr, optr)
+        m = new(mptr, iptr, optr, Dict{String, Int}(), Dict{String, Int}())
+        # Register the finalizer before the (Python-calling) name resolution
+        # below, so a failure there still frees the C allocations.
         finalizer(_destroy!, m)
+        for name in inputs_names(m)
+            m._input_pos[name] = _inputs_argPos(m, name)
+        end
+        for name in outputs_names(m)
+            m._output_pos[name] = _outputs_argPos(m, name)
+        end
         m
     end
 end
@@ -217,30 +238,44 @@ end
 
 # ── Positional access ─────────────────────────────────────────────────────────
 
+# Raw argPos lookups — these call into the embedded Python and are only safe
+# before `check` releases the GIL.  Used once each, from the `Model` ctor.
+_inputs_argPos(m::Model, name::AbstractString)::Int =
+    Int(ccall(_sym(:modena_model_inputs_argPos), Csize_t, (Ptr{Cvoid}, Cstring), m._model, name))
+
+_outputs_argPos(m::Model, name::AbstractString)::Int =
+    Int(ccall(_sym(:modena_model_outputs_argPos), Csize_t, (Ptr{Cvoid}, Cstring), m._model, name))
+
 """
     input_pos(m, name) -> Int
 
 Return the 0-based position index of the input named `name`.
 Cache the result before the simulation loop, then use `set!(m, pos, value)`.
+
+Resolved from the cache built at construction — a `Dict` lookup, safe to call
+after `check`.  Throws `KeyError` if `name` is not a declared input.
 """
-function input_pos(m::Model, name::AbstractString)::Int
-    Int(ccall(_sym(:modena_model_inputs_argPos), Csize_t, (Ptr{Cvoid}, Cstring), m._model, name))
-end
+input_pos(m::Model, name::AbstractString)::Int = m._input_pos[name]
 
 """
     output_pos(m, name) -> Int
 
 Return the 0-based position index of the output named `name`.
+
+Resolved from the cache built at construction — a `Dict` lookup, safe to call
+after `check`.  Throws `KeyError` if `name` is not a declared output.
 """
-function output_pos(m::Model, name::AbstractString)::Int
-    Int(ccall(_sym(:modena_model_outputs_argPos), Csize_t, (Ptr{Cvoid}, Cstring), m._model, name))
-end
+output_pos(m::Model, name::AbstractString)::Int = m._output_pos[name]
 
 """
     check(m)
 
-Verify that every input position has been queried via `input_pos`.
-Call once after all `input_pos` calls and before entering the simulation loop.
+Finish the setup phase and release the GIL for the simulation loop.
+
+Call once after all `input_pos` calls and before entering the loop.  Beyond
+the GIL handover, libmodena verifies here that every input position has been
+queried — though because `Model` resolves all of them at construction, that
+check always passes from Julia.
 """
 function check(m::Model)
     ccall(_sym(:modena_model_argPos_check), Cvoid, (Ptr{Cvoid},), m._model)
@@ -270,7 +305,8 @@ end
 """
     set!(m, name::AbstractString, value)
 
-Set input by name.  Resolves the position on every call — avoid in hot loops.
+Set input by name.  Costs one `Dict` lookup over the positional form; safe
+to use after `check`.
 """
 function set!(m::Model, name::AbstractString, value::Real)
     set!(m, input_pos(m, name), value)
@@ -279,7 +315,8 @@ end
 """
     output(m, name::AbstractString) -> Float64
 
-Get output by name.  Resolves the position on every call — avoid in hot loops.
+Get output by name.  Costs one `Dict` lookup over the positional form; safe
+to use after `check`.
 """
 function output(m::Model, name::AbstractString)::Float64
     output(m, output_pos(m, name))

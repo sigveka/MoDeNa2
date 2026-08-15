@@ -25,7 +25,11 @@ set(OUTPUT        ${CMAKE_CURRENT_BINARY_DIR}/build/timestamp)
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
 configure_file(${ENTRY_IN}    ${ENTRY_SCRIPT})
 
+# `cmake -E touch` does not create missing parent directories, so the build/
+# subdirectory has to be made first — otherwise the target fails outright on a
+# clean build tree.  Same pattern as src/python/CMakeLists.txt.
 add_custom_command(OUTPUT ${OUTPUT}
+                   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/build"
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
                    DEPENDS ${DEPS}
                   )
