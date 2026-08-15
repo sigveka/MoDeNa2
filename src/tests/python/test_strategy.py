@@ -254,6 +254,145 @@ class TestModenaFireTaskRunTask:
 
 
 # ---------------------------------------------------------------------------
+# ModenaFireTask.run_task — NonConvergenceStrategy dispatch
+# ---------------------------------------------------------------------------
+
+class TestNonConvergenceStrategyDispatch:
+    """When task() raises an exception, run_task must consult the loaded
+    model's nonConvergenceStrategy and honour its return value:
+
+      * SkipPoint()               → FWAction()        (continue, skip this point)
+      * FizzleOnFailure()         → re-raises         (firework marked FIZZLED)
+      * DefuseWorkflowOnFailure() → FWAction(defuse_workflow=True)
+
+    These classes are tested in isolation elsewhere; this suite verifies
+    the dispatch from run_task's generic exception handler.
+    """
+
+    def _make_task(self):
+        from modena.Strategy import ModenaFireTask
+        return ModenaFireTask({'modelId': 'testModel', 'point': {'D': 0.01}})
+
+    def _install_model_stub_with_strategy(self, strategy):
+        """Return (original, mock_sm) — install a SurrogateModel stub whose
+        load() returns a model whose nonConvergenceStrategy() returns the
+        supplied strategy instance."""
+        modena_stub = sys.modules['modena']
+        original = getattr(modena_stub, 'SurrogateModel', None)
+        mock_sm = MagicMock()
+        mock_model = MagicMock()
+        mock_model.substituteModels = []
+        mock_model.nonConvergenceStrategy.return_value = strategy
+        mock_sm.load.return_value = mock_model
+        modena_stub.SurrogateModel = mock_sm
+        return original, mock_sm
+
+    def _restore(self, original):
+        modena_stub = sys.modules['modena']
+        if original is not None:
+            modena_stub.SurrogateModel = original
+        else:
+            del modena_stub.SurrogateModel
+
+    def test_skippoint_returns_plain_fwaction(self):
+        from modena.Strategy import SkipPoint
+        task = self._make_task()
+        original, _ = self._install_model_stub_with_strategy(SkipPoint())
+        try:
+            with patch.object(task, 'executeAndCatchExceptions',
+                              side_effect=RuntimeError('convergence fail')):
+                result = task.run_task({'_fw_env': {}})
+        finally:
+            self._restore(original)
+        assert result is not None
+        assert result.defuse_workflow is False
+        assert result.detours == []
+
+    def test_fizzle_reraises_exception(self):
+        from modena.Strategy import FizzleOnFailure
+        task = self._make_task()
+        original, _ = self._install_model_stub_with_strategy(FizzleOnFailure())
+        try:
+            with patch.object(task, 'executeAndCatchExceptions',
+                              side_effect=RuntimeError('convergence fail')):
+                with pytest.raises(RuntimeError, match='convergence fail'):
+                    task.run_task({'_fw_env': {}})
+        finally:
+            self._restore(original)
+
+    def test_defuse_returns_defuse_workflow(self):
+        from modena.Strategy import DefuseWorkflowOnFailure
+        task = self._make_task()
+        original, _ = self._install_model_stub_with_strategy(
+            DefuseWorkflowOnFailure()
+        )
+        try:
+            with patch.object(task, 'executeAndCatchExceptions',
+                              side_effect=RuntimeError('boom')):
+                result = task.run_task({'_fw_env': {}})
+        finally:
+            self._restore(original)
+        assert result.defuse_workflow is True
+
+    def test_default_when_model_load_fails_is_skippoint(self):
+        """If the model itself couldn't be loaded (_model stays None), the
+        strategy defaults to SkipPoint() — otherwise every point in a fit
+        run would fail to load, and we'd have no way to complete."""
+        task = self._make_task()
+        modena_stub = sys.modules['modena']
+        original = getattr(modena_stub, 'SurrogateModel', None)
+        mock_sm = MagicMock()
+        # load raises so _model stays None
+        mock_sm.load.side_effect = RuntimeError('db error')
+        modena_stub.SurrogateModel = mock_sm
+        try:
+            result = task.run_task({'_fw_env': {}})
+        finally:
+            if original is not None:
+                modena_stub.SurrogateModel = original
+            else:
+                del modena_stub.SurrogateModel
+        # SkipPoint() → FWAction, no defuse
+        assert result.defuse_workflow is False
+
+    def test_skippoint_logs_warning(self, caplog):
+        """SkipPoint must produce a WARNING log naming the model and point
+        so the failure is not entirely silent."""
+        import logging
+        from modena.Strategy import SkipPoint
+        task = self._make_task()
+        original, _ = self._install_model_stub_with_strategy(SkipPoint())
+        try:
+            with caplog.at_level(logging.WARNING, logger='modena.strategy'):
+                with patch.object(task, 'executeAndCatchExceptions',
+                                  side_effect=RuntimeError('numerical')):
+                    task.run_task({'_fw_env': {}})
+        finally:
+            self._restore(original)
+        assert 'SKIPPED' in caplog.text
+        assert 'testModel' in caplog.text
+
+    def test_binary_not_found_bypasses_strategy(self):
+        """BinaryNotFound is a config error — it must NOT dispatch to the
+        strategy (which for a fit run would silently SkipPoint every point).
+        It must defuse the workflow regardless of which strategy is configured."""
+        from modena.Registry import BinaryNotFound
+        from modena.Strategy import SkipPoint
+        task = self._make_task()
+        original, _ = self._install_model_stub_with_strategy(SkipPoint())
+        try:
+            with patch.object(
+                task, 'executeAndCatchExceptions',
+                side_effect=BinaryNotFound('ghost', ['/opt/bin']),
+            ):
+                result = task.run_task({'_fw_env': {}})
+        finally:
+            self._restore(original)
+        # Even though SkipPoint is the strategy, BinaryNotFound must defuse
+        assert result.defuse_workflow is True
+
+
+# ---------------------------------------------------------------------------
 # BackwardMappingScriptTask.run_task — exception safety and success path
 # ---------------------------------------------------------------------------
 

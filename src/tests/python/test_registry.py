@@ -568,3 +568,105 @@ class TestBinSearchPath:
         assert issubclass(BinaryNotFound, FileNotFoundError)
         exc = BinaryNotFound('ghost', ['/nowhere'])
         assert isinstance(exc, FileNotFoundError)
+
+    # ---------- precedence coverage ---------------------------------------
+
+    def test_first_match_wins_across_multiple_configured_dirs(
+        self, tmp_path, monkeypatch,
+    ):
+        """When MODENA_BIN_PATH lists multiple dirs and the binary is present
+        in more than one, the first entry wins."""
+        from modena.Registry import ModelRegistry
+        first = tmp_path / 'first'
+        second = tmp_path / 'second'
+        first.mkdir(); second.mkdir()
+        (first / 'myExact').write_text('from first')
+        (second / 'myExact').write_text('from second')
+        monkeypatch.setenv('MODENA_BIN_PATH', f'{first}:{second}')
+        monkeypatch.chdir(tmp_path)
+        reg = ModelRegistry().load()
+        found = reg.find_binary('myExact')
+        assert found == str((first / 'myExact').resolve())
+
+    def test_no_caller_file_skips_package_relative(self, tmp_path, monkeypatch):
+        """When caller_file is None, the package-relative bin/ fallback must
+        not be attempted — otherwise cwd-based bin/ dirs would leak into the
+        search silently."""
+        from modena.Registry import ModelRegistry, BinaryNotFound
+        # Simulate a bin/ dir in cwd; it must NOT be searched when
+        # caller_file=None.
+        (tmp_path / 'bin').mkdir()
+        (tmp_path / 'bin' / 'myExact').write_text('#!/bin/sh\n')
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv('MODENA_BIN_PATH', raising=False)
+        reg = ModelRegistry().load()
+        with pytest.raises(BinaryNotFound) as excinfo:
+            reg.find_binary('myExact')   # no caller_file
+        # cwd/bin must not appear in searched (package-relative wasn't tried)
+        assert not any('bin' in p and str(tmp_path) in p
+                       for p in excinfo.value.searched)
+
+    def test_toml_layered_order_project_over_user_over_system(
+        self, tmp_path, monkeypatch,
+    ):
+        """The three TOML layers should each contribute to bin_search_path.
+        System first, then user, then project — verified via load order.
+        (find_binary walks bin_dirs in insertion order, so this is the
+        precedence the user sees.)"""
+        from modena.Registry import ModelRegistry
+        sys_bin = tmp_path / 'sys'
+        user_bin = tmp_path / 'user'
+        proj_bin = tmp_path / 'proj'
+        sys_bin.mkdir(); user_bin.mkdir(); proj_bin.mkdir()
+
+        # Point _load_toml at synthesized files by monkeypatching the module
+        # constants used inside load().
+        import modena.Registry as reg_mod
+        original_load = reg_mod._load_toml
+
+        def _fake_load(path):
+            p = str(path)
+            if p == '/etc/modena/config.toml':
+                return {'binaries': {'paths': [str(sys_bin)]}}
+            if p.endswith('.modena/config.toml'):
+                return {'binaries': {'paths': [str(user_bin)]}}
+            return original_load(path)
+
+        monkeypatch.setattr(reg_mod, '_load_toml', _fake_load)
+        # Project layer: real modena.toml in cwd
+        (tmp_path / 'modena.toml').write_text(
+            f'[binaries]\npaths = ["{proj_bin}"]\n'
+        )
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv('MODENA_BIN_PATH', raising=False)
+
+        reg = ModelRegistry().load()
+        path = reg.bin_search_path
+        # Order: system → user → project (all present)
+        i_sys  = path.index(str(sys_bin.resolve()))
+        i_user = path.index(str(user_bin.resolve()))
+        i_proj = path.index(str(proj_bin.resolve()))
+        assert i_sys < i_user < i_proj
+
+    def test_env_var_appended_after_all_toml_layers(
+        self, tmp_path, monkeypatch,
+    ):
+        """MODENA_BIN_PATH entries come *last* in bin_search_path."""
+        from modena.Registry import ModelRegistry
+        import modena.Registry as reg_mod
+        original_load = reg_mod._load_toml
+        sys_bin = tmp_path / 'sys'
+        env_bin = tmp_path / 'env'
+        sys_bin.mkdir(); env_bin.mkdir()
+
+        def _fake_load(path):
+            if str(path) == '/etc/modena/config.toml':
+                return {'binaries': {'paths': [str(sys_bin)]}}
+            return original_load(path)
+
+        monkeypatch.setattr(reg_mod, '_load_toml', _fake_load)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv('MODENA_BIN_PATH', str(env_bin))
+        reg = ModelRegistry().load()
+        path = reg.bin_search_path
+        assert path.index(str(sys_bin.resolve())) < path.index(str(env_bin.resolve()))
