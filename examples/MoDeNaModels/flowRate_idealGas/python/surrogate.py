@@ -94,13 +94,15 @@ void two_tank_flowRate
 {
     {% block variables %}{% endblock %}
 
-    //const double D = inputs[0];
-    //const double rho0 = inputs[1];
-    //const double p0 = inputs[2];
-    //const double p1 = p0*inputs[3];
-
-    const double P0 = parameters[0];
-    const double P1 = parameters[1];
+    // The variables block above emits a named binding for every declared
+    // input and parameter:
+    //
+    //   const double D    = inputs[0];        const double P0 = parameters[0];
+    //   const double rho0 = inputs[1];        const double P1 = parameters[1];
+    //   const double p0   = inputs[2];
+    //   const double p1Byp0 = inputs[3];
+    //
+    // Declaring any of them again here is a redefinition error.
 
     outputs[0] = M_PI*pow(D, 2.0)*P1*sqrt(P0*rho0*p0);
 }

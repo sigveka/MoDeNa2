@@ -30,11 +30,11 @@ max = 1.0
 min = -9.0e99
 max = 9.0e99
 
-[surrogate.parameters.param0]
+[surrogate.parameters.P0]
 min = 0.0
 max = 10.0
 
-[surrogate.parameters.param1]
+[surrogate.parameters.P1]
 min = 0.0
 max = 10.0
 

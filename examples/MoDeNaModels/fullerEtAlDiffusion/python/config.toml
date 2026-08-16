@@ -15,25 +15,34 @@ max = 9.0e99
 min = 0.0
 max = 9.0e99
 
-[surrogate.outputs."D[A]"]
+[surrogate.outputs.DA]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters."W[A]"]
+[surrogate.parameters.WA]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters."V[A]"]
+[surrogate.parameters.VA]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters."W[B]"]
+[surrogate.parameters.WB]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters."V[B]"]
+[surrogate.parameters.VB]
 min = 0.0
 max = 9.0e99
 
 # Initial parameter values: W[H2O]=16, V[H2O]=9.44, W[N2]=14, V[N2]=11.38
-parameters = [16.0, 9.44, 14.0, 11.38]
+
+
+# Fixed parameter values, keyed by the names declared above.  A bare
+# `parameters = [...]` key here would be parsed into the preceding table,
+# and positional lists are no longer accepted in any case.
+[parameters]
+WA = 16.0
+VA = 9.44
+WB = 14.0
+VB = 11.38

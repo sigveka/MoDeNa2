@@ -68,10 +68,9 @@ void fullerEtAlDiffusion
 {
     {% block variables %}{% endblock %}
 
-    const double WA = parameters[0];
-    const double VA = parameters[1];
-    const double WB = parameters[2];
-    const double VB = parameters[3];
+    // WA, VA, WB and VB are bound by the variables block above, which emits
+    // `const double <name> = parameters[<i>];` for every declared parameter.
+    // Declaring them again here is a redefinition error.
 
     outputs[0] = 1.011e-4*pow(T, 1.75)*pow(1.0/WA + 1.0/WB, 1.0/2.0);
     outputs[0] /= p*(pow(pow(VA, 1.0/3.0) + pow(VB, 1.0/3.0), 2.0));

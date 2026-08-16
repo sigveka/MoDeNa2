@@ -5,7 +5,12 @@
 # parameters: [R] — specific gas constant (J/(kg·K)).
 
 # Initial parameter values for ForwardMappingModel (R = 287 J/(kg·K) for dry air)
-parameters = [287.0]
+# Fitted/fixed parameter values, keyed by the names declared under
+# [surrogate.parameters].  A positional list is no longer accepted: values are
+# bound by name so that reordering the declarations cannot silently reassign
+# them.
+[parameters]
+R = 287.0
 
 [surrogate]
 

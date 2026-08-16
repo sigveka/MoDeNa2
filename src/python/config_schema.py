@@ -60,7 +60,7 @@ parameters — do **not** reorder after model creation.
 
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ------------------------------------------------------------------ #
@@ -470,5 +470,28 @@ class ModelConfig(BaseModel):
     simulation:  dict[str, Any]   | None      = None
     simulate:    SimulateConfig   | None      = None
     materials:   list[MaterialConfig] | None  = None
-    parameters:  list[float]      | None      = None
+    #: Fixed or pre-fitted parameter values, keyed by the names declared under
+    #: ``[surrogate.parameters]``.  ``SurrogateModel.parameters`` became a
+    #: DictField in the named-parameter rework, so a positional list can no
+    #: longer be bound safely -- reordering the declarations would silently
+    #: reassign every value.
+    parameters:  dict[str, float] | None      = None
     misc:        dict[str, Any]   | None      = None
+
+    @field_validator('parameters', mode='before')
+    @classmethod
+    def _reject_positional_parameters(cls, v):
+        """Turn the legacy list form into an actionable message.
+
+        Pydantic's own error ("Input should be a valid list") points the
+        reader in exactly the wrong direction once the schema is a dict.
+        """
+        if isinstance(v, (list, tuple)):
+            raise ValueError(
+                'positional parameter lists are no longer supported; key the '
+                'values by their declared names instead:\n\n'
+                '    [parameters]\n'
+                '    R = 287.0\n\n'
+                f'  (got: parameters = {list(v)!r})'
+            )
+        return v

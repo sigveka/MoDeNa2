@@ -56,7 +56,9 @@ void idealGas
 {
     {% block variables %}{% endblock %}
 
-    const double R = parameters[0];
+    // `R` is bound by the variables block above, which emits
+    // `const double R = parameters[0];` for every declared parameter.
+    // Declaring it again here is a redefinition error.
 
     outputs[0] = p0/R/T0;
 }
