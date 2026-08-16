@@ -301,6 +301,23 @@ const double P0 = parameters[0];   // for each parameter
 You reference `D` and `P0` directly in the C body — no `inputs[0]` or
 `parameters[0]` bookkeeping.
 
+**When to index the array instead.** The named style exists to stop a *human*
+reordering the `parameters={}` dict while the body still says `parameters[0]`,
+and to give meaningful coefficients readable names.  Neither applies to a
+surrogate whose body is generated: a generator emits the declaration dict and
+the body together from one source of truth, so they cannot disagree, and
+`p0 … pN` are not names anyone reads.
+
+So for **generated** surrogate forms — polynomials in particular — indexing
+`parameters[i]` directly is correct and expected, and several shipped models
+do exactly that (`dielectricFunction_poly`, `thermalDiffusion_poly`, the
+CoolProp models).  The template always emits
+`const double* parameters = model->parameters;` ahead of the named bindings,
+so both styles are available in every surrogate.  Document the coefficient
+layout in the model's `doc.md`, since that is where the meaning lives.
+
+Use the named style whenever you write the body by hand.
+
 **`argPos` — the index contract between Python and C:**
 
 `argPos` is the integer index into the `double[]` arrays exchanged with the

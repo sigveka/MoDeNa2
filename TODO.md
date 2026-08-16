@@ -244,6 +244,55 @@ The `argPos` system would need to accommodate very large parameter counts
 (thousands to millions of floats) without the current assumption that
 parameters are a small set of physically meaningful constants.
 
+#### A separate `CFunction` type, not an extension of the existing one
+
+**Decision:** generated surrogate bodies index `parameters[i]` directly rather
+than using the synthesized named bindings — see *Quick-start (developer) →
+When to index the array instead*.  That resolves the code-generation question
+for polynomials, and it is enough for them.  It is **not** enough for networks,
+which need a different document layout and therefore a different `CFunction`
+subclass.
+
+The C ABI is already fine.  `modena_model_t` carries
+`double *parameters` + `size_t parameters_size` (`src/src/model.h`), which is
+exactly the flat row-major weight buffer a generated forward pass wants.  The
+one hostile member is `const char** parameters_names`.
+
+What breaks is the Python-side document model, where every parameter is a
+first-class named entity:
+
+| Per-weight cost | Location |
+|---|---|
+| a `MinMax` embedded document | `SurrogateFunction.parameters` (`MapField`) |
+| a float keyed by name | `SurrogateModel.parameters` (`DictField`) |
+| a name string in the ABI tuple | `minMax()` index 4 → `parameters_names` |
+| a `const double` line | the Jinja2 variables block |
+
+Measured with `bson.encode`, that is 39 bytes per weight in
+`SurrogateFunction.parameters` and 16 in `SurrogateModel.parameters`, so the
+binding document hits the 16 MB BSON limit at roughly 430 000 weights — with
+`fitData` still to fit elsewhere.  Long before that ceiling, marshalling a
+list of 10⁵ name strings on every model construction is pure waste.  Two further assumptions do not survive the move either:
+`parameters_array()` fills unfitted parameters with bound midpoints, where a
+network wants Xavier/He initialisation; and per-weight `min`/`max` bounds are
+meaningless.
+
+So the new type should:
+
+- store weights as one binary blob (BSON `BinaryField`, or GridFS past 16 MB)
+  with a small shape/architecture descriptor, instead of N embedded documents;
+- declare only *hyperparameters* — layer sizes, activations — as named
+  parameters, so `parameters_names` stays short and the existing tooling
+  (`model show`, the portal, lock files) keeps working;
+- unpack the blob into `modena_model_t.parameters` at construction, leaving
+  the C side and the generated inference code unchanged;
+- pair with the `NeuralNetFitStrategy` described below, since
+  `scipy.optimize.least_squares` over 10⁵ parameters is not viable.
+
+Keeping this as a sibling class rather than a flag on `CFunction` avoids
+putting a branch on the hot path used by every polynomial surrogate, and keeps
+the strict `MinMax` schema (and its migration story) intact for them.
+
 #### ONNX Runtime integration
 
 For larger networks, generating C code is impractical.  An alternative is to
