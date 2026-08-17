@@ -518,3 +518,73 @@ class TestCompileCcode:
         ln_a = CFunction.compileCcode(self._mock_self(), kw_a)
         ln_b = CFunction.compileCcode(self._mock_self(), kw_b)
         assert ln_a != ln_b
+
+
+class TestCallModelOutputMapping:
+    """`callModel` maps the C output vector back onto output names.
+
+    Outputs are `MinMax` and carry no `argPos` -- dict-key insertion order IS
+    their argPos order.  `callModel` read `v.argPos` off them, so every call
+    raised AttributeError.  It had no test coverage, while the sibling readers
+    in the CLI had already been corrected for the same schema change.
+
+    The method is invoked unbound against a plain stub: binding a real
+    SurrogateModel would drag in mongoengine's Document machinery, which this
+    block of logic does not touch.
+    """
+
+    @staticmethod
+    def _stub(output_names):
+        return SimpleNamespace(
+            _id='stub',
+            inputs={'x': SimpleNamespace(min=0.0, max=1.0)},
+            inputs_argPos=lambda _k: 0,
+            expandIndices=lambda k: k,
+            surrogateFunction=SimpleNamespace(
+                # MinMax carries no argPos -- reading one must not be attempted.
+                outputs={n: SimpleNamespace(min=0.0, max=1.0)
+                         for n in output_names},
+                inputs_size=lambda: 1,
+            ),
+        )
+
+    @staticmethod
+    def _call(stub, returned):
+        """Invoke callModel with a fake C layer.
+
+        conftest replaces `modena` with a stub package that has no
+        `libmodena` attribute (loading the real one needs the compiled
+        library), so the extension module is injected here rather than
+        patched in place.
+        """
+        import types
+        import modena
+        from modena.SurrogateModel import SurrogateModel
+
+        lib = types.ModuleType('modena.libmodena')
+        lib.modena_model_t = MagicMock(
+            return_value=MagicMock(return_value=list(returned)))
+        with patch.object(modena, 'libmodena', lib, create=True):
+            return SurrogateModel.callModel(stub, {'x': 0.5})
+
+    def test_single_output(self):
+        assert self._call(self._stub(['y']), [42.0]) == {'y': 42.0}
+
+    def test_multiple_outputs_keep_declaration_order(self):
+        """Declaration order is the contract with the compiled surrogate."""
+        got = self._call(self._stub(['eps1', 'eps2']), [1.5, -2.5])
+        assert got == {'eps1': 1.5, 'eps2': -2.5}
+
+    def test_does_not_read_argpos_off_outputs(self):
+        """Fail loudly if the argPos lookup is ever reintroduced."""
+        class _NoArgPos:
+            min, max = 0.0, 1.0
+            def __getattr__(self, name):
+                raise AssertionError(
+                    f'callModel read {name!r} off an output; outputs are '
+                    'MinMax and carry no argPos'
+                )
+
+        stub = self._stub([])
+        stub.surrogateFunction.outputs = {'y': _NoArgPos()}
+        assert self._call(stub, [7.0]) == {'y': 7.0}

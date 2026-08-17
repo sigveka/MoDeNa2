@@ -1649,9 +1649,12 @@ class SurrogateModel(DynamicDocument):
         # the process via sys.exit(200).
         out = cModel(i)
 
+        # Outputs are MinMax ({min, max}) and carry no argPos -- dict-key
+        # insertion order IS their argPos order, as for parameters.  Reading
+        # v.argPos here raised AttributeError for every model.
         outputs = {
-            self.expandIndices(k): out[v.argPos]
-            for k, v in self.surrogateFunction.outputs.items()
+            self.expandIndices(k): out[i]
+            for i, k in enumerate(self.surrogateFunction.outputs)
         }
 
         # print('outputs', outputs.keys())
