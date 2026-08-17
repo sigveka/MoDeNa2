@@ -173,3 +173,48 @@ class TestRunRapidfireKwargs:
             run(Workflow([Firework([])]), lpad=lp, reset=False, timeout=None, njobs=1)
         _, kwargs = mock_rf.call_args
         assert 'timeout' not in kwargs
+
+
+# ---------------------------------------------------------------------------
+# Local worker count (njobs)
+# ---------------------------------------------------------------------------
+
+class TestLocalWorkers:
+    """njobs used to be silently ignored for 'rapidfire' and 'auto', so the
+    CLI's --jobs / --sequential flags did nothing on the default launcher."""
+
+    @pytest.mark.parametrize('njobs', [0, 1])
+    def test_single_worker_runs_in_process(self, njobs):
+        from fireworks import Firework, Workflow
+        from modena.Runner import run
+        lp = _make_lpad()
+        with patch('modena.Runner.rapidfire') as mock_rf, \
+             patch('modena.Runner.launch_multiprocess') as mock_mp:
+            run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=njobs)
+        assert mock_rf.call_count == 1
+        assert mock_mp.call_count == 0
+
+    def test_multiple_workers_use_job_packing(self):
+        from fireworks import Firework, Workflow
+        from modena.Runner import run
+        lp = _make_lpad()
+        with patch('modena.Runner.rapidfire') as mock_rf, \
+             patch('modena.Runner.launch_multiprocess') as mock_mp:
+            run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=4)
+        assert mock_rf.call_count == 0
+        _, kwargs = mock_mp.call_args
+        assert kwargs['num_jobs'] == 4
+        assert kwargs['nlaunches'] == 0        # run to completion
+        assert kwargs['fworker'] is not None
+
+    def test_auto_launcher_also_honours_njobs(self):
+        from fireworks import Firework, Workflow
+        from modena.Runner import run
+        lp = _make_lpad()
+        with patch('modena.Runner.launch_multiprocess') as mock_mp, \
+             patch('modena.Runner._auto_supervisor'), \
+             patch('modena.Runner._resolve_qadapter', return_value=MagicMock()):
+            run(Workflow([Firework([])]), lpad=lp, reset=False,
+                launcher='auto', njobs=3)
+        _, kwargs = mock_mp.call_args
+        assert kwargs['num_jobs'] == 3

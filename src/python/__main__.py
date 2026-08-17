@@ -34,6 +34,7 @@ License
 @author     Sigve Karolius
 @copyright  2014-2018, MoDeNa Project. GNU Public License.
 """
+import os
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
@@ -43,6 +44,7 @@ from modena import SurrogateModel
 from modena.Registry import ModelRegistry, _find_project_config
 
 from jinja2 import Template
+from mongoengine.errors import FieldDoesNotExist
 
 # ── terminal symbols ──────────────────────────────────────────────────────── #
 _OK   = '\u2713'   # ✓
@@ -68,8 +70,24 @@ def _lpad_cmd(fn):
 
 
 def find_file(name: str, path: Path | None = None) -> Path | None:
-    for p in (path or Path.cwd()).rglob(name):
-        return p
+    """Resolve *name* to an existing file, or return None.
+
+    A path that already points at a file — absolute, or relative to *path* —
+    is returned as-is.  Only a bare name that does not resolve directly is
+    searched for recursively.  The direct hit has to be tried first because
+    ``Path.rglob`` raises ``NotImplementedError`` on an absolute pattern.
+    """
+    base = path or Path.cwd()
+    candidate = Path(name).expanduser()
+
+    if candidate.is_absolute():
+        return candidate if candidate.is_file() else None
+
+    direct = base / candidate
+    if direct.is_file():
+        return direct
+
+    return next(base.rglob(name), None)
 
 
 # ------------------------------------------------------------------ #
@@ -82,7 +100,14 @@ def _fw_status(_args):
 
 def _fw_reset(args):
     if not args.force:
-        ans = input('[modena] Reset launchpad? All fireworks will be deleted. [y/N] ')
+        try:
+            ans = input('[modena] Reset launchpad? All fireworks will be deleted. [y/N] ')
+        except EOFError:
+            # Non-interactive stdin: treat an unanswerable prompt as "no"
+            # rather than crashing with a traceback.
+            print('[modena] No terminal to confirm on; pass --force to reset.',
+                  file=sys.stderr)
+            sys.exit(1)
         if ans.strip().lower() not in ('y', 'yes'):
             print('[modena] Reset cancelled.')
             return
@@ -99,13 +124,19 @@ def _fw_orphans(args):
 
 
 def _fw_run(args):
+    # --dir is the directory the workflow runs *in*: it is the _launch_dir
+    # baked into a generated YAML, the search root for --workflow/--py, and
+    # the working directory of everything this function spawns or executes.
     rundir = Path.cwd()
     if args.dir:
-        rundir = Path(args.dir).resolve()
-        assert rundir.exists(), f"Directory {rundir} does not exist"
+        rundir = Path(args.dir).expanduser().resolve()
+        if not rundir.is_dir():
+            print(f'[modena] ERROR: directory "{rundir}" does not exist.',
+                  file=sys.stderr)
+            sys.exit(1)
 
     if args.script:
-        fname = 'workflow.yaml'
+        fname = rundir / 'workflow.yaml'
         WORKFLOW = '''
 # ************ Auto-generated File ************
 fws      :
@@ -124,24 +155,53 @@ metadata : { }
 '''
         Template(WORKFLOW, trim_blocks=True, lstrip_blocks=True).stream(
             rundir=rundir, script=args.script
-        ).dump(fname)
+        ).dump(str(fname))
         print(f'[modena] Generated {fname}')
         print(f'[modena] Run with: lpad add {fname} && rlaunch rapidfire')
 
     elif args.workflow:
         import subprocess
-        f = find_file(args.workflow)
+        f = find_file(args.workflow, rundir)
         if f is None:
-            print(f'[modena] ERROR: workflow file "{args.workflow}" not found.', file=sys.stderr)
+            print(f'[modena] ERROR: workflow file "{args.workflow}" not found '
+                  f'in or below {rundir}.', file=sys.stderr)
             sys.exit(1)
-        subprocess.run(['lpad', 'add', f], check=True)
-        subprocess.run(['rlaunch', 'rapidfire'], check=True)
+        for cmd in (['lpad', 'add', str(f)], ['rlaunch', 'rapidfire']):
+            try:
+                subprocess.run(cmd, check=True, cwd=rundir)
+            except FileNotFoundError:
+                print(f'[modena] ERROR: "{cmd[0]}" not found on PATH — '
+                      f'is FireWorks installed?', file=sys.stderr)
+                sys.exit(1)
+            except subprocess.CalledProcessError as exc:
+                print(f'[modena] ERROR: {" ".join(cmd)} failed with exit '
+                      f'status {exc.returncode}.', file=sys.stderr)
+                sys.exit(exc.returncode)
 
     elif args.py:
-        import importlib.util, pathlib
-        spec = importlib.util.spec_from_file_location('_modena_wf', args.py)
+        import importlib.util
+        script = find_file(args.py, rundir)
+        if script is None:
+            print(f'[modena] ERROR: python workflow "{args.py}" not found '
+                  f'in or below {rundir}.', file=sys.stderr)
+            sys.exit(1)
+
+        spec = importlib.util.spec_from_file_location('_modena_wf', script)
+        # spec_from_file_location returns None for any suffix Python has no
+        # loader for (.txt, .sh, ...); dereferencing spec.loader then fails
+        # with an opaque AttributeError.
+        if spec is None or spec.loader is None:
+            print(f'[modena] ERROR: "{script}" is not an importable Python '
+                  f'module (expected a .py file).', file=sys.stderr)
+            sys.exit(1)
+
         mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        cwd = Path.cwd()
+        os.chdir(rundir)
+        try:
+            spec.loader.exec_module(mod)
+        finally:
+            os.chdir(cwd)
 
 
 # ------------------------------------------------------------------ #
@@ -155,9 +215,14 @@ def _model_ls(_args):
         return
     for m in models:
         sf = m.surrogateFunction
-        inputs  = sorted(sf['inputs'],     key=lambda k: sf['inputs'][k]['argPos'])
-        outputs = sorted(sf['outputs'],    key=lambda k: sf['outputs'][k]['argPos'])
-        params  = sorted(sf['parameters'], key=lambda k: sf['parameters'][k]['argPos'])
+        # Only inputs carry argPos on the stored document — vector inputs need
+        # an explicit block-start position.  Outputs and parameters are ordered
+        # by dict-key insertion, and that IS their argPos order; reading
+        # ['argPos'] off them raises KeyError.  Keep this in step with
+        # _model_show(), which does the same thing.
+        inputs  = sorted(sf['inputs'], key=lambda k: sf['inputs'][k]['argPos'])
+        outputs = list(sf['outputs'])
+        params  = list(sf['parameters'])
         sig = (', '.join(outputs) + ' = ' + sf.name
                + '( ' + ', '.join(inputs) + '  ;  ' + ', '.join(params) + ' )')
         trained = '  [trained]' if m.parameters else '  [untrained]'
@@ -205,6 +270,71 @@ def _model_freeze(args):
 
 def _model_restore(args):
     ModelRegistry().restore(args.input, verify_only=args.verify_only)
+
+
+#: Legacy embedded-document keys, mapped to the collection and the fields they
+#: may contaminate.  ``argPos`` was removed from outputs and parameters by the
+#: named-parameter rework: declaration order became authoritative.  ``MinMax``
+#: is a strict EmbeddedDocument, so a stored ``argPos`` is not merely ignored —
+#: mongoengine raises FieldDoesNotExist and the document cannot be read at all.
+_LEGACY_KEYS = {'surrogate_function': (('outputs', 'parameters'), 'argPos')}
+
+
+def _find_legacy_fields():
+    """Return ``[(collection, _id, [dotted paths]), ...]`` for stale documents.
+
+    Uses raw pymongo deliberately: the whole point is that these documents
+    cannot be loaded through mongoengine.
+    """
+    from mongoengine.connection import get_db
+    db = get_db()
+
+    found = []
+    for coll, (sections, key) in _LEGACY_KEYS.items():
+        for doc in db[coll].find():
+            paths = [
+                f'{section}.{name}.{key}'
+                for section in sections
+                for name, spec in (doc.get(section) or {}).items()
+                if isinstance(spec, dict) and key in spec
+            ]
+            if paths:
+                found.append((coll, doc['_id'], paths))
+    return found
+
+
+def _model_migrate(args):
+    """Strip fields that were removed from the schema but remain on disk."""
+    from mongoengine.connection import get_db
+
+    stale = _find_legacy_fields()
+    if not stale:
+        print('[modena] Database schema is current; nothing to migrate.')
+        return
+
+    n_fields = sum(len(paths) for _, _, paths in stale)
+    verb = 'Would remove' if args.check else 'Removing'
+    print(f'[modena] {verb} {n_fields} stale field(s) from '
+          f'{len(stale)} document(s):')
+    for coll, _id, paths in stale:
+        print(f'  {coll}/{_id}')
+        for p in paths:
+            print(f'      {p}')
+
+    if args.check:
+        print('\n[modena] --check given; database not modified.')
+        return
+
+    db = get_db()
+    for coll, _id, paths in stale:
+        db[coll].update_one({'_id': _id}, {'$unset': {p: '' for p in paths}})
+
+    remaining = _find_legacy_fields()
+    if remaining:
+        print(f'[modena] ERROR: {len(remaining)} document(s) still stale.',
+              file=sys.stderr)
+        sys.exit(1)
+    print(f'\n[modena] Migrated {len(stale)} document(s).')
 
 
 # ------------------------------------------------------------------ #
@@ -305,8 +435,11 @@ def _doctor(_args):
     failures = [r for r in _results if not r[0]]
     if failures:
         print(f'  {len(failures)} check(s) failed. See hints above.')
-    else:
-        print(f'  All checks passed.')
+        print()
+        # Non-zero exit so `modena doctor` is usable as a preflight gate in
+        # CI and setup scripts.
+        sys.exit(1)
+    print(f'  All checks passed.')
     print()
 
 
@@ -330,7 +463,7 @@ def _sweep(args):
         try:
             name, rng = spec.split('=', 1)
             lo, hi, n = rng.split(':')
-            sweep[name] = np.linspace(float(lo), float(hi), int(n))
+            lo, hi, n = float(lo), float(hi), int(n)
         except ValueError:
             print(
                 f'[modena] ERROR: --param {spec!r} must be name=min:max:n '
@@ -338,6 +471,16 @@ def _sweep(args):
                 file=sys.stderr,
             )
             sys.exit(1)
+        # n < 1 makes np.linspace return an empty axis, which silently
+        # collapses the whole cartesian product to zero rows.
+        if n < 1:
+            print(
+                f'[modena] ERROR: --param {spec!r}: n must be at least 1, '
+                f'got {n}.',
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        sweep[name] = np.linspace(lo, hi, n)
 
     # Parse --fix name=value
     fixed: dict[str, float] = {}
@@ -357,11 +500,29 @@ def _sweep(args):
     names  = list(sweep)
     points = list(itertools.product(*[sweep[n] for n in names]))
 
-    # Evaluate surrogate at each point
+    # Evaluate surrogate at each point.  A sweep is the operation most likely
+    # to leave the trained domain, and callModel() deliberately propagates
+    # OutOfBounds so non-workflow callers can react — so translate it here
+    # instead of letting a traceback out.
     rows: list[dict] = []
     for pt in points:
         inp    = {**fixed, **dict(zip(names, pt))}
-        result = model(inp)
+        try:
+            result = model(inp)
+        except modena.OutOfBounds:
+            bounds = '\n'.join(
+                f'           {k}: [{v.min:g}, {v.max:g}]'
+                for k, v in model.inputs.items()
+            )
+            print(
+                f'[modena] ERROR: point {inp} is outside the trained domain '
+                f'of {args.model_id!r}.\n'
+                f'         Trained bounds:\n{bounds}\n\n'
+                f'         Narrow the sweep to fit, or extend the model first:\n'
+                f'             modena init {args.model_id!r}',
+                file=sys.stderr,
+            )
+            sys.exit(1)
         rows.append({**inp, **result})
 
     # Determine output file name
@@ -369,6 +530,7 @@ def _sweep(args):
         args.model_id
         .replace('[', '_').replace(']', '')
         .replace('=', '_').replace(' ', '_')
+        .replace('/', '_').replace(os.sep, '_')
     )
     out_file = args.out or f'{safe_id}_sweep.csv'
 
@@ -445,7 +607,7 @@ def _simulate(args):
 
     from fireworks import Firework, Workflow
     wf = Workflow([Firework(instance, name=f'simulation {class_name}')], name='simulation')
-    _modena.run(wf, **_build_run_kwargs(args))
+    _launch(wf, args)
 
 
 # ------------------------------------------------------------------ #
@@ -460,27 +622,45 @@ def _ensure_models_path_registered(prefix: Path) -> None:
     data = _load_toml(config_path)
     paths = data.setdefault('models', {}).setdefault('paths', [])
     registered = {str(Path(p).expanduser().resolve()) for p in paths}
-    if str(prefix.resolve()) not in registered:
-        paths.append(str(prefix))
+    # Store the same resolved form the membership test uses, or a symlinked
+    # $HOME re-appends the identical path on every install.
+    resolved = str(prefix.resolve())
+    if resolved not in registered:
+        paths.append(resolved)
         _write_toml(config_path, data)
-        print(f'[modena] Registered {prefix} in {config_path}')
+        print(f'[modena] Registered {resolved} in {config_path}')
 
 
 def _build_run_kwargs(args) -> dict:
     """Build modena.run() kwargs from the common launcher CLI args."""
     njobs = 1 if args.sequential else args.jobs
-    run_kwargs = dict(njobs=njobs, launcher=args.launcher)
+    run_kwargs = dict(njobs=njobs, launcher=args.launcher, reset=args.reset)
     if args.launcher in ('qlaunch', 'auto'):
-        if args.qadapter is None:
-            print(f'[modena] ERROR: --qadapter is required with --launcher {args.launcher}',
-                  file=sys.stderr)
-            sys.exit(1)
+        # qadapter may legitimately be None: Runner.run() falls back to
+        # QUEUEADAPTER_LOC in FW_config.yaml and raises a clear ValueError
+        # when neither is set.  Rejecting None here made that fallback —
+        # which --qadapter's own help advertises — unreachable.
         run_kwargs['qadapter']   = args.qadapter
         run_kwargs['fworker']    = args.fworker
         run_kwargs['launch_dir'] = args.launch_dir
     if args.launcher == 'auto':
         run_kwargs['escalate_at'] = args.escalate_at
     return run_kwargs
+
+
+def _launch(wf_or_models, args) -> None:
+    """Run a workflow through modena.run(), reporting launcher errors cleanly.
+
+    ``run()`` validates the launcher/qadapter combination and raises
+    ``ValueError``; surfacing that as a traceback would tell a CLI user
+    nothing they can act on.
+    """
+    import modena as _modena
+    try:
+        _modena.run(wf_or_models, **_build_run_kwargs(args))
+    except ValueError as exc:
+        print(f'[modena] ERROR: {exc}', file=sys.stderr)
+        sys.exit(1)
 
 
 def _init_models(args):
@@ -494,16 +674,26 @@ def _init_models(args):
     # This is intentional here — the user explicitly asked to init all models.
     # (The general `import modena` no longer does this automatically at startup.)
     _reg = _ModelRegistry().load()
-    for _pkg in _reg.active_packages():
-        try:
-            _importlib.import_module(_pkg)
-        except ImportError as _e:
-            print(f'[modena] WARNING: could not import {_pkg!r}: {_e}',
+    for _dist in _reg.active_packages():
+        # active_packages() reports *distribution* names, which differ from
+        # the importable module name whenever the distribution uses a
+        # separator ('my-model' installs as 'my_model').
+        candidates = [_dist]
+        if '-' in _dist or '.' in _dist:
+            candidates.append(_dist.replace('-', '_').replace('.', '_'))
+        for _name in candidates:
+            try:
+                _importlib.import_module(_name)
+                break
+            except ImportError as _e:
+                _err = _e
+        else:
+            print(f'[modena] WARNING: could not import {_dist!r}: {_err}',
                   file=sys.stderr)
 
     all_models = list(_modena.SurrogateModel.get_instances())
 
-    if args.models == ['all']:
+    if 'all' in args.models:
         models = all_models
     else:
         by_id = {m._id: m for m in all_models}
@@ -520,7 +710,7 @@ def _init_models(args):
 
     print(f'[modena] Initialising {len(models)} model(s): '
           + ', '.join(m._id for m in models))
-    _modena.run(models, **_build_run_kwargs(args))
+    _launch(models, args)
 
 
 def _model_refit(args):
@@ -562,7 +752,7 @@ def _model_refit(args):
                   name=f'{m._id} — refit')],
         name=f'refit {m._id}',
     )
-    _modena.run(wf, **_build_run_kwargs(args))
+    _launch(wf, args)
 
 
 def _install_models(args):
@@ -574,15 +764,19 @@ def _install_models(args):
         if args.prefix
         else Path.home() / '.modena' / 'models'
     )
+
+    # Validate every package up front.  Validating inside the install loop
+    # meant a typo in the last argument aborted the run with the earlier
+    # packages already installed.
+    pkgs = [Path(p).expanduser().resolve() for p in args.packages]
+    bad = [p for p in pkgs if not (p / 'pyproject.toml').is_file()]
+    if bad:
+        for p in bad:
+            print(f'[modena] ERROR: {p} has no pyproject.toml', file=sys.stderr)
+        sys.exit(1)
+
     _ensure_models_path_registered(prefix)
-    for pkg_path in args.packages:
-        pkg = Path(pkg_path).resolve()
-        if not (pkg / 'pyproject.toml').is_file():
-            print(
-                f'[modena] ERROR: {pkg} has no pyproject.toml',
-                file=sys.stderr,
-            )
-            sys.exit(1)
+    for pkg in pkgs:
         print(f'[modena] Installing {pkg.name} → {prefix}')
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -608,7 +802,7 @@ def _install_models(args):
                  '--prefix', str(prefix), '--no-deps', str(wheels[0])],
                 check=True,
             )
-    print(f'\n[modena] Done. Packages importable after next "import modena".')
+    print('\n[modena] Done. Packages importable after next "import modena".')
 
 
 # ------------------------------------------------------------------ #
@@ -786,17 +980,25 @@ def _quickstart(_args):
 # ------------------------------------------------------------------ #
 
 def _add_launcher_args(p) -> None:
-    """Add --jobs, --sequential, --launcher, --qadapter, --fworker,
+    """Add --jobs, --sequential, --reset, --launcher, --qadapter, --fworker,
     --launch-dir, and --escalate-at to an ArgumentParser subcommand."""
     p.add_argument(
         '--jobs', '-j', type=int, default=0, metavar='N',
-        help='Number of parallel worker processes / max HPC queue slots '
-             '(default: cpu_count for rapidfire, unlimited for qlaunch)',
+        help='rapidfire/auto: number of local worker processes (default: 1).  '
+             'qlaunch: max HPC queue slots held simultaneously '
+             '(default: 0 = unlimited)',
     )
     p.add_argument(
         '--sequential', action='store_true',
-        help='Run sequentially in the current process '
-             '(rapidfire only, equivalent to --jobs 1)',
+        help='Run sequentially in a single process '
+             '(equivalent to --jobs 1; this is the default)',
+    )
+    p.add_argument(
+        '--reset', action='store_true',
+        help='Clear the launchpad before adding this workflow.  DESTRUCTIVE: '
+             'deletes every existing firework and its run history.  Without '
+             'this flag the new workflow is added alongside what is already '
+             'queued.',
     )
     p.add_argument(
         '--launcher', choices=['rapidfire', 'qlaunch', 'auto'],
@@ -813,8 +1015,8 @@ def _add_launcher_args(p) -> None:
     )
     p.add_argument(
         '--qadapter', type=str, default=None, metavar='PATH',
-        help='Path to qadapter.yaml (required with --launcher qlaunch or auto '
-             'unless QUEUEADAPTER_LOC is set in FW_config.yaml)',
+        help='Path to qadapter.yaml.  Required with --launcher qlaunch or '
+             'auto unless QUEUEADAPTER_LOC is set in FW_config.yaml.',
     )
     p.add_argument(
         '--fworker', type=str, default=None, metavar='PATH',
@@ -828,15 +1030,26 @@ def _add_launcher_args(p) -> None:
     )
 
 
-def _main():
-    """Console script entry point for the ``modena`` command."""
+#: Top-level command groups.  Single source of truth for both the subparser
+#: metavar and the tests that guard against the two drifting apart.
+_GROUPS = ('fw', 'model', 'init', 'install', 'sweep', 'simulate',
+           'doctor', 'quickstart')
+
+
+def _build_parser():
+    """Construct the full argument parser.
+
+    Separate from :func:`_main` so tests can inspect the command tree without
+    parsing argv or dispatching a handler.
+    """
     parser = ArgumentParser(
         prog='modena',
         description='MoDeNa surrogate-model framework CLI',
     )
     parser.add_argument('--version', action='version', version=vstring)
 
-    groups = parser.add_subparsers(dest='group', metavar='{fw,model,init,install,sweep,simulate,doctor,quickstart}')
+    groups = parser.add_subparsers(
+        dest='group', metavar='{' + ','.join(_GROUPS) + '}')
 
     # ---------------------------------------------------------------- #
     # modena fw                                                         #
@@ -847,10 +1060,14 @@ def _main():
         description='Inspect and manage the FireWorks launchpad and workflow queue.',
     )
     fw_sub = fw_parser.add_subparsers(dest='command', metavar='<command>')
-    fw_sub.required = True
+    # No `required = True`: argparse would answer a bare `modena fw` with a
+    # two-line usage error.  Printing the group's help instead shows the reader
+    # the commands they were looking for.
+    fw_parser.set_defaults(func=lambda _a, _p=fw_parser: _p.print_help())
 
     # modena fw status
-    p = fw_sub.add_parser('status', help='Show all Firework IDs, names, and states')
+    p = fw_sub.add_parser('status', aliases=['ls', 'list'],
+                          help='Show all Firework IDs, names, and states')
     p.set_defaults(func=_fw_status)
 
     # modena fw reset
@@ -892,11 +1109,30 @@ def _main():
         description='Inspect and manage surrogate models stored in MongoDB.',
     )
     model_sub = model_parser.add_subparsers(dest='command', metavar='<command>')
-    model_sub.required = True
+    model_parser.set_defaults(func=lambda _a, _p=model_parser: _p.print_help())
 
     # modena model ls
-    p = model_sub.add_parser('ls', help='List all surrogate models')
+    p = model_sub.add_parser('ls', aliases=['list'],
+                             help='List all surrogate models')
     p.set_defaults(func=_model_ls)
+
+    # modena model migrate
+    p = model_sub.add_parser(
+        'migrate',
+        help='Remove fields left behind by an older MoDeNa schema',
+        description=(
+            'Strip embedded-document fields that the current schema no longer '
+            'declares.  Removing a field from a strict EmbeddedDocument makes '
+            'older documents unreadable rather than merely outdated, so a '
+            'database written before the named-parameter rework must be '
+            'repaired before any command can read it.'
+        ),
+    )
+    p.add_argument(
+        '--check', action='store_true',
+        help='Report what would change without modifying the database',
+    )
+    p.set_defaults(func=_model_migrate)
 
     # modena model show
     p = model_sub.add_parser('show', help='Show details for a specific model')
@@ -1023,7 +1259,7 @@ def _main():
     p.add_argument('model_id', metavar='MODEL_ID',
                    help='Surrogate model ID (e.g. flowRate)')
     p.add_argument(
-        '--param', metavar='name=min:max:n', action='append', default=[],
+        '--param', metavar='name=min:max:n', action='append', required=True,
         help='Swept parameter spec (repeat for multiple axes; '
              'cartesian product is evaluated)',
     )
@@ -1083,15 +1319,33 @@ def _main():
     )
     p.set_defaults(func=_quickstart)
 
-    # ---------------------------------------------------------------- #
-    # Dispatch                                                          #
-    # ---------------------------------------------------------------- #
+    return parser
+
+
+def _main():
+    """Console script entry point for the ``modena`` command."""
+    parser = _build_parser()
     args = parser.parse_args()
 
     if args.group is None:
         parser.print_help()
-    else:
+        return
+
+    try:
         args.func(args)
+    except FieldDoesNotExist as exc:
+        # A schema field was removed while documents on disk still carry it.
+        # mongoengine surfaces this as a traceback from deep inside its
+        # deserialiser, which tells the reader nothing about the remedy.
+        print(f'[modena] ERROR: this database was written by an older MoDeNa '
+              f'schema and cannot be read.\n'
+              f'         {exc}\n\n'
+              f'         Inspect the affected documents:\n'
+              f'             modena model migrate --check\n'
+              f'         Then repair them in place:\n'
+              f'             modena model migrate',
+              file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

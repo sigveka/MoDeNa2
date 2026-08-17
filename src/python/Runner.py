@@ -4,9 +4,11 @@
            that handles launchpad setup, workflow construction, and progress
            reporting.  Supports three launcher backends:
 
-           * ``'rapidfire'`` (default) — runs worker processes locally using
-             ``fireworks.core.rocket_launcher.rapidfire``.  Parallel workers
-             are spawned via ``multiprocessing``; ``njobs`` controls the count.
+           * ``'rapidfire'`` (default) — runs workers locally.  ``njobs``
+             controls the worker count: the default of one runs
+             ``fireworks.core.rocket_launcher.rapidfire`` in the calling
+             process, and ``njobs > 1`` hands off to FireWorks' job-packing
+             ``launch_multiprocess`` (the machinery behind ``rlaunch multi``).
 
            * ``'qlaunch'`` — submits each Firework as a batch job to an HPC
              queue system (SLURM, PBS, SGE, …) via
@@ -38,6 +40,7 @@ from pathlib import Path
 from fireworks import Firework, Workflow
 from fireworks.core.fworker import FWorker
 from fireworks.core.rocket_launcher import rapidfire
+from fireworks.features.multi_launcher import launch_multiprocess
 from fireworks.fw_config import FWORKER_LOC, QUEUEADAPTER_LOC
 from fireworks.queue.queue_launcher import launch_rocket_to_queue
 from fireworks.utilities.fw_serializers import load_object_from_file as _fw_load_qadapter
@@ -223,10 +226,11 @@ def run(
         name:
             Workflow name when ``wf_or_models`` is a model list.
         njobs:
-            ``'qlaunch'`` only: max simultaneous HPC queue slots (0 =
-            unlimited).  Ignored for ``'rapidfire'`` and ``'auto'`` — for
-            local parallelism launch additional ``rapidfire`` workers externally
-            against the same launchpad.
+            ``'qlaunch'``: max simultaneous HPC queue slots (0 = unlimited).
+            ``'rapidfire'`` and ``'auto'``: number of local worker processes.
+            0 or 1 (the default) runs a single worker in the calling process;
+            values above 1 spawn that many worker processes, which MongoDB's
+            atomic claiming makes safe.
         launcher:
             ``'rapidfire'`` — single local worker (default).
             ``'qlaunch'``   — HPC queue only.
@@ -352,17 +356,17 @@ def run(
         supervisor.start()
 
         try:
-            _run_rapidfire(lpad, strm_lvl, sleep_time, timeout)
+            _run_local(lpad, fworker, strm_lvl, sleep_time, timeout, njobs)
         finally:
             stop.set()
             supervisor.join(timeout=10)
 
     else:  # rapidfire
         _log.info(
-            'run: %d READY, %d WAITING — rapidfire',
-            n_ready, n_waiting,
+            'run: %d READY, %d WAITING — rapidfire (%d worker(s))',
+            n_ready, n_waiting, max(1, njobs),
         )
-        _run_rapidfire(lpad, strm_lvl, sleep_time, timeout)
+        _run_local(lpad, fworker, strm_lvl, sleep_time, timeout, njobs)
 
     # After all workers have joined, any firework still in RUNNING state has a
     # dead worker process (ping failed, worker crashed, or the launchpad was
@@ -395,3 +399,33 @@ def _run_rapidfire(lpad, strm_lvl, sleep_time, timeout):
     if timeout is not None:
         rf_kwargs['timeout'] = timeout
     rapidfire(lpad, **rf_kwargs)
+
+
+def _run_local(lpad, fworker, strm_lvl, sleep_time, timeout, njobs):
+    """Run ``njobs`` local workers, in the calling process when there is one.
+
+    Beyond one worker this delegates to FireWorks' ``launch_multiprocess`` —
+    the job-packing machinery behind ``rlaunch multi``, which owns the worker
+    processes, their shared data server, and the multilaunch ping thread.
+
+    Rolling our own would mean picking a start method, and the only safe one
+    is ``'spawn'`` (a forked PyMongo client cannot be reused).  ``'spawn'``
+    re-imports the caller's ``__main__``, and MoDeNa workflow scripts define
+    their models at module level without an ``if __name__`` guard — so every
+    existing ``initModels`` script would break.
+    """
+    nworkers = max(1, njobs)
+    if nworkers == 1:
+        _run_rapidfire(lpad, strm_lvl, sleep_time, timeout)
+        return
+
+    _log.debug('run: job packing across %d local worker(s)', nworkers)
+    launch_multiprocess(
+        launchpad=lpad,
+        fworker=fworker,
+        loglvl=strm_lvl,
+        nlaunches=0,          # 0 = run until no READY fireworks remain
+        num_jobs=nworkers,
+        sleep_time=sleep_time,
+        timeout=timeout,
+    )

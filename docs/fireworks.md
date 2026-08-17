@@ -1025,6 +1025,12 @@ modena quickstart           — Usage guide
 | `modena fw rerun <fw_id>` | Re-queue a specific FIZZLED or COMPLETED firework. |
 | `modena fw orphans` | Re-queue RUNNING/RESERVED fireworks whose process has died. |
 | `modena fw orphans --max-age <s>` | Use a custom age threshold in seconds (default 3600). |
+| `modena model migrate --check` | Report embedded-document fields left behind by an older schema. |
+| `modena model migrate` | Strip those fields so the documents load again. |
+
+`modena fw reset` is the only command that clears the launchpad on its own.
+`init`, `simulate`, and `model refit` add their workflow to whatever is
+already queued unless you pass them `--reset`.
 
 #### `modena fw run` — launch a macroscopic simulation
 
@@ -1116,8 +1122,9 @@ modena init 'modelA' 'modelB'          # subset by ID
 
 | Flag | Default | Description |
 |---|---|---|
-| `--jobs N` / `-j N` | `0` (cpu_count) | Worker count (`rapidfire`/`auto`) or queue cap (`qlaunch`). |
-| `--sequential` | off | Run one simulation at a time (equivalent to `--jobs 1`). |
+| `--jobs N` / `-j N` | `1` worker (`rapidfire`/`auto`); `0` = unlimited (`qlaunch`) | Local worker count, or queue cap for `qlaunch`.  Above one worker, `rapidfire`/`auto` hand off to FireWorks job packing (`launch_multiprocess`). |
+| `--sequential` | off | Run one simulation at a time (equivalent to `--jobs 1`, which is the default). |
+| `--reset` | off | **Destructive.** Clear the launchpad — every firework and its run history — before adding the workflow.  Without it the workflow is added alongside whatever is already queued. |
 | `--launcher` | `rapidfire` | `rapidfire`, `qlaunch`, or `auto`. |
 | `--qadapter PATH` | — | Path to `qadapter.yaml` (required for `qlaunch`/`auto` unless `QUEUEADAPTER_LOC` is set in `FW_config.yaml`). |
 | `--fworker PATH` | — | Path to `fworker.yaml`.  Applies to all launchers.  Falls back to `FWORKER_LOC` in `FW_config.yaml`, then a default catch-all worker. |
