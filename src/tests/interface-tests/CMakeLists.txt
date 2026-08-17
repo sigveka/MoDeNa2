@@ -182,3 +182,20 @@ set_tests_properties(modena_generated_snippets PROPERTIES
     LABELS      "python;integration;snippets"
     ENVIRONMENT "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
 )
+
+# -- OutOfBounds exception contract ---------------------------------------
+# model.c constructs the OutOfBounds instance itself, so its argument list is
+# a Python<->C contract: dropping the return code there silently degrades
+# every pure-Python caller.  Lives here rather than in tests/python/ because
+# that directory's conftest stubs out `modena` to keep the unit tier free of
+# libmodena -- this test needs the real thing.
+add_test(
+    NAME    modena_oob_exception
+    COMMAND ${Python3_EXECUTABLE} -m pytest
+            "${CMAKE_CURRENT_SOURCE_DIR}/test_oob_exception.py"
+            -m integration --tb=short -q
+)
+set_tests_properties(modena_oob_exception PROPERTIES
+    LABELS      "python;integration"
+    ENVIRONMENT "MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
+)

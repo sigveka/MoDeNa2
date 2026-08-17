@@ -200,7 +200,7 @@ _ERROR_HANDLING = {
     'c':       ['if (ret != 0)'],
     'cpp':     ['catch', 'std::exception'],
     'fortran': ['if (ret /= 0)', 'call exit(ret)'],
-    'python':  ['try:', 'except modena.OutOfBounds', 'sys.exit(200)'],
+    'python':  ['try:', 'except modena.OutOfBounds', 'sys.exit(exc.returnCode)'],
     'julia':   ['catch e', 'ParametersUpdated', 'ExitAndRestart', 'rethrow()'],
     'matlab':  ['if ret ~= 0', 'exit(ret)'],
     'r':       ['if (ret != 0)', 'quit(status = ret)'],
@@ -225,6 +225,18 @@ class TestErrorHandling:
         assert 'except modena.OutOfBounds' in code
         assert 'except modena.ParametersNotValid' in code
         compile(code, 'example.py', 'exec')
+
+    def test_python_takes_the_code_from_the_exception(self, I):
+        """OutOfBounds.returnCode carries what the C layer returned, so the
+        snippet must not hard-code 200 -- and must say that exiting is only
+        right when FireWorks is reading the exit status."""
+        code = I.snippet(_model(_DEMO, ['y']), 'python')['code']
+        assert 'sys.exit(exc.returnCode)' in code
+        assert 'sys.exit(200)' not in code
+        assert 'exc.model._id' in code, 'exception identifies the model'
+        assert 'BackwardMappingScriptTask' in code, (
+            'snippet must explain when exiting is the right response'
+        )
 
     def test_julia_maps_each_exception_to_its_return_code(self, I):
         """call! throws typed exceptions instead of returning a code, and the

@@ -303,19 +303,31 @@ inputs = {{
 }}
 
 # 3. Handle the out-of-bounds protocol.  callModel() propagates OutOfBounds
-#    rather than exiting, so a pure-Python caller decides what to do: inside a
-#    FireWorks task the framework catches it and queues a retraining detour,
-#    but a standalone script has to react itself.
+#    rather than exiting, so the caller decides what to do.  The exception
+#    carries everything needed: .returnCode is the code the C layer produced
+#    (200 = out of bounds) and .model is the surrogate that went out of range.
+#
+#    Whether to exit depends on who launched this script:
+#
+#      * Launched by FireWorks as a BackwardMappingScriptTask subprocess --
+#        exit with the code.  The process exit status is the only channel back
+#        to handleReturnCode(), which queues a retraining detour and relaunches
+#        this script.  That is what makes the surrogate expand its domain.
+#
+#      * Run standalone -- do not exit.  Nothing is reading the status, and
+#        the exception already carries more than the code does.  Log it, clamp
+#        the input, or re-raise.
 try:
     outputs = model(inputs)
-except modena.OutOfBounds:
-    print("inputs left the trained domain; run 'modena init "
-          "{f['model_id']}' to extend it", file=sys.stderr)
-    sys.exit(200)
-except modena.ParametersNotValid:
-    print("model has no valid parameters; run 'modena init "
-          "{f['model_id']}' first", file=sys.stderr)
-    sys.exit(202)
+except modena.OutOfBounds as exc:
+    print(f"{{exc.model._id}}: inputs left the trained domain "
+          f"(code {{exc.returnCode}}); run 'modena init {f['model_id']}' "
+          f"to extend it", file=sys.stderr)
+    sys.exit(exc.returnCode)
+except modena.ParametersNotValid as exc:
+    print(f"model has no valid parameters; run 'modena init "
+          f"{f['model_id']}' first", file=sys.stderr)
+    sys.exit(exc.returnCode or 202)
 
 print(outputs["{first_out}"])
 '''

@@ -944,15 +944,23 @@ static PyObject *modena_model_t_call
 
     if(checkBounds)
     {
-        if(modena_model_call(self, inputs, outputs))
+        const int callRet = modena_model_call(self, inputs, outputs);
+        if(callRet)
         {
             modena_inputs_destroy(inputs);
             modena_outputs_destroy(outputs);
 
+            /* Pass the return code as the third constructor argument.
+             * OutOfBounds declares returnCode and every consumer expects it,
+             * but this site used to build the exception with (message, model)
+             * only -- so a pure-Python caller got returnCode=None and had no
+             * way to tell 200 from any other non-zero code without
+             * hard-coding it. */
             PyObject *pExcArgs = Py_BuildValue(
-                "(sO)",
+                "(sOi)",
                 "Surrogate model is used out-of-bounds",
-                self->pModel
+                self->pModel,
+                callRet
             );
             if(pExcArgs)
             {
