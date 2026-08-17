@@ -99,13 +99,14 @@ struct ExitAndRestart : Exception { using Exception::Exception; };
 /**
  * @brief Thrown when modena_model_call returns 201.
  *
- * Despite the name this is not a successful termination: 201 means the model
- * was not in the database and must be initialised from its module.
+ * The model is not in the database and must be initialised from its module.
+ * Exit with `e.code`; FireWorks runs the initialisation workflow and then
+ * re-queues this simulation, so the run does resume.
  *
- * MoDeNa requires new DoE data but the simulation does not need to be
- * restarted — the workflow manager will resume from the current state.
+ * Renamed from ExitNoRestart, which was wrong twice over: 201 is not a
+ * successful termination, and the simulation *is* restarted afterwards.
  */
-struct ExitNoRestart : Exception { using Exception::Exception; };
+struct ExitAndInitialise : Exception { using Exception::Exception; };
 
 
 // -------------------------------------------------------------------------- //
@@ -415,7 +416,7 @@ public:
      * @throws ParametersUpdated (ret == 100) The surrogate was retrained.
      *         Discard this call's outputs and retry the current time step.
      * @throws ExitAndRestart    (ret == 200) Exit and restart the simulation.
-     * @throws ExitNoRestart     (ret == 201) Exit; model needs initialising.
+     * @throws ExitAndInitialise (ret == 201) Exit; model needs initialising.
      * @throws Exception         on any other non-zero return or C-level error.
      */
     void call()
@@ -423,7 +424,7 @@ public:
         const int ret = modena_model_call(model_, inputs_, outputs_);
         if (ret == 100) throw ParametersUpdated(ret);
         if (ret == 200) throw ExitAndRestart(ret);
-        if (ret == 201) throw ExitNoRestart(ret);
+        if (ret == 201) throw ExitAndInitialise(ret);
         if (ret != 0 || modena_error_occurred())
             throw Exception(modena_error_occurred() ? modena_error() : ret);
     }

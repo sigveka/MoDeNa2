@@ -81,11 +81,10 @@ export MODENA_LIB_DIR=/home/user/lib/modena
 |-----------|---------|----------------|
 | `ParametersUpdated` | ret == 100, surrogate retrained mid-run | Retry the step in-process (`continue`); do **not** exit |
 | `ExitAndRestart` | ret == 200, out of bounds — new DoE needed | `exit(e.code)` — FireWorks relaunches |
-| `ExitNoRestart` | ret == 201, model not in database; initialise from its module | `exit(e.code)` |
+| `ExitAndInitialise` | ret == 201, model not in database; initialise from its module | `exit(e.code)` |
 | `ModenaError` | Any other non-zero code | `e.code` holds the integer |
 
-Despite the name, `ExitNoRestart` is not a successful termination: `201` means
-the model needs initialising. See [Return codes](return-codes.md) for the full protocol.
+`201` is not a successful termination: the model needs initialising, and FireWorks re-queues the simulation once that is done. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 
@@ -152,7 +151,7 @@ while t + deltat < tend + 1e-10
         if e isa ParametersUpdated
             t -= deltat    # surrogate retrained — retry this step
             continue
-        elseif e isa ExitAndRestart || e isa ExitNoRestart
+        elseif e isa ExitAndRestart || e isa ExitAndInitialise
             exit(e.code)
         else
             rethrow()

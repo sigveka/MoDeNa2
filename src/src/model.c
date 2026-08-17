@@ -651,8 +651,11 @@ int write_outside_point
 /*
 modena_model_call returns:
 
-201: requesting exit for new DOE without Restart
-200: requesting exit for new DOE with Restart
+201: model not in database; exit so it can be initialised from its module
+200: out of bounds; exit so a new DOE can be run
+     (both are re-queued by FireWorks afterwards -- an earlier version of this
+      comment described 201 as "without Restart", which is not what
+      executeAndCatchExceptions() does)
 100: updated model parameters, requesting to continue this run
 1: failure
 0: okay

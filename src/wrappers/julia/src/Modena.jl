@@ -22,7 +22,7 @@ while t < tend
     catch e
         e isa ParametersUpdated && (t -= dt; continue)   # retry step
         e isa ExitAndRestart    && exit(e.code)
-        e isa ExitNoRestart     && exit(e.code)
+        e isa ExitAndInitialise && exit(e.code)
         rethrow()
     end
     mdot = output(m, 0)
@@ -147,10 +147,13 @@ end
 
 """
 Thrown by `call!` when the model is not in the database and must be
-initialised from its module (return code 201).  Not a successful termination.
-Pass `e.code` to `exit()`.
+initialised from its module (return code 201).  Pass `e.code` to `exit()`;
+FireWorks initialises the model and re-queues this simulation.
+
+Renamed from `ExitNoRestart`, which was wrong twice over: 201 is not a
+successful termination, and the simulation *is* restarted afterwards.
 """
-struct ExitNoRestart <: Exception
+struct ExitAndInitialise <: Exception
     code::Int
 end
 
@@ -163,8 +166,8 @@ Base.showerror(io::IO, ::ParametersUpdated) =
     print(io, "Modena: surrogate parameters updated — retry this time step")
 Base.showerror(io::IO, e::ExitAndRestart) =
     print(io, "Modena: exit and restart requested (code $(e.code))")
-Base.showerror(io::IO, e::ExitNoRestart) =
-    print(io, "Modena: exit without restart requested (code $(e.code))")
+Base.showerror(io::IO, e::ExitAndInitialise) =
+    print(io, "Modena: model needs initialising (code $(e.code))")
 Base.showerror(io::IO, e::ModenaError) =
     print(io, "Modena: unexpected return code $(e.code)")
 
@@ -333,7 +336,7 @@ Evaluate the surrogate model with the current inputs.
 Throws:
 - `ParametersUpdated` — model was retrained; decrement time and retry the step
 - `ExitAndRestart`    — workflow requests exit-and-restart; call `exit(e.code)`
-- `ExitNoRestart`     — workflow requests clean exit; call `exit(e.code)`
+- `ExitAndInitialise` — model needs initialising; call `exit(e.code)`
 - `ModenaError`       — unexpected non-zero return code
 """
 function call!(m::Model)
@@ -343,7 +346,7 @@ function call!(m::Model)
     ret ==   0 && return
     ret == 100 && throw(ParametersUpdated())
     ret == 200 && throw(ExitAndRestart(ret))
-    ret == 201 && throw(ExitNoRestart(ret))
+    ret == 201 && throw(ExitAndInitialise(ret))
     throw(ModenaError(ret))
 end
 
@@ -411,7 +414,7 @@ end
 # ── Exports ───────────────────────────────────────────────────────────────────
 
 export Model
-export ParametersUpdated, ExitAndRestart, ExitNoRestart, ModenaError
+export ParametersUpdated, ExitAndRestart, ExitAndInitialise, ModenaError
 export input_pos, output_pos, check, set!, output, call!
 export inputs_size, outputs_size, parameters_size
 export inputs_names, outputs_names, parameters_names

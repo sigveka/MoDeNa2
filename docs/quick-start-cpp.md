@@ -61,12 +61,11 @@ Errors and workflow events are signalled by exceptions, not return codes.
 |-----------|---------|----------------|
 | `modena::ParametersUpdated` | ret == 100, surrogate retrained mid-run | Retry the step in-process; do **not** exit |
 | `modena::ExitAndRestart` | ret == 200, out of bounds — new DoE needed | `exit(e.code)` — FireWorks relaunches |
-| `modena::ExitNoRestart` | ret == 201, model not in database; initialise from its module | `exit(e.code)` |
+| `modena::ExitAndInitialise` | ret == 201, model not in database; initialise from its module | `exit(e.code)` |
 | `modena::ModelNotFound` | Model ID not in database | Fix `_id` or run `initModels` |
 | `modena::Exception` | Base class for all MoDeNa exceptions | `e.code` holds the integer code |
 
-Despite the name, `ExitNoRestart` is not a successful termination: `201` means
-the model needs initialising. See [Return codes](return-codes.md) for the full protocol.
+`201` is not a successful termination: the model needs initialising, and FireWorks re-queues the simulation once that is done. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 
@@ -146,7 +145,7 @@ int main()
 
     } /* ── 4. model destroyed automatically here ─────────────────────────── */
     catch (const modena::ExitAndRestart& e) { return e.code; }
-    catch (const modena::ExitNoRestart&  e) { return e.code; }
+    catch (const modena::ExitAndInitialise&  e) { return e.code; }
     catch (const modena::Exception&      e) {
         std::cerr << "MoDeNa error: " << e.what() << '\n';
         return e.code;

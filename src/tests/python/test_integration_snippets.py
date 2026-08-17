@@ -249,5 +249,5 @@ class TestErrorHandling:
         code = I.snippet(_model(_DEMO, ['y']), 'julia')['code']
         assert 'ParametersUpdated' in code and 'continue' in code
         assert 'ExitAndRestart' in code and 'exit(e.code)' in code
-        assert 'ExitNoRestart' in code
+        assert 'ExitAndInitialise' in code
         assert 'rethrow()' in code

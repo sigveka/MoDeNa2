@@ -42,7 +42,7 @@ process that *exits* with 100 does not get retried, it falls into
 | `1` | Failure | Abort; this is not a protocol signal |
 | `100` | Surrogate was retrained mid-run; parameters are now updated | **Retry the current step in-process.** Do not exit |
 | `200` | Out of bounds — a new design of experiments is needed, then this run restarts | Exit with `200` |
-| `201` | The model was not in the database and must be initialised from its module; no restart of this run | Exit with `201` |
+| `201` | The model was not in the database and must be initialised from its module | Exit with `201` |
 
 `202` never appears here. It comes from `modena_model_new()` when the model
 exists but has no usable fitted parameters — see below.
@@ -58,11 +58,15 @@ exists but has no usable fitted parameters — see below.
 | `202` | `ParametersNotValid` | Identify the uninitialised model, run its initialisation workflow, relaunch |
 | any other non-zero | `TerminateWorkflow` | Stop. The failure is not recoverable |
 
-> `201` does **not** mean "clean exit" or "workflow complete". Both branches of
-> `handleReturnCode(201)` treat it as a model that needs initialising. The
-> quick-start guides described it as a normal termination until 2026-08; if you
-> have application code that exits 201 to signal success, it is signalling the
-> opposite.
+> `201` does **not** mean "clean exit" or "workflow complete", and it does not
+> mean "no restart". Both branches of `handleReturnCode(201)` treat it as a
+> model that needs initialising, and `executeAndCatchExceptions()` appends a
+> *resume after init* Firework — so the simulation is re-queued exactly as it
+> is for `200`. The guides described it as a normal termination, and
+> `model.c`'s comment block called it "exit for new DOE without Restart";
+> both were wrong. The C++/Julia exception was called `ExitNoRestart` for the
+> same reason and is now `ExitAndInitialise`. If you have application code
+> that exits 201 to signal success, it is signalling the opposite.
 
 ---
 
@@ -91,7 +95,7 @@ mapping is exact — the code is still available on the exception.
 |------|-----|-------|--------|
 | `100` | `modena::ParametersUpdated` | `ParametersUpdated` | — |
 | `200` | `modena::ExitAndRestart` | `ExitAndRestart` | `modena.OutOfBounds` |
-| `201` | `modena::ExitNoRestart` | `ExitNoRestart` | `modena.ParametersNotValid` |
+| `201` | `modena::ExitAndInitialise` | `ExitAndInitialise` | `modena.ParametersNotValid` |
 | `202` | — | — | `modena.ParametersNotValid` |
 | other | `modena::ModenaError` | `ModenaError` | — |
 
