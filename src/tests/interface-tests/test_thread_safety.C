@@ -142,6 +142,40 @@ int main()
 
     for (auto &w : workers) w.join();
 
+    // ── Phase 2: Python-touching accessors from worker threads ──────────
+    // The loop above caches every argPos on the main thread *before*
+    // argPos_check(), so it never calls a Python-touching entry point from a
+    // worker.  That gap hid a real crash: argPos_check() parks the main thread
+    // state in modena_main_thread_state and only modena_model_destroy()
+    // restores it, so between them no thread state is current and
+    // modena_model_inputs_argPos -- which calls PyObject_CallMethod -- died in
+    // libpython.  Worker threads never hold the GIL, so they hit it every time.
+    printf("phase 2: %zu threads x 200 accessor calls after argPos_check()\n",
+        N_THREADS);
+    std::atomic<int> acc_errors{0};
+    std::vector<std::thread> probes;
+    probes.reserve(N_THREADS);
+    for (std::size_t t = 0; t < N_THREADS; ++t)
+        probes.emplace_back([&acc_errors]() {
+            for (int i = 0; i < 200; ++i)
+            {
+                if (modena_model_inputs_argPos(g_model, "D")         != g_Dpos
+                 || modena_model_outputs_argPos(g_model, "flowRate") != g_mdotPos)
+                {
+                    acc_errors.fetch_add(1);
+                    return;
+                }
+            }
+        });
+    for (auto &p : probes) p.join();
+
+    if (acc_errors.load() != 0)
+    {
+        fprintf(stderr, "accessor calls from worker threads returned %d bad "
+                        "argPos value(s)\n", acc_errors.load());
+        return 1;
+    }
+
     modena_model_destroy(g_model);
 
     // ── Report ──────────────────────────────────────────────────────────
