@@ -222,8 +222,17 @@ void modena_model_get_minMax
     modena_model_t *self
 )
 {
+    /* This function calls into CPython, so the GIL must be held.  It is not
+     * always: modena_model_argPos_check() parks the main thread state in the
+     * global modena_main_thread_state and only modena_model_destroy() restores
+     * it, so between those two points no thread state is current and any
+     * CPython call segfaults (typically inside PyDict_New via Py_BuildValue).
+     * PyGILState_Ensure re-acquires for this thread regardless, and Release
+     * puts the state back exactly as it was. */
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     PyObject *pObj = PyObject_CallMethod(self->pModel, "minMax", NULL);
-    if(!pObj){ Modena_PyErr_Print(); return; }
+    if(!pObj){ Modena_PyErr_Print(); PyGILState_Release(gstate); return; }
 
     PyObject *pMin = PyTuple_GET_ITEM(pObj, 0); // Borrowed ref
     PyObject *pSeq = PySequence_Fast(pMin, "expected a sequence");
@@ -290,6 +299,8 @@ void modena_model_get_minMax
     if(PyErr_Occurred()){ Modena_PyErr_Print(); }
 
     Py_DECREF(pObj);
+
+    PyGILState_Release(gstate);
 }
 
 modena_model_t *modena_model_new
@@ -298,6 +309,15 @@ modena_model_t *modena_model_new
 )
 {
     Modena_Debug_Print("modena_model_new: loading model '%s'", modelId);
+
+    /* This function calls into CPython, so the GIL must be held.  It is not
+     * always: modena_model_argPos_check() parks the main thread state in the
+     * global modena_main_thread_state and only modena_model_destroy() restores
+     * it, so between those two points no thread state is current and any
+     * CPython call segfaults (typically inside PyDict_New via Py_BuildValue).
+     * PyGILState_Ensure re-acquires for this thread regardless, and Release
+     * puts the state back exactly as it was. */
+    PyGILState_STATE gstate = PyGILState_Ensure();
 
     PyObject *args = PyTuple_New(0);
     PyObject *kw = Py_BuildValue("{s:s}", "modelId", modelId);
@@ -369,6 +389,7 @@ modena_model_t *modena_model_new
             Py_DECREF(pRet);
 
             modena_error_code = ret;
+            PyGILState_Release(gstate);
             return NULL;
         }
         else
@@ -377,11 +398,21 @@ modena_model_t *modena_model_new
         }
     }
 
+    PyGILState_Release(gstate);
     return (modena_model_t *) pNewObj;
 }
 
 size_t modena_model_inputs_argPos(const modena_model_t *self, const char *name)
 {
+    /* This function calls into CPython, so the GIL must be held.  It is not
+     * always: modena_model_argPos_check() parks the main thread state in the
+     * global modena_main_thread_state and only modena_model_destroy() restores
+     * it, so between those two points no thread state is current and any
+     * CPython call segfaults (typically inside PyDict_New via Py_BuildValue).
+     * PyGILState_Ensure re-acquires for this thread regardless, and Release
+     * puts the state back exactly as it was. */
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     PyObject *pRet = PyObject_CallMethod
     (
         self->pModel,
@@ -403,11 +434,21 @@ size_t modena_model_inputs_argPos(const modena_model_t *self, const char *name)
         self->argPos_used[argPos] = true;
     }
 
+    PyGILState_Release(gstate);
     return argPos;
 }
 
 size_t modena_model_outputs_argPos(const modena_model_t *self, const char *name)
 {
+    /* This function calls into CPython, so the GIL must be held.  It is not
+     * always: modena_model_argPos_check() parks the main thread state in the
+     * global modena_main_thread_state and only modena_model_destroy() restores
+     * it, so between those two points no thread state is current and any
+     * CPython call segfaults (typically inside PyDict_New via Py_BuildValue).
+     * PyGILState_Ensure re-acquires for this thread regardless, and Release
+     * puts the state back exactly as it was. */
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     PyObject *pRet = PyObject_CallMethod
     (
         self->pModel,
@@ -419,6 +460,7 @@ size_t modena_model_outputs_argPos(const modena_model_t *self, const char *name)
     size_t ret = PyLong_AsSsize_t(pRet);
     Py_DECREF(pRet);
 
+    PyGILState_Release(gstate);
     return ret;
 }
 

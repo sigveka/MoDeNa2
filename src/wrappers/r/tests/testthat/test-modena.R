@@ -34,7 +34,10 @@ skip_if_no_libmodena <- function() {
 
 test_that("Modena class generator exists and is a reference class generator", {
     expect_true(exists("Modena"))
-    expect_true(is(Modena, "envRefClass"))
+    # setRefClass() returns a generator, whose class is "refObjectGenerator".
+    # "envRefClass" is what *instances* inherit from, so asserting it here
+    # never held -- the test just never ran to say so.
+    expect_true(is(Modena, "refObjectGenerator"))
 })
 
 test_that("Modena class has expected methods", {
