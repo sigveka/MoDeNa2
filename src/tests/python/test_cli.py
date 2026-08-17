@@ -406,3 +406,158 @@ class TestDoctor:
             with pytest.raises(SystemExit) as exc:
                 cli._doctor(_args())
         assert exc.value.code == 1
+
+
+# ---------------------------------------------------------------------------
+# Legacy-schema migration (modena model migrate)
+# ---------------------------------------------------------------------------
+# argPos was removed from outputs and parameters by the named-parameter
+# rework.  MinMax is a strict EmbeddedDocument, so a database written before
+# that change cannot be READ at all -- mongoengine raises FieldDoesNotExist
+# from inside its deserialiser and every command dies with a traceback.
+#
+# These use a hand-rolled fake rather than mongomock because _find_legacy_fields
+# deliberately bypasses mongoengine: the whole point is that these documents
+# cannot be loaded through it.
+
+def _legacy_doc():
+    return {
+        '_id': 'legacy_fn',
+        'inputs':     {'T':  {'min': 0.0, 'max': 1.0, 'argPos': 0}},
+        'outputs':    {'y':  {'min': 0.0, 'max': 1.0, 'argPos': 0}},
+        'parameters': {'p0': {'min': 0.0, 'max': 1.0, 'argPos': 0},
+                       'p1': {'min': 0.0, 'max': 1.0, 'argPos': 1}},
+    }
+
+
+class _FakeCollection:
+    def __init__(self, docs):
+        self.docs = {d['_id']: d for d in docs}
+
+    def find(self):
+        return list(self.docs.values())
+
+    def update_one(self, flt, update):
+        doc = self.docs[flt['_id']]
+        for path in update['$unset']:
+            section, name, key = path.split('.')
+            doc[section][name].pop(key, None)
+
+
+class _FakeDB(dict):
+    def __getitem__(self, name):
+        return self.setdefault(name, _FakeCollection([]))
+
+
+@pytest.fixture
+def fake_db(monkeypatch):
+    db = _FakeDB()
+    db['surrogate_function'] = _FakeCollection([_legacy_doc()])
+    monkeypatch.setattr('mongoengine.connection.get_db', lambda *a, **k: db)
+    return db
+
+
+class TestMigrate:
+
+    def test_finds_only_outputs_and_parameters(self, fake_db):
+        """Inputs legitimately carry argPos and must be left alone."""
+        (_coll, _id, paths), = cli._find_legacy_fields()
+        assert sorted(paths) == ['outputs.y.argPos',
+                                 'parameters.p0.argPos',
+                                 'parameters.p1.argPos']
+        assert not any(p.startswith('inputs.') for p in paths)
+
+    def test_check_does_not_modify(self, fake_db, capsys):
+        cli._model_migrate(_args(check=True))
+        assert 'not modified' in capsys.readouterr().out
+        doc = fake_db['surrogate_function'].docs['legacy_fn']
+        assert 'argPos' in doc['outputs']['y'], 'argPos removed despite --check'
+
+    def test_strips_stale_fields_and_is_idempotent(self, fake_db, capsys):
+        cli._model_migrate(_args(check=False))
+        capsys.readouterr()
+
+        doc = fake_db['surrogate_function'].docs['legacy_fn']
+        assert 'argPos' not in doc['outputs']['y']
+        assert 'argPos' not in doc['parameters']['p0']
+        assert doc['inputs']['T']['argPos'] == 0, 'input argPos must survive'
+        assert doc['outputs']['y']['min'] == 0.0, 'min/max must survive'
+        assert not cli._find_legacy_fields()
+
+        cli._model_migrate(_args(check=False))
+        assert 'nothing to migrate' in capsys.readouterr().out
+
+    def test_clean_database_is_a_no_op(self, monkeypatch, capsys):
+        db = _FakeDB()
+        db['surrogate_function'] = _FakeCollection([{
+            '_id': 'clean_fn',
+            'inputs':     {'T':  {'min': 0.0, 'max': 1.0, 'argPos': 0}},
+            'outputs':    {'y':  {'min': 0.0, 'max': 1.0}},
+            'parameters': {'p0': {'min': 0.0, 'max': 1.0}},
+        }])
+        monkeypatch.setattr('mongoengine.connection.get_db', lambda *a, **k: db)
+        cli._model_migrate(_args(check=False))
+        assert 'nothing to migrate' in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# Legacy-database error reporting and remaining parser contracts
+# ---------------------------------------------------------------------------
+
+def test_field_does_not_exist_is_reported_with_the_remedy(monkeypatch, capsys):
+    """A legacy database must produce guidance, not a mongoengine traceback.
+
+    Drives the real ``_main`` dispatch rather than a copy of it, so the test
+    fails if the handler is removed from ``_main``.
+    """
+    from mongoengine.errors import FieldDoesNotExist
+
+    def _boom(_a):
+        raise FieldDoesNotExist(
+            'The fields "{\'argPos\'}" do not exist on the document "MinMax"')
+
+    monkeypatch.setattr(cli, '_model_ls', _boom)
+    monkeypatch.setattr(sys, 'argv', ['modena', 'model', 'ls'])
+
+    with pytest.raises(SystemExit) as exc:
+        cli._main()
+
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert 'older MoDeNa schema' in err
+    assert 'modena model migrate --check' in err
+    assert 'Traceback' not in err
+
+
+def test_ls_and_list_are_the_same_command():
+    parser = cli._build_parser()
+    assert parser.parse_args(['model', 'ls']).func is \
+           parser.parse_args(['model', 'list']).func
+
+
+def test_every_group_has_a_description():
+    """`-h` on a group should explain the group, not just list flags."""
+    import argparse as _ap
+    parser = cli._build_parser()
+    action = next(a for a in parser._actions
+                  if isinstance(a, _ap._SubParsersAction))
+    undocumented = [n for n, p in action.choices.items() if not p.description]
+    assert not undocumented, f'groups without a description: {undocumented}'
+
+
+def test_model_ls_and_show_agree_on_ordering(capsys):
+    """Both must derive ordering the same way, or they disagree about a model."""
+    m = _fake_model(['b', 'a'], ['out'], ['P0', 'P1'])
+    # Separate patches: _model_ls iterates SurrogateModel.objects while
+    # _model_show calls .objects.get(), and one MagicMock attribute cannot
+    # sensibly be both a list and an object with .get().
+    with patch.object(cli, 'SurrogateModel') as sm:
+        sm.objects = [m]
+        cli._model_ls(_args())
+        ls_out = capsys.readouterr().out
+    with patch.object(cli, 'SurrogateModel') as sm:
+        sm.objects.get.return_value = m
+        cli._model_show(_args(id='someModel'))
+        show_out = capsys.readouterr().out
+    assert 'b, a' in ls_out and 'Inputs:     b, a' in show_out
+    assert 'P0, P1' in ls_out and 'Parameters: P0, P1' in show_out

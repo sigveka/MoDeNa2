@@ -74,6 +74,14 @@
 !rerunSimulations
 !Makefile
 
+# One hand-authored exception to the workflow.yaml rule above.  This file is
+# not FireWorks output -- it is a hand-written pisoFoam workflow (YAML anchors,
+# a gmsh -> simpleFoam pipeline) with no "Auto-generated File" banner, and it
+# was tracked from the first commit until the generated ones were cleaned up.
+# NOTE: the rest of that case (case/, gmsh/, templates/, *.yaml configs) has
+# never been tracked, so the case is still not reproducible from a clone.
+!applications/OpenFoam/src/cases/pisoFoam/laminar/workflow.yaml
+
 
 # Exclude
 CLAUDE.md
