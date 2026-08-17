@@ -60,16 +60,19 @@
 !install
 !run_portal
 
-# Example entry points.  These are extensionless executables and a hand-written
-# FireWorks workflow, so the allowlist above excluded every one of them and no
-# example was runnable from a fresh clone.  FW_config.yaml is deliberately NOT
-# listed: `modena init` regenerates it on demand.
+# Example entry points.  These are extensionless executables, so the allowlist
+# above excluded every one of them and no example was runnable from a fresh
+# clone.
+#
+# Neither workflow.yaml nor FW_config.yaml is listed: FireWorks and
+# `modena fw run --script` generate both on demand, so a committed copy is
+# stale the moment anything changes.  `workflow` (no extension) below is the
+# hand-written entry point and IS tracked.
 !initModels
 !buildModels
 !workflow
 !rerunSimulations
 !Makefile
-!workflow.yaml
 
 
 # Exclude
