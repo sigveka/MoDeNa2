@@ -41,6 +41,40 @@ foreach(p ARCH BIN CMAKE INCLUDE LIB)            # Make relative paths absolute
   endif()
 endforeach()
 
+# Python site-packages install destination.
+#
+# When CMAKE_INSTALL_PREFIX is $HOME (the default user install), put Python
+# packages in ~/.local/lib/pythonX.Y/site-packages (user site-packages).
+# site.py adds this directory automatically even in embedded mode, so
+# libmodena's Py_Initialize() finds modena without PYTHONPATH.
+#
+# For any other prefix (e.g. /opt/modena, /usr/local) put them alongside the C
+# library under the prefix.  The admin is then responsible for adding the
+# prefix's site-packages to PYTHONPATH (e.g. via a module file).
+#
+# Computed here, not in src/python/, because src/portal/ must install to the
+# SAME directory -- it previously hardcoded the prefix branch while
+# src/python/ picked user-site, so `modena-portal` installed somewhere that
+# was not on sys.path and died with ModuleNotFoundError.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+execute_process(
+  COMMAND "${Python3_EXECUTABLE}" -c
+    "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+  OUTPUT_VARIABLE Python3_VERSION_MAJMIN
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR
+   CMAKE_INSTALL_PREFIX STREQUAL "$ENV{HOME}")
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}" -c "import site; print(site.getusersitepackages())"
+        OUTPUT_VARIABLE PYTHON_SITE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+else()
+    set(PYTHON_SITE
+        "${CMAKE_INSTALL_PREFIX}/lib/python${Python3_VERSION_MAJMIN}/site-packages")
+endif()
+
 # R library directory.  The R package installs under the project prefix like
 # every other component rather than into R's per-user library -- see
 # src/wrappers/r/CMakeLists.txt.  Defined here because both that file and the

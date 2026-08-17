@@ -3,17 +3,12 @@
 #
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-
-# Compute the same site-packages path used by src/python/CMakeLists.txt so
-# that modena_portal lands alongside modena in the same directory.
-execute_process(
-  COMMAND "${Python3_EXECUTABLE}" -c
-    "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-  OUTPUT_VARIABLE Python3_VERSION_MAJMIN
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-set(PYTHON_SITE "${CMAKE_INSTALL_PREFIX}/lib/python${Python3_VERSION_MAJMIN}/site-packages")
+# PYTHON_SITE comes from src/CMakeLists.txt.  This file used to recompute it,
+# but only ever emitted the ${CMAKE_INSTALL_PREFIX} branch -- so with the
+# default $HOME prefix modena went to user site-packages while modena_portal
+# went to ${prefix}/lib/pythonX.Y/site-packages, which is not on sys.path.
+# `modena-portal` then failed with ModuleNotFoundError: No module named
+# 'modena_portal'.  Never recompute it here.
 
 set(SETUP_PY_IN   ${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in)
 set(SETUP_PY      ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
