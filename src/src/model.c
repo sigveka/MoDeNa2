@@ -1225,7 +1225,12 @@ static int modena_model_t_init
         // || self->parameters_size != self->mf->parameters_size
     )
     {
-        PyObject *args = PyTuple_New(2);
+        /* Third element is the return code.  ParametersNotValid declares
+         * returnCode, but this site used to pass (message, model) only, so a
+         * pure-Python caller always saw None and had to assume 202.  202 is
+         * what SurrogateModel.exceptionParametersNotValid() returns, i.e. the
+         * code a C application exits with for this condition. */
+        PyObject *args = PyTuple_New(3);
         if(!args){ Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
 
         PyObject* str = PyUnicode_FromString
@@ -1237,6 +1242,7 @@ static int modena_model_t_init
         PyTuple_SET_ITEM(args, 0, str);
         Py_INCREF(self->pModel);
         PyTuple_SET_ITEM(args, 1, self->pModel);
+        PyTuple_SET_ITEM(args, 2, PyLong_FromLong(202));
 
         PyErr_SetObject
         (
@@ -1258,7 +1264,8 @@ static int modena_model_t_init
             self->parameters_size,
             (size_t)PySequence_Size(pParameters)
         );
-        PyObject *excArgs = PyTuple_New(2);
+        /* Third element is the return code — see the sibling raise above. */
+        PyObject *excArgs = PyTuple_New(3);
         if(!excArgs){ Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
 
         PyObject *excStr = PyUnicode_FromString("Surrogate model does not have valid parameters");
@@ -1267,6 +1274,7 @@ static int modena_model_t_init
         PyTuple_SET_ITEM(excArgs, 0, excStr);
         Py_INCREF(self->pModel);
         PyTuple_SET_ITEM(excArgs, 1, self->pModel);
+        PyTuple_SET_ITEM(excArgs, 2, PyLong_FromLong(202));
 
         PyErr_SetObject(modena_ParametersNotValid, excArgs);
         Py_DECREF(excArgs);

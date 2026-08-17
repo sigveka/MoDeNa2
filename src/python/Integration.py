@@ -325,9 +325,9 @@ except modena.OutOfBounds as exc:
           f"to extend it", file=sys.stderr)
     sys.exit(exc.returnCode)
 except modena.ParametersNotValid as exc:
-    print(f"model has no valid parameters; run 'modena init "
-          f"{f['model_id']}' first", file=sys.stderr)
-    sys.exit(exc.returnCode or 202)
+    print(f"{{exc.model._id}}: no valid parameters (code {{exc.returnCode}}); "
+          f"run 'modena init {f['model_id']}' first", file=sys.stderr)
+    sys.exit(exc.returnCode)
 
 print(outputs["{first_out}"])
 '''

@@ -233,6 +233,11 @@ class TestErrorHandling:
         code = I.snippet(_model(_DEMO, ['y']), 'python')['code']
         assert 'sys.exit(exc.returnCode)' in code
         assert 'sys.exit(200)' not in code
+        # No `or 202` fallback: both exceptions carry a real code now, and a
+        # fallback that always fires reads as defensive while being the only
+        # branch.
+        assert 'or 202' not in code
+        assert 'sys.exit(202)' not in code
         assert 'exc.model._id' in code, 'exception identifies the model'
         assert 'BackwardMappingScriptTask' in code, (
             'snippet must explain when exiting is the right response'

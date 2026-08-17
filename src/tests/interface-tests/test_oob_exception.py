@@ -73,3 +73,31 @@ def test_out_of_bounds_identifies_the_model(trained_model):
 
     assert excinfo.value.model._id == MODEL_ID
     assert 'out-of-bounds' in excinfo.value.args[0]
+
+
+@pytest.mark.integration
+def test_parameters_not_valid_carries_the_return_code(trained_model):
+    """The other exception model.c constructs, with the same defect.
+
+    Both raise sites in modena_model_t_init built a 2-tuple (message, model),
+    so returnCode was always None for a pure-Python caller -- which is what
+    made the snippet's ``exc.returnCode or 202`` misleading: the fallback was
+    not a fallback, it was the only branch that ever ran.
+
+    Triggered by passing a parameter array of the wrong length, which is the
+    second of the two conditions that raise it.
+    """
+    modena, model = trained_model
+    n = len(model.parameter_names())
+    if n < 2:
+        pytest.skip('needs a model with at least two parameters')
+
+    with pytest.raises(modena.ParametersNotValid) as excinfo:
+        modena.libmodena.modena_model_t(model=model, parameters=[1.0] * (n - 1))
+
+    exc = excinfo.value
+    assert exc.returnCode == 202, (
+        'ParametersNotValid.returnCode is not populated — model.c built the '
+        'exception without the code'
+    )
+    assert exc.model._id == MODEL_ID
