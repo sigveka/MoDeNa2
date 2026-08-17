@@ -41,6 +41,13 @@ foreach(p ARCH BIN CMAKE INCLUDE LIB)            # Make relative paths absolute
   endif()
 endforeach()
 
+# R library directory.  The R package installs under the project prefix like
+# every other component rather than into R's per-user library -- see
+# src/wrappers/r/CMakeLists.txt.  Defined here because both that file and the
+# modena-env.sh generator in src/python/ need it, and PARENT_SCOPE from
+# wrappers/r/ would only reach wrappers/.
+set(R_LIB_DIR "${INSTALL_LIB_DIR}/R")
+
 # Options -------------------------------------------------------------------- #
 
 # Probe for a Fortran compiler before exposing the WITH_FORTRAN option so the

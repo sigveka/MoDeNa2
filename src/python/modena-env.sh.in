@@ -45,4 +45,10 @@ export MODENA_MATLAB_DIR="@CMAKE_INSTALL_PREFIX@/share/modena/matlab"
 # Read by the R wrapper to locate libmodena without shelling out to Python.
 export MODENA_LIB_DIR="@MODENA_ENV_LIB_DIR@"
 
+# The modena R package installs under the project prefix rather than into R's
+# per-user library, so R needs to be told where to find it.  Empty when the
+# R wrapper was not built (WITH_R=OFF), in which case the prepend is a no-op
+# because the directory does not exist.
+_modena_prepend R_LIBS "@R_LIB_DIR@"
+
 unset -f _modena_prepend

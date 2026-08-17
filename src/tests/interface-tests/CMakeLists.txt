@@ -151,8 +151,12 @@ if(WITH_R AND R_EXECUTABLE)
             COMMAND "${R_EXECUTABLE}" --no-save --slave -e
                 "library(testthat); library(modena); test_dir('${CMAKE_CURRENT_LIST_DIR}/../../wrappers/r/tests/testthat', stop_on_failure = TRUE)"
         )
+        # The package installs under the project prefix, not R's per-user
+        # library, so R only finds it with R_LIBS set -- the same thing
+        # modena-env.sh does for an interactive shell.
         set_tests_properties(modena_iface_r_smoke PROPERTIES
             LABELS "r;integration"
+            ENVIRONMENT "R_LIBS=${R_LIB_DIR};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
         )
     else()
         message(STATUS

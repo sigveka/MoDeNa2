@@ -33,38 +33,24 @@ if(R_EXECUTABLE)
     #     ERROR: no permission to install to directory '.../site-library'
     #
     # and the failure only surfaces as a cmake WARNING buried in the install
-    # log, so the wrapper silently never gets installed.  Target R_LIBS_USER
-    # instead: R's own per-user library, which it prepends to .libPaths()
-    # automatically once the directory exists.
-    execute_process(
-        COMMAND "${R_EXECUTABLE}" --no-save --slave
-                -e "cat(path.expand(Sys.getenv('R_LIBS_USER')))"
-        OUTPUT_VARIABLE  R_USER_LIB
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-
-    if(R_USER_LIB)
-        message(STATUS
-            "R found: ${R_EXECUTABLE} — modena R package will be installed to ${R_USER_LIB}")
-    else()
-        # R reported no user library; fall back to its default and let the
-        # permission error (if any) surface as before.
-        message(STATUS
-            "R found: ${R_EXECUTABLE} — modena R package will be compiled on install")
-    endif()
+    # log, so WITH_R=ON silently produced no installed package.
+    #
+    # Install into the project's own prefix instead of R's per-user library:
+    # every other component honours INSTALL_LIB_DIR, and a build configured
+    # with -DCMAKE_INSTALL_PREFIX=/opt/modena must not quietly write into
+    # ~/R/... behind the packager's back (it would also escape DESTDIR
+    # staging).  modena-env.sh puts this directory on R_LIBS so that
+    # `library(modena)` resolves it.
+    message(STATUS
+        "R found: ${R_EXECUTABLE} — modena R package will be installed to ${R_LIB_DIR}")
 
     install(CODE "
         message(STATUS \"Compiling and installing the modena R package...\")
-        set(_r_lib \"${R_USER_LIB}\")
-        if(NOT _r_lib STREQUAL \"\")
-            file(MAKE_DIRECTORY \"\${_r_lib}\")
-            set(_r_args CMD INSTALL -l \"\${_r_lib}\" \"${R_PKG_INST_DIR}\")
-        else()
-            set(_r_args CMD INSTALL \"${R_PKG_INST_DIR}\")
-        endif()
+        file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${R_LIB_DIR}\")
         execute_process(
-            COMMAND \"${R_EXECUTABLE}\" \${_r_args}
+            COMMAND \"${R_EXECUTABLE}\" CMD INSTALL
+                    -l \"\$ENV{DESTDIR}${R_LIB_DIR}\"
+                    \"\$ENV{DESTDIR}${R_PKG_INST_DIR}\"
             RESULT_VARIABLE _r_result
             ERROR_VARIABLE  _r_error
             OUTPUT_VARIABLE _r_output
@@ -72,10 +58,10 @@ if(R_EXECUTABLE)
         if(NOT _r_result EQUAL 0)
             message(WARNING
                 \"R CMD INSTALL failed (exit \${_r_result}):\n\${_r_error}\n\"
-                \"Install manually once R is available:\n\"
-                \"  R CMD INSTALL -l \${_r_lib} ${R_PKG_INST_DIR}\")
+                \"Install manually with:\n\"
+                \"  R CMD INSTALL -l ${R_LIB_DIR} ${R_PKG_INST_DIR}\")
         else()
-            message(STATUS \"modena R package installed successfully\")
+            message(STATUS \"modena R package installed to ${R_LIB_DIR}\")
         endif()
     ")
 else()
