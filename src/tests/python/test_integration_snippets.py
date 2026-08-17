@@ -183,3 +183,54 @@ class TestLanguageContracts:
             assert '/include ' in build or '/include/' in build
             assert 'python' in build.lower()
             assert '-lmodena' in build
+
+
+# ---------------------------------------------------------------------------
+# Every snippet must handle the return-code protocol
+# ---------------------------------------------------------------------------
+# The out-of-bounds / retrain protocol is the framework's headline feature: a
+# call can return 100 (retrained, retry), 200/201 (exit so FireWorks
+# relaunches) or raise.  A snippet that ignores it silently produces wrong
+# numbers, or drops a retraining signal on the floor.  The Python and Julia
+# templates originally did exactly that -- they only *described* error
+# handling in a comment.
+
+#: language -> substrings that prove the snippet reacts to a failed call.
+_ERROR_HANDLING = {
+    'c':       ['if (ret != 0)'],
+    'cpp':     ['catch', 'std::exception'],
+    'fortran': ['if (ret /= 0)', 'call exit(ret)'],
+    'python':  ['try:', 'except modena.OutOfBounds', 'sys.exit(200)'],
+    'julia':   ['catch e', 'ParametersUpdated', 'ExitAndRestart', 'rethrow()'],
+    'matlab':  ['if ret ~= 0', 'exit(ret)'],
+    'r':       ['if (ret != 0)', 'quit(status = ret)'],
+}
+
+
+class TestErrorHandling:
+
+    @pytest.mark.parametrize('lang', ALL_LANGUAGES)
+    def test_snippet_reacts_to_a_failed_call(self, I, lang):
+        code = I.snippet(_model(_DEMO, ['y']), lang)['code']
+        for expected in _ERROR_HANDLING[lang]:
+            assert expected in code, (
+                f'{lang} snippet does not handle the return-code protocol: '
+                f'{expected!r} missing'
+            )
+
+    def test_python_handles_both_exception_types(self, I):
+        """callModel propagates OutOfBounds rather than exiting, so a
+        standalone caller must react; ParametersNotValid means untrained."""
+        code = I.snippet(_model(_DEMO, ['y']), 'python')['code']
+        assert 'except modena.OutOfBounds' in code
+        assert 'except modena.ParametersNotValid' in code
+        compile(code, 'example.py', 'exec')
+
+    def test_julia_maps_each_exception_to_its_return_code(self, I):
+        """call! throws typed exceptions instead of returning a code, and the
+        three need different responses -- retry, exit, exit."""
+        code = I.snippet(_model(_DEMO, ['y']), 'julia')['code']
+        assert 'ParametersUpdated' in code and 'continue' in code
+        assert 'ExitAndRestart' in code and 'exit(e.code)' in code
+        assert 'ExitNoRestart' in code
+        assert 'rethrow()' in code

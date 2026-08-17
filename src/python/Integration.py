@@ -289,7 +289,10 @@ def _python(f) -> str:
     args = '\n'.join(f"    '{n}': {f['values'][n]:.10g}," for n in f['inputs'])
     note = '\n'.join(_supplied_note(f, '#'))
     note = f'\n{note}\n' if note else ''
-    return f'''import modena
+    first_out = f['outputs'][0] if f['outputs'] else 'output'
+    return f'''import sys
+
+import modena
 
 # 1. Load the surrogate.  Raises if the model is missing or untrained.
 model = modena.load("{f['model_id']}")
@@ -298,17 +301,23 @@ model = modena.load("{f['model_id']}")
 inputs = {{
 {args}
 }}
-outputs = model(inputs)
 
-print(outputs)          # {{{', '.join(repr(n) + ': ...' for n in f['outputs'])}}}
+# 3. Handle the out-of-bounds protocol.  callModel() propagates OutOfBounds
+#    rather than exiting, so a pure-Python caller decides what to do: inside a
+#    FireWorks task the framework catches it and queues a retraining detour,
+#    but a standalone script has to react itself.
+try:
+    outputs = model(inputs)
+except modena.OutOfBounds:
+    print("inputs left the trained domain; run 'modena init "
+          "{f['model_id']}' to extend it", file=sys.stderr)
+    sys.exit(200)
+except modena.ParametersNotValid:
+    print("model has no valid parameters; run 'modena init "
+          "{f['model_id']}' first", file=sys.stderr)
+    sys.exit(202)
 
-# modena.OutOfBounds is raised when a value leaves the trained domain.
-# Catch it if the caller should react rather than abort:
-#
-#     try:
-#         outputs = model(inputs)
-#     except modena.OutOfBounds:
-#         ...
+print(outputs["{first_out}"])
 '''
 
 
@@ -335,7 +344,16 @@ check(model)
 for step in 1:1
 {sets}
 
-    call!(model)        # throws on a non-zero return code
+    # call! throws instead of returning a code.  Each exception maps to one
+    # of the framework's return codes, and they need different responses:
+    try
+        call!(model)
+    catch e
+        e isa ParametersUpdated && continue      # 100: retrained, retry step
+        e isa ExitAndRestart    && exit(e.code)  # 200: FireWorks relaunches us
+        e isa ExitNoRestart     && exit(e.code)  # 201: workflow complete
+        rethrow()                                # ModenaError or anything else
+    end
 
 {gets}
     println("{f['outputs'][0] if f['outputs'] else 'output'} = ", {_ident(f['outputs'][0]) if f['outputs'] else '0.0'})
