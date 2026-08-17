@@ -63,6 +63,8 @@ _log = logging.getLogger('modena.strategy')
 
 # Declare classes loaded when using `from modena.Strategy import`
 __all__ = (
+# Workflow protocol return codes
+'OUT_OF_BOUNDS', 'MODEL_NOT_FOUND', 'PARAMETERS_NOT_VALID',
 # --> Base Classes for different types of Strategies
 'StrategyBaseClass', 'InitialisationStrategy', 'OutOfBoundsStrategy',
 'ImproveErrorStrategy', 'ParameterFittingStrategy',
@@ -2248,8 +2250,22 @@ class ParameterRefitting(FireTaskBase):
         return model.parameterFittingStrategy().newPointsFWAction(model)
 
 
+#: Workflow protocol return codes.
+#:
+#: These are the integers a MoDeNa-aware binary exits with, and the only
+#: channel from a subprocess back to ``handleReturnCode()``.  They are defined
+#: here, once: ``SurrogateModel.exception*()`` returns them, ``libmodena``
+#: reads them back off these exception instances, and the C layer no longer
+#: needs to know the numbers at all.
+OUT_OF_BOUNDS        = 200   #: an input left the model's trained domain
+MODEL_NOT_FOUND      = 201   #: the model id is not in the database
+PARAMETERS_NOT_VALID = 202   #: the model has no usable fitted parameters
+
+
 class OutOfBounds(Exception):
-    def __init__(self, message, model, returnCode=None):
+    #: Default when the raiser does not supply one.  libmodena passes the
+    #: actual code returned by modena_model_call(), which is more specific.
+    def __init__(self, message, model, returnCode=OUT_OF_BOUNDS):
         self.model      = model
         self.returnCode = returnCode
         _log.info('%s out-of-bounds for model %s', message, model._id)
@@ -2257,7 +2273,9 @@ class OutOfBounds(Exception):
 
 
 class ParametersNotValid(Exception):
-    def __init__(self, message, models, returnCode=None):
+    #: Default so the C raise sites in modena_model_t_init do not have to
+    #: hard-code the number -- the condition always means 202.
+    def __init__(self, message, models, returnCode=PARAMETERS_NOT_VALID):
         # ``models`` may be a single SurrogateModel (code 201 path) or a list
         # (code 202 path).  Always normalise to a list internally.
         if isinstance(models, list):

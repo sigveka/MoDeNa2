@@ -53,8 +53,9 @@ def test_out_of_bounds_carries_the_return_code(trained_model):
     with pytest.raises(modena.OutOfBounds) as excinfo:
         model(inputs)
 
+    from modena.Strategy import OUT_OF_BOUNDS
     exc = excinfo.value
-    assert exc.returnCode == 200, (
+    assert exc.returnCode == OUT_OF_BOUNDS, (
         'OutOfBounds.returnCode is not populated — model.c built the '
         'exception without the code from modena_model_call()'
     )
@@ -95,9 +96,10 @@ def test_parameters_not_valid_carries_the_return_code(trained_model):
     with pytest.raises(modena.ParametersNotValid) as excinfo:
         modena.libmodena.modena_model_t(model=model, parameters=[1.0] * (n - 1))
 
+    from modena.Strategy import PARAMETERS_NOT_VALID
     exc = excinfo.value
-    assert exc.returnCode == 202, (
-        'ParametersNotValid.returnCode is not populated — model.c built the '
-        'exception without the code'
+    assert exc.returnCode == PARAMETERS_NOT_VALID, (
+        'ParametersNotValid.returnCode is not populated — the class default '
+        'is what supplies it, since model.c deliberately does not know 202'
     )
     assert exc.model._id == MODEL_ID

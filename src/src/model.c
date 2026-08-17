@@ -950,12 +950,12 @@ static PyObject *modena_model_t_call
             modena_inputs_destroy(inputs);
             modena_outputs_destroy(outputs);
 
-            /* Pass the return code as the third constructor argument.
-             * OutOfBounds declares returnCode and every consumer expects it,
-             * but this site used to build the exception with (message, model)
-             * only -- so a pure-Python caller got returnCode=None and had no
-             * way to tell 200 from any other non-zero code without
-             * hard-coding it. */
+            /* Third argument is the code modena_model_call() actually
+             * returned -- measured data, not a constant, so it belongs here
+             * rather than in Python.  OutOfBounds defaults returnCode to
+             * Strategy.OUT_OF_BOUNDS when a raiser has nothing better; this
+             * site does, and a non-200 non-zero code would otherwise be
+             * reported as 200. */
             PyObject *pExcArgs = Py_BuildValue(
                 "(sOi)",
                 "Surrogate model is used out-of-bounds",
@@ -1225,12 +1225,11 @@ static int modena_model_t_init
         // || self->parameters_size != self->mf->parameters_size
     )
     {
-        /* Third element is the return code.  ParametersNotValid declares
-         * returnCode, but this site used to pass (message, model) only, so a
-         * pure-Python caller always saw None and had to assume 202.  202 is
-         * what SurrogateModel.exceptionParametersNotValid() returns, i.e. the
-         * code a C application exits with for this condition. */
-        PyObject *args = PyTuple_New(3);
+        /* (message, model) only: ParametersNotValid defaults returnCode to
+         * Strategy.PARAMETERS_NOT_VALID, so the protocol numbers stay defined
+         * in exactly one place -- Python -- rather than being duplicated as a
+         * literal here. */
+        PyObject *args = PyTuple_New(2);
         if(!args){ Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
 
         PyObject* str = PyUnicode_FromString
@@ -1242,7 +1241,6 @@ static int modena_model_t_init
         PyTuple_SET_ITEM(args, 0, str);
         Py_INCREF(self->pModel);
         PyTuple_SET_ITEM(args, 1, self->pModel);
-        PyTuple_SET_ITEM(args, 2, PyLong_FromLong(202));
 
         PyErr_SetObject
         (
@@ -1264,8 +1262,8 @@ static int modena_model_t_init
             self->parameters_size,
             (size_t)PySequence_Size(pParameters)
         );
-        /* Third element is the return code — see the sibling raise above. */
-        PyObject *excArgs = PyTuple_New(3);
+        /* (message, model) only — see the sibling raise above. */
+        PyObject *excArgs = PyTuple_New(2);
         if(!excArgs){ Py_DECREF(pSeq); Py_DECREF(pParameters); Modena_PyErr_Print(); return -1; }
 
         PyObject *excStr = PyUnicode_FromString("Surrogate model does not have valid parameters");
@@ -1274,7 +1272,6 @@ static int modena_model_t_init
         PyTuple_SET_ITEM(excArgs, 0, excStr);
         Py_INCREF(self->pModel);
         PyTuple_SET_ITEM(excArgs, 1, self->pModel);
-        PyTuple_SET_ITEM(excArgs, 2, PyLong_FromLong(202));
 
         PyErr_SetObject(modena_ParametersNotValid, excArgs);
         Py_DECREF(excArgs);

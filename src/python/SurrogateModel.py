@@ -582,7 +582,7 @@ class SurrogateFunction(DynamicDocument):
         """Method raising exception when a surrogate function is not
         instantiated.
         """
-        return 201
+        return MODEL_NOT_FOUND
 
 
     @classmethod
@@ -1561,7 +1561,7 @@ class SurrogateModel(DynamicDocument):
                     '_pending_oob_launch_id on model %s: %s',
                     self._id, e
                 )
-        return 200
+        return OUT_OF_BOUNDS
 
 
     @classmethod
@@ -1583,7 +1583,7 @@ class SurrogateModel(DynamicDocument):
             { '_id': surrogateModelId },
             upsert=True
         )
-        return 201
+        return MODEL_NOT_FOUND
 
 
     @classmethod
@@ -1610,7 +1610,7 @@ class SurrogateModel(DynamicDocument):
                     '_pending_init_launch_id on model %s: %s',
                     surrogateModelId, e
                 )
-        return 202
+        return PARAMETERS_NOT_VALID
 
 
     def callModel(self, inputs):

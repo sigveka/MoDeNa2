@@ -895,3 +895,47 @@ class TestExceptionsReExported:
         import modena.Strategy as _s
         from modena.Registry import BinaryNotFound
         assert _s.BinaryNotFound is BinaryNotFound
+
+
+# ---------------------------------------------------------------------------
+# Workflow protocol return codes
+# ---------------------------------------------------------------------------
+# The 200/201/202 codes are the only channel from a MoDeNa-aware subprocess
+# back to handleReturnCode().  They are defined once, in Strategy.py, and
+# read back from there by SurrogateModel.exception*() and by libmodena --
+# model.c deliberately does not hard-code them.
+
+class TestProtocolCodes:
+
+    def test_codes_have_their_protocol_values(self):
+        from modena.Strategy import (
+            MODEL_NOT_FOUND, OUT_OF_BOUNDS, PARAMETERS_NOT_VALID,
+        )
+        assert (OUT_OF_BOUNDS, MODEL_NOT_FOUND, PARAMETERS_NOT_VALID) == \
+               (200, 201, 202)
+
+    def test_codes_are_exported(self):
+        """SurrogateModel.py reads them via `from modena.Strategy import *`."""
+        import modena.Strategy as S
+        for name in ('OUT_OF_BOUNDS', 'MODEL_NOT_FOUND', 'PARAMETERS_NOT_VALID'):
+            assert name in S.__all__, f'{name} missing from __all__'
+
+    def test_out_of_bounds_defaults_to_its_code(self):
+        """A raiser with nothing better gets the right code for free."""
+        from modena.Strategy import OUT_OF_BOUNDS, OutOfBounds
+        from unittest.mock import MagicMock
+        exc = OutOfBounds('msg', MagicMock())
+        assert exc.returnCode == OUT_OF_BOUNDS
+
+    def test_out_of_bounds_keeps_an_explicit_code(self):
+        """libmodena passes what modena_model_call() actually returned."""
+        from modena.Strategy import OutOfBounds
+        from unittest.mock import MagicMock
+        assert OutOfBounds('msg', MagicMock(), 100).returnCode == 100
+
+    def test_parameters_not_valid_defaults_to_its_code(self):
+        """This is what lets model.c raise it without knowing the number."""
+        from modena.Strategy import PARAMETERS_NOT_VALID, ParametersNotValid
+        from unittest.mock import MagicMock
+        exc = ParametersNotValid('msg', MagicMock())
+        assert exc.returnCode == PARAMETERS_NOT_VALID
