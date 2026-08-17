@@ -2735,11 +2735,17 @@ class ModenaFireTask(FireTaskBase):
                   the argument and raises the appropriate Python exception if
                   the error code is MoDeNa-related.
 
-                  | Error code | Exception                 |
-                  | ---------- | ------------------------- |
-                  | 200        | Model is Out of bounds    |
-                  | 201        | Model is not in database  |
-                  | 202        | Parameters not validated  |
+                  | Exit code | Exception           | Meaning                     |
+                  | --------- | ------------------- | --------------------------- |
+                  | 200       | OutOfBounds         | Input left the trained domain |
+                  | 201       | ParametersNotValid  | Model not in database; load from its module |
+                  | 202       | ParametersNotValid  | Model has no fitted parameters |
+                  | other > 0 | TerminateWorkflow   | Unrecoverable                 |
+
+                  These are *exit* codes.  100 is a modena_model_call()
+                  result meaning "retry this step in-process"; a process that
+                  exits with 100 falls into the catch-all above and terminates
+                  the workflow.  See docs/return-codes.md.
 
         """
         if returnCode > 0:

@@ -99,6 +99,9 @@ struct ExitAndRestart : Exception { using Exception::Exception; };
 /**
  * @brief Thrown when modena_model_call returns 201.
  *
+ * Despite the name this is not a successful termination: 201 means the model
+ * was not in the database and must be initialised from its module.
+ *
  * MoDeNa requires new DoE data but the simulation does not need to be
  * restarted — the workflow manager will resume from the current state.
  */
@@ -412,7 +415,7 @@ public:
      * @throws ParametersUpdated (ret == 100) The surrogate was retrained.
      *         Discard this call's outputs and retry the current time step.
      * @throws ExitAndRestart    (ret == 200) Exit and restart the simulation.
-     * @throws ExitNoRestart     (ret == 201) Exit; no restart needed.
+     * @throws ExitNoRestart     (ret == 201) Exit; model needs initialising.
      * @throws Exception         on any other non-zero return or C-level error.
      */
     void call()

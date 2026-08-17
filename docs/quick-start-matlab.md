@@ -64,9 +64,14 @@ Use `<prefix>/share/modena/modena-env.sh` if you did not install to `$HOME`.
 | Code | Meaning | Required action |
 |------|---------|----------------|
 | `0` | Success | Continue normally |
-| `100` | Surrogate retrained | Decrement time, `continue` |
-| `200` | Exit and restart | `exit(code)` — FireWorks relaunches |
-| `201` | Clean exit | `exit(code)` — workflow complete |
+| `1` | Failure | Abort — not a protocol signal |
+| `100` | Surrogate retrained mid-run | Retry the step in-process (`continue`); do not exit |
+| `200` | Out of bounds — new DoE, then restart | `exit(code)` — FireWorks relaunches |
+| `201` | Model not in database; initialise from its module | `exit(code)` |
+| `202` | Model has no fitted parameters | `exit(code)` |
+
+Exiting with `100` terminates the workflow — it is a call result, not an exit
+code. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 

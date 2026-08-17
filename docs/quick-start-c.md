@@ -145,9 +145,14 @@ int main(void)
 | Code | Meaning | Required action |
 |------|---------|----------------|
 | `0` | Success | Continue normally |
-| `100` | Surrogate retrained (out of bounds) | Decrement time, retry step |
-| `200` | Exit and restart | `exit(200)` — FireWorks relaunches |
-| `201` | Clean exit | `exit(201)` — workflow complete |
+| `1` | Failure | Abort — not a protocol signal |
+| `100` | Surrogate retrained mid-run | Retry the step **in-process**; do not exit |
+| `200` | Out of bounds — new DoE, then restart | `exit(200)` — FireWorks relaunches |
+| `201` | Model not in database; initialise from its module | `exit(201)` |
+| `202` | Model has no fitted parameters (from `modena_model_new`) | `exit(202)` |
+
+Exiting with `100` terminates the workflow — it is a call result, not an exit
+code. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 

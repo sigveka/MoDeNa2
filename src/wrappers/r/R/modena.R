@@ -48,9 +48,10 @@ NULL
 #' @section Return codes from \code{$call()}:
 #' \describe{
 #'   \item{0}{Success — outputs are valid.}
-#'   \item{100}{Surrogate retrained (out of bounds) — decrement time and retry.}
-#'   \item{200}{Exit and restart — FireWorks will re-queue the simulation.}
-#'   \item{201}{Clean exit — workflow complete.}
+#'   \item{100}{Surrogate retrained mid-run — retry the step; do not quit.}
+#'   \item{200}{Out of bounds — FireWorks will re-queue the simulation.}
+#'   \item{201}{Model not in database — initialise it from its module.}
+#'   \item{202}{Model has no fitted parameters — initialisation needed.}
 #' }
 #'
 #' @export
@@ -113,8 +114,9 @@ Modena <- setRefClass(               # nolint: object_name_linter
         },
 
         #' @description Evaluate the surrogate model with the current inputs.
-        #' @return Integer return code: 0 = success, 100 = retrained,
-        #'   200 = exit+restart, 201 = clean exit.
+        #' @return Integer return code: 0 = success, 100 = retrained
+        #'   (retry in-process), 200 = out of bounds, 201 = model not in
+        #'   database, 202 = no fitted parameters.  See docs/return-codes.md.
         call = function() {
             .Call("r_model_call", .model, .inputs, .outputs)
         },

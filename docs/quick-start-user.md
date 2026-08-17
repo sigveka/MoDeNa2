@@ -161,9 +161,12 @@ surrogate was trained on.
 | Return code | Meaning | What happens next |
 |-------------|---------|-------------------|
 | 0 | Success | Workflow completes normally |
-| 100 | Surrogate retrained (out of bounds) | Macroscopic solver decrements time and retries the current step |
-| 200 | Exit and restart | FireWorks launches parameter fitting, then restarts the solver |
-| 201 | Clean exit — no restart | Workflow ends |
+| 100 | Surrogate retrained mid-run | The solver retries the current step in-process — it does not exit |
+| 200 | Out of bounds | FireWorks launches parameter fitting, then restarts the solver |
+| 201 | Model not in database | FireWorks initialises it from its module, then restarts the solver |
+| 202 | Model has no fitted parameters | FireWorks runs its initialisation workflow, then restarts the solver |
+
+See [Return codes](return-codes.md) for the full protocol.
 
 ---
 

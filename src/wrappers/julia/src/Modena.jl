@@ -146,7 +146,8 @@ struct ExitAndRestart <: Exception
 end
 
 """
-Thrown by `call!` when the workflow signals a clean exit (return code 201).
+Thrown by `call!` when the model is not in the database and must be
+initialised from its module (return code 201).  Not a successful termination.
 Pass `e.code` to `exit()`.
 """
 struct ExitNoRestart <: Exception

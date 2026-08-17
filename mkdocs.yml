@@ -15,6 +15,7 @@ nav:
       - Julia: quick-start-julia.md
       - MATLAB / Octave: quick-start-matlab.md
       - R: quick-start-r.md
+  - Return Codes: return-codes.md
   - Architecture: architecture.md
   - Core Developer Guide: core-developer-guide.md
   - Model Registry: model-registry.md

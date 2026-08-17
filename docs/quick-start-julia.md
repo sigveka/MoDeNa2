@@ -79,10 +79,13 @@ export MODENA_LIB_DIR=/home/user/lib/modena
 
 | Exception | Trigger | Required action |
 |-----------|---------|----------------|
-| `ParametersUpdated` | ret == 100, surrogate retrained | Decrement time, retry step |
-| `ExitAndRestart` | ret == 200, DoE campaign needed | `exit(e.code)` |
-| `ExitNoRestart` | ret == 201, workflow complete | `exit(e.code)` |
+| `ParametersUpdated` | ret == 100, surrogate retrained mid-run | Retry the step in-process (`continue`); do **not** exit |
+| `ExitAndRestart` | ret == 200, out of bounds — new DoE needed | `exit(e.code)` — FireWorks relaunches |
+| `ExitNoRestart` | ret == 201, model not in database; initialise from its module | `exit(e.code)` |
 | `ModenaError` | Any other non-zero code | `e.code` holds the integer |
+
+Despite the name, `ExitNoRestart` is not a successful termination: `201` means
+the model needs initialising. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 

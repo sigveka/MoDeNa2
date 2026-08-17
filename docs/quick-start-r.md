@@ -101,9 +101,14 @@ while (t < t_end) {
 | Code | Meaning | Action |
 |---|---|---|
 | `0` | Success | Outputs are valid — use them |
-| `100` | Surrogate retrained (out of bounds) | Decrement time step and retry (`next`) |
-| `200` | Exit and restart | FireWorks re-queues the simulation; call `stop()` |
-| `201` | Clean exit | Workflow complete; call `stop()` |
+| `1` | Failure | Abort — not a protocol signal |
+| `100` | Surrogate retrained mid-run | Retry the step in-process (`next`); do not quit |
+| `200` | Out of bounds — new DoE, then restart | `quit(status = ret)`; FireWorks re-queues |
+| `201` | Model not in database; initialise from its module | `quit(status = ret)` |
+| `202` | Model has no fitted parameters | `quit(status = ret)` |
+
+Quitting with `100` terminates the workflow — it is a call result, not an exit
+code. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 

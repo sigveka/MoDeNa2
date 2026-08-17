@@ -59,11 +59,14 @@ Errors and workflow events are signalled by exceptions, not return codes.
 
 | Exception | Trigger | Required action |
 |-----------|---------|----------------|
-| `modena::ParametersUpdated` | ret == 100, surrogate retrained | Decrement time, retry step |
-| `modena::ExitAndRestart` | ret == 200, DoE campaign needed | `exit(e.code)` |
-| `modena::ExitNoRestart` | ret == 201, workflow complete | `exit(e.code)` |
+| `modena::ParametersUpdated` | ret == 100, surrogate retrained mid-run | Retry the step in-process; do **not** exit |
+| `modena::ExitAndRestart` | ret == 200, out of bounds — new DoE needed | `exit(e.code)` — FireWorks relaunches |
+| `modena::ExitNoRestart` | ret == 201, model not in database; initialise from its module | `exit(e.code)` |
 | `modena::ModelNotFound` | Model ID not in database | Fix `_id` or run `initModels` |
 | `modena::Exception` | Base class for all MoDeNa exceptions | `e.code` holds the integer code |
+
+Despite the name, `ExitNoRestart` is not a successful termination: `201` means
+the model needs initialising. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 

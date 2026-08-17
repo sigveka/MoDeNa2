@@ -24,9 +24,10 @@ classdef Modena < handle
 %
 % Return codes from call()
 %   0    success
-%   100  surrogate was retrained — decrement time and retry this step
-%   200  workflow requests exit-and-restart — call exit(code)
-%   201  workflow requests clean exit        — call exit(code)
+%   100  surrogate retrained mid-run — retry this step; do NOT exit
+%   200  out of bounds; new DoE then restart — call exit(code)
+%   201  model not in database, initialise from its module — call exit(code)
+%   202  model has no fitted parameters — call exit(code)
 %
 % See also: modena_gateway
 

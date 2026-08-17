@@ -60,9 +60,14 @@ target_link_libraries(myApp MODENA::fmodena_oop)
 | Code | Meaning | Required action |
 |------|---------|----------------|
 | `0` | Success | Continue normally |
-| `100` | Surrogate retrained | Decrement time, retry step (`cycle`) |
-| `200` | Exit and restart | `call exit(ret)` — FireWorks relaunches |
-| `201` | Clean exit | `call exit(ret)` — workflow complete |
+| `1` | Failure | Abort — not a protocol signal |
+| `100` | Surrogate retrained mid-run | Retry the step in-process (`cycle`); do not exit |
+| `200` | Out of bounds — new DoE, then restart | `call exit(ret)` — FireWorks relaunches |
+| `201` | Model not in database; initialise from its module | `call exit(ret)` |
+| `202` | Model has no fitted parameters (from `m%init`) | `call exit(ret)` |
+
+Exiting with `100` terminates the workflow — it is a call result, not an exit
+code. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 
