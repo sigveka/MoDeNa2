@@ -60,3 +60,14 @@ def get_fitdata(model_id: str):
     return SurrogateModel.objects.only('fitData').get(_id=model_id)
 
 
+
+
+def get_model_full(model_id: str):
+    """Return a model with fitData AND its schema fields.
+
+    ``get_fitdata`` uses ``.only('fitData')``, which strips inputs, outputs,
+    parameters and surrogateFunction from the document.  That is fine for
+    plotting the raw table, but anything that *evaluates* the surrogate needs
+    the schema too, so diagnostics must not use it.
+    """
+    return SurrogateModel.load(model_id)

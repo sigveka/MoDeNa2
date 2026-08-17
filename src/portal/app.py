@@ -32,6 +32,7 @@ app.layout = dash.page_container
 # Register all callbacks by importing the callback modules.
 import modena_portal.callbacks.detail_callbacks      # noqa: F401, E402
 import modena_portal.callbacks.evaluator_callbacks   # noqa: F401, E402
+import modena_portal.callbacks.diagnostics_callbacks # noqa: F401, E402
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8050)

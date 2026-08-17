@@ -115,7 +115,10 @@ def layout(model_id: str = ""):
         ]),
     ])
 
-    # Fit Data tab (only for BackwardMappingModel)
+    # Fit Data / Fit Quality / Refit tabs (BackwardMappingModel only -- they
+    # all need stored fitData).  Contents load on tab switch: computing fit
+    # quality evaluates the surrogate once per sample, which is not something
+    # to do on every page render.
     has_fitdata = hasattr(model, 'fitData')
     if has_fitdata:
         fitdata_tab = dbc.Tab(label="Fit Data", tab_id="tab-fitdata", children=[
@@ -124,7 +127,19 @@ def layout(model_id: str = ""):
                 className="text-muted"
             ), className="mt-3"),
         ])
-        tabs = [overview_tab, doc_tab, fitdata_tab]
+        quality_tab = dbc.Tab(label="Fit Quality", tab_id="tab-quality", children=[
+            html.Div(id='quality-content', children=html.Span(
+                "Switch to this tab to score the stored parameters.",
+                className="text-muted"
+            ), className="mt-3"),
+        ])
+        refit_tab = dbc.Tab(label="Refit", tab_id="tab-refit", children=[
+            html.Div(id='refit-content', children=html.Span(
+                "Switch to this tab to compare fitting strategies.",
+                className="text-muted"
+            ), className="mt-3"),
+        ])
+        tabs = [overview_tab, doc_tab, fitdata_tab, quality_tab, refit_tab]
     else:
         tabs = [overview_tab, doc_tab]
 
@@ -150,5 +165,9 @@ def layout(model_id: str = ""):
         html.Hr(),
         # Hidden store to pass model_id to callbacks
         dcc.Store(id='detail-model-id', data=decoded_id),
+        # Candidate fits from the Refit tab.  Kept out of the tab body so the
+        # comparison survives switching tabs; cleared on page reload, which is
+        # correct -- these are unsaved experiments.
+        dcc.Store(id='refit-store', data=[]),
         dbc.Tabs(tabs, id='detail-tabs', active_tab='tab-overview'),
     ], fluid=True)
