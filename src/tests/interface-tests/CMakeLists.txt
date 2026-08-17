@@ -165,3 +165,20 @@ if(WITH_R AND R_EXECUTABLE)
             "R -e \"install.packages('testthat')\"")
     endif()
 endif()
+
+# -- Generated integration snippets ---------------------------------------
+# modena.Integration renders per-model example code for seven languages.
+# Compile the compiled-language ones and run them: a snippet that does not
+# build is worse than none, because it looks authoritative.  Four template
+# bugs were caught this way and would have passed any string assertion.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(
+    NAME    modena_generated_snippets
+    COMMAND ${Python3_EXECUTABLE} -m pytest
+            "${CMAKE_CURRENT_SOURCE_DIR}/test_generated_snippets.py"
+            -m integration --tb=short -q
+)
+set_tests_properties(modena_generated_snippets PROPERTIES
+    LABELS      "python;integration;snippets"
+    ENVIRONMENT "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
+)

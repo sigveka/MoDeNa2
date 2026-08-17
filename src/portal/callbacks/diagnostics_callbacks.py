@@ -217,3 +217,45 @@ def promote(n_clicks, selected_rows, store, model_id):
         + ', '.join(f'{k}={v:.6g}' for k, v in named.items()),
         color="success",
     )
+
+
+# ---------------------------------------------------------------------------
+# Integrate tab — per-model, per-language snippets
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output('integrate-content', 'children'),
+    Input('detail-tabs', 'active_tab'),
+    State('detail-model-id', 'data'),
+    prevent_initial_call=True,
+)
+def load_integrate_on_tab(active_tab, model_id):
+    if active_tab != 'tab-integrate' or not model_id:
+        return no_update
+    from modena_portal.components.integrate_panel import make_language_tabs
+    return html.Div([
+        make_language_tabs(),
+        html.Div(id='integrate-snippet', className="mt-3"),
+    ])
+
+
+@callback(
+    Output('integrate-snippet', 'children'),
+    Input('integrate-lang-tabs', 'active_tab'),
+    State('detail-model-id', 'data'),
+)
+def render_snippet(active_lang, model_id):
+    if not active_lang or not model_id:
+        return no_update
+
+    from modena.Integration import snippet
+    from modena_portal.components.integrate_panel import make_snippet_view
+
+    language = active_lang.removeprefix('lang-')
+    try:
+        model = get_model_full(model_id)
+        s = snippet(model, language)
+    except Exception as exc:
+        _log.exception('snippet generation failed for %s/%s', model_id, language)
+        return dbc.Alert(f"Could not generate snippet: {exc}", color="danger")
+    return make_snippet_view(s, model_id)

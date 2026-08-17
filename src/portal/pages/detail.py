@@ -143,6 +143,14 @@ def layout(model_id: str = ""):
     else:
         tabs = [overview_tab, doc_tab]
 
+    # Integration snippets work for any model -- they need only the schema.
+    tabs.append(dbc.Tab(label="Integrate", tab_id="tab-integrate", children=[
+        html.Div(id='integrate-content', children=html.Span(
+            "Switch to this tab for ready-to-paste integration code.",
+            className="text-muted"
+        ), className="mt-3"),
+    ]))
+
     # C Code tab
     ccode = sf.Ccode if sf and sf.Ccode else '# No C code stored.'
     ccode_tab = dbc.Tab(label="C Code", tab_id="tab-ccode", children=[
