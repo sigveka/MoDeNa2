@@ -91,6 +91,20 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/modena-env.sh"
   DESTINATION "share/modena"
 )
 
+# Console entry point.  setup.py.in declares `modena = modena.__main__:_main`
+# under console_scripts, but the package is installed by the install(FILES)
+# rule above rather than by running setup.py, so nothing ever generates the
+# launcher pip would have produced.  Generate it here instead, with the
+# shebang pinned to the configured interpreter exactly as pip does.
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/modena.py.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/modena"
+  @ONLY
+)
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/modena"
+  DESTINATION "bin"
+)
+
 file(MAKE_DIRECTORY
   "${CMAKE_CURRENT_BINARY_DIR}/modena-${PROJECT_VERSION}.dist-info"
 )

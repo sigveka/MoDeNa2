@@ -26,12 +26,45 @@ install(
 find_program(R_EXECUTABLE R)
 
 if(R_EXECUTABLE)
-    message(STATUS
-        "R found: ${R_EXECUTABLE} — modena R package will be compiled on install")
+    # `R CMD INSTALL` with no -l targets the first entry of .libPaths(), which
+    # on a distro R is the root-owned /usr/local/lib/R/site-library.  A normal
+    # user install therefore fails with
+    #
+    #     ERROR: no permission to install to directory '.../site-library'
+    #
+    # and the failure only surfaces as a cmake WARNING buried in the install
+    # log, so the wrapper silently never gets installed.  Target R_LIBS_USER
+    # instead: R's own per-user library, which it prepends to .libPaths()
+    # automatically once the directory exists.
+    execute_process(
+        COMMAND "${R_EXECUTABLE}" --no-save --slave
+                -e "cat(path.expand(Sys.getenv('R_LIBS_USER')))"
+        OUTPUT_VARIABLE  R_USER_LIB
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+
+    if(R_USER_LIB)
+        message(STATUS
+            "R found: ${R_EXECUTABLE} — modena R package will be installed to ${R_USER_LIB}")
+    else()
+        # R reported no user library; fall back to its default and let the
+        # permission error (if any) surface as before.
+        message(STATUS
+            "R found: ${R_EXECUTABLE} — modena R package will be compiled on install")
+    endif()
+
     install(CODE "
         message(STATUS \"Compiling and installing the modena R package...\")
+        set(_r_lib \"${R_USER_LIB}\")
+        if(NOT _r_lib STREQUAL \"\")
+            file(MAKE_DIRECTORY \"\${_r_lib}\")
+            set(_r_args CMD INSTALL -l \"\${_r_lib}\" \"${R_PKG_INST_DIR}\")
+        else()
+            set(_r_args CMD INSTALL \"${R_PKG_INST_DIR}\")
+        endif()
         execute_process(
-            COMMAND \"${R_EXECUTABLE}\" CMD INSTALL \"${R_PKG_INST_DIR}\"
+            COMMAND \"${R_EXECUTABLE}\" \${_r_args}
             RESULT_VARIABLE _r_result
             ERROR_VARIABLE  _r_error
             OUTPUT_VARIABLE _r_output
@@ -40,7 +73,7 @@ if(R_EXECUTABLE)
             message(WARNING
                 \"R CMD INSTALL failed (exit \${_r_result}):\n\${_r_error}\n\"
                 \"Install manually once R is available:\n\"
-                \"  R CMD INSTALL ${R_PKG_INST_DIR}\")
+                \"  R CMD INSTALL -l \${_r_lib} ${R_PKG_INST_DIR}\")
         else()
             message(STATUS \"modena R package installed successfully\")
         endif()

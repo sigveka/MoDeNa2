@@ -123,3 +123,41 @@ if(WITH_JULIA)
         )
     endif()
 endif()
+
+# -- R (modena R package, dlopen'd libmodena) -----------------------------
+# Runs the package's own testthat suite, which already covers construction,
+# evaluation and the named parameter accessors.  The suite lived in
+# src/wrappers/r/tests/testthat/ with nothing referencing it, so R was the one
+# wrapper with tests that never ran.
+#
+# ``test_dir`` is pointed at the SOURCE tests directory for the same reason the
+# Julia test uses --project on the source tree: it picks up edits without
+# requiring a reinstall first.  stop_on_failure makes testthat raise, and
+# `R -e` exits non-zero on an uncaught error, which is what ctest reads.
+#
+# Gated on testthat being importable -- it is a test-only dependency that the
+# wrapper itself does not need, so a missing testthat should skip the test
+# rather than fail the suite.
+if(WITH_R AND R_EXECUTABLE)
+    execute_process(
+        COMMAND "${R_EXECUTABLE}" --no-save --slave
+                -e "cat(requireNamespace('testthat', quietly=TRUE))"
+        OUTPUT_VARIABLE _r_has_testthat
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(_r_has_testthat STREQUAL "TRUE")
+        add_test(NAME modena_iface_r_smoke
+            COMMAND "${R_EXECUTABLE}" --no-save --slave -e
+                "library(testthat); library(modena); test_dir('${CMAKE_CURRENT_LIST_DIR}/../../wrappers/r/tests/testthat', stop_on_failure = TRUE)"
+        )
+        set_tests_properties(modena_iface_r_smoke PROPERTIES
+            LABELS "r;integration"
+        )
+    else()
+        message(STATUS
+            "WITH_R=ON but the testthat package is not installed — "
+            "skipping modena_iface_r_smoke.  Install it with:  "
+            "R -e \"install.packages('testthat')\"")
+    endif()
+endif()
