@@ -4,13 +4,33 @@ The canonical reference for every MoDeNa status code. The per-language
 quick-starts reproduce the subset each one needs; this page is the source they
 must agree with.
 
-The numbers themselves are defined once, in `src/python/Strategy.py`:
+The numbers themselves are defined in `src/python/Strategy.py`:
 
 ```python
-OUT_OF_BOUNDS        = 200
-MODEL_NOT_FOUND      = 201
-PARAMETERS_NOT_VALID = 202
+OUT_OF_BOUNDS         = 200
+MODEL_NOT_IN_DATABASE = 201
+PARAMETERS_NOT_VALID  = 202
 ```
+
+Because C, Fortran, MATLAB and R compare integers rather than catching typed
+exceptions, each exposes the same set as named constants. Use them instead of
+writing the numbers inline:
+
+| Language | How to reach them |
+|---|---|
+| Python | `from modena.Strategy import OUT_OF_BOUNDS, ...` |
+| C / C++ | `enum modena_status_t` in `modena.h` — `MODENA_OUT_OF_BOUNDS`, … |
+| Fortran | `use fmodena_oop` — `MODENA_OUT_OF_BOUNDS`, … |
+| MATLAB | `Modena.OUT_OF_BOUNDS`, … (constant properties) |
+| R | `MODENA_OUT_OF_BOUNDS`, … (exported) |
+
+`modena_status_t` is deliberately separate from `modena_error_t` (0–3, for
+"model / function / index set not found"). `MODENA_MODEL_NOT_FOUND` in that
+older enum is `1`, and is unrelated to `201`.
+
+`modena_error_message()` describes all of them; it used to return
+"Unknown error" for anything above `3`, which is every code that actually
+occurs.
 
 `SurrogateModel.exception*()` returns them, libmodena reads them back off the
 raised exception, and `handleReturnCode()` dispatches on them. No other file

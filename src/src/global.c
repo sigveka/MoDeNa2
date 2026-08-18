@@ -91,15 +91,31 @@ struct modena_errordesc
     { MODENA_SUCCESS, "No error" },
     { MODENA_MODEL_NOT_FOUND, "Surrogate model not found in database" },
     { MODENA_FUNCTION_NOT_FOUND, "Surrogate function not found in database" },
-    { MODENA_INDEX_SET_NOT_FOUND, "Index set not found in database" }
+    { MODENA_INDEX_SET_NOT_FOUND, "Index set not found in database" },
+    /* Workflow protocol codes.  These are the values modena_error_code
+     * actually receives in practice -- modena_model_new() assigns whatever
+     * SurrogateModel.exception*() returned -- yet the lookup below used to
+     * reject anything >= MODENA_MODEL_LAST, so every real code reported
+     * "Unknown error". */
+    { MODENA_RETRAINED,             "Surrogate retrained — retry this step" },
+    { MODENA_OUT_OF_BOUNDS,         "Input outside the surrogate's trained domain" },
+    { MODENA_MODEL_NOT_IN_DATABASE, "Surrogate model not in database — initialise it from its module" },
+    { MODENA_PARAMETERS_NOT_VALID,  "Surrogate model has no valid fitted parameters" }
 };
 
 const char* modena_error_message(int error_code)
 {
-    if (error_code < 0 || error_code >= MODENA_MODEL_LAST)
-        return "Unknown error";
-    return modena_errordesc[error_code].message;
-};
+    /* Linear scan: the table is not dense (0-3 then 100, 200-202), so it
+     * cannot be indexed.  It is also four entries longer than
+     * MODENA_MODEL_LAST, which is why the old bounds check hid every
+     * protocol code. */
+    for (size_t i = 0; i < sizeof(modena_errordesc)/sizeof(modena_errordesc[0]); ++i)
+    {
+        if (modena_errordesc[i].code == error_code)
+            return modena_errordesc[i].message;
+    }
+    return "Unknown error";
+}
 
 static PyObject *
 test_function(PyObject *self, PyObject *args)

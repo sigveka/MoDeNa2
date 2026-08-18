@@ -71,6 +71,24 @@ module fmodena_oop
 
     implicit none
 
+    ! ---------------------------------------------------------------------- !
+    ! Workflow protocol status codes.
+    !
+    ! Mirrors `enum modena_status_t` in global.h and the constants in
+    ! src/python/Strategy.py, which is where they are defined.  Compare
+    ! against these rather than writing 100/200/201/202 inline.
+    !
+    ! MODENA_RETRAINED is only ever a call result: exiting with it is treated
+    ! as an unrecognised failure and terminates the workflow.
+    !
+    ! See docs/return-codes.md.
+    ! ---------------------------------------------------------------------- !
+    integer(c_int), parameter, public :: MODENA_OK                    = 0
+    integer(c_int), parameter, public :: MODENA_RETRAINED             = 100
+    integer(c_int), parameter, public :: MODENA_OUT_OF_BOUNDS         = 200
+    integer(c_int), parameter, public :: MODENA_MODEL_NOT_IN_DATABASE = 201
+    integer(c_int), parameter, public :: MODENA_PARAMETERS_NOT_VALID  = 202
+
     private
     public :: modena_model
 

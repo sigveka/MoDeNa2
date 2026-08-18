@@ -582,7 +582,7 @@ class SurrogateFunction(DynamicDocument):
         """Method raising exception when a surrogate function is not
         instantiated.
         """
-        return MODEL_NOT_FOUND
+        return MODEL_NOT_IN_DATABASE
 
 
     @classmethod
@@ -1583,7 +1583,7 @@ class SurrogateModel(DynamicDocument):
             { '_id': surrogateModelId },
             upsert=True
         )
-        return MODEL_NOT_FOUND
+        return MODEL_NOT_IN_DATABASE
 
 
     @classmethod

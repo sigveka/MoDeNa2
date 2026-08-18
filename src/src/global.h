@@ -124,6 +124,31 @@ enum modena_error_t
 };
 
 /**
+ * @brief Workflow protocol status codes.
+ *
+ * A separate space from `modena_error_t`: these are what
+ * modena_model_call() returns and what a MoDeNa-aware binary exits with, so
+ * the FireWorks worker can act on them.  They are defined in
+ * `src/python/Strategy.py` and mirrored here for C, Fortran, MATLAB and R
+ * callers, which compare integers rather than catching typed exceptions the
+ * way the C++, Julia and Python wrappers do.
+ *
+ * `MODENA_RETRAINED` is only ever a *call result*.  A process that exits with
+ * it is not retried — handleReturnCode() treats any unrecognised non-zero
+ * status as fatal.
+ *
+ * @see docs/return-codes.md
+ */
+enum modena_status_t
+{
+    MODENA_OK                    = 0,   /**< Success; outputs are valid. */
+    MODENA_RETRAINED             = 100, /**< Surrogate retrained mid-run — retry this step in-process; do not exit. */
+    MODENA_OUT_OF_BOUNDS         = 200, /**< Input left the trained domain — exit; FireWorks retrains and re-queues. */
+    MODENA_MODEL_NOT_IN_DATABASE = 201, /**< Model absent from MongoDB — exit; FireWorks initialises it from its module. */
+    MODENA_PARAMETERS_NOT_VALID  = 202  /**< Model has no fitted parameters — exit; FireWorks runs its initialisation workflow. */
+};
+
+/**
  * @brief Return `true` if an error has been set.
  *
  * Does **not** clear the error code.  Use modena_error() to retrieve and

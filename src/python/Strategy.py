@@ -64,7 +64,7 @@ _log = logging.getLogger('modena.strategy')
 # Declare classes loaded when using `from modena.Strategy import`
 __all__ = (
 # Workflow protocol return codes
-'OUT_OF_BOUNDS', 'MODEL_NOT_FOUND', 'PARAMETERS_NOT_VALID',
+'OUT_OF_BOUNDS', 'MODEL_NOT_IN_DATABASE', 'PARAMETERS_NOT_VALID',
 # --> Base Classes for different types of Strategies
 'StrategyBaseClass', 'InitialisationStrategy', 'OutOfBoundsStrategy',
 'ImproveErrorStrategy', 'ParameterFittingStrategy',
@@ -2258,7 +2258,7 @@ class ParameterRefitting(FireTaskBase):
 #: reads them back off these exception instances, and the C layer no longer
 #: needs to know the numbers at all.
 OUT_OF_BOUNDS        = 200   #: an input left the model's trained domain
-MODEL_NOT_FOUND      = 201   #: the model id is not in the database
+MODEL_NOT_IN_DATABASE = 201  #: not in MongoDB; load it from its module
 PARAMETERS_NOT_VALID = 202   #: the model has no usable fitted parameters
 
 

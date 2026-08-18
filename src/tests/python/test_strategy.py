@@ -909,15 +909,15 @@ class TestProtocolCodes:
 
     def test_codes_have_their_protocol_values(self):
         from modena.Strategy import (
-            MODEL_NOT_FOUND, OUT_OF_BOUNDS, PARAMETERS_NOT_VALID,
+            MODEL_NOT_IN_DATABASE, OUT_OF_BOUNDS, PARAMETERS_NOT_VALID,
         )
-        assert (OUT_OF_BOUNDS, MODEL_NOT_FOUND, PARAMETERS_NOT_VALID) == \
+        assert (OUT_OF_BOUNDS, MODEL_NOT_IN_DATABASE, PARAMETERS_NOT_VALID) == \
                (200, 201, 202)
 
     def test_codes_are_exported(self):
         """SurrogateModel.py reads them via `from modena.Strategy import *`."""
         import modena.Strategy as S
-        for name in ('OUT_OF_BOUNDS', 'MODEL_NOT_FOUND', 'PARAMETERS_NOT_VALID'):
+        for name in ('OUT_OF_BOUNDS', 'MODEL_NOT_IN_DATABASE', 'PARAMETERS_NOT_VALID'):
             assert name in S.__all__, f'{name} missing from __all__'
 
     def test_out_of_bounds_defaults_to_its_code(self):

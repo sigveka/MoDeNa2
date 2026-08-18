@@ -199,3 +199,18 @@ set_tests_properties(modena_oob_exception PROPERTIES
     LABELS      "python;integration"
     ENVIRONMENT "MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
 )
+
+# -- Status codes agree across every binding ------------------------------
+# The protocol numbers exist in five places (Python, the C enum, and the
+# Fortran / MATLAB / R mirrors).  Five copies is what let "201 = clean exit"
+# survive in six documents, so pin them together.
+add_test(
+    NAME    modena_status_codes
+    COMMAND ${Python3_EXECUTABLE} -m pytest
+            "${CMAKE_CURRENT_SOURCE_DIR}/test_status_codes.py"
+            -m integration --tb=short -q
+)
+set_tests_properties(modena_status_codes PROPERTIES
+    LABELS      "python;integration"
+    ENVIRONMENT "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
+)
