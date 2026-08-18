@@ -2762,7 +2762,7 @@ class ModenaFireTask(FireTaskBase):
                 },
             )
 
-        if returnCode == 200:
+        if returnCode == OUT_OF_BOUNDS:
             model = None
             if launch_id:
                 # Precise path: query for the model stamped with our launch UUID
@@ -2799,7 +2799,7 @@ class ModenaFireTask(FireTaskBase):
                 returnCode
             )
 
-        elif returnCode == 201:
+        elif returnCode == MODEL_NOT_IN_DATABASE:
             try:
                 model = modena.SurrogateModel.loadFromModule()
             except Exception:
@@ -2814,7 +2814,7 @@ class ModenaFireTask(FireTaskBase):
                 returnCode
             )
 
-        elif returnCode == 202:
+        elif returnCode == PARAMETERS_NOT_VALID:
             model = None
             if launch_id:
                 # Precise path: query for the model that was stamped with our
