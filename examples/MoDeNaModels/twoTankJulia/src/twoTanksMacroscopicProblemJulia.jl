@@ -80,7 +80,7 @@ while t + deltat < tend + 1e-10
         if e isa ParametersUpdated
             t -= deltat    # stay at the same time step and retry
             continue
-        elseif e isa ExitAndRestart || e isa ExitAndInitialise
+        elseif e isa ExitAndRetrain || e isa ExitAndInitialise
             exit(e.code)
         else
             rethrow()

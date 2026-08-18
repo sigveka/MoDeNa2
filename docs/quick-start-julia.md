@@ -80,7 +80,7 @@ export MODENA_LIB_DIR=/home/user/lib/modena
 | Exception | Trigger | Required action |
 |-----------|---------|----------------|
 | `ParametersUpdated` | ret == 100, surrogate retrained mid-run | Retry the step in-process (`continue`); do **not** exit |
-| `ExitAndRestart` | ret == 200, out of bounds — new DoE needed | `exit(e.code)` — FireWorks relaunches |
+| `ExitAndRetrain` | ret == 200, out of bounds | `exit(e.code)` — FireWorks retrains, then re-queues |
 | `ExitAndInitialise` | ret == 201, model not in database; initialise from its module | `exit(e.code)` |
 | `ModenaError` | Any other non-zero code | `e.code` holds the integer |
 
@@ -151,7 +151,7 @@ while t + deltat < tend + 1e-10
         if e isa ParametersUpdated
             t -= deltat    # surrogate retrained — retry this step
             continue
-        elseif e isa ExitAndRestart || e isa ExitAndInitialise
+        elseif e isa ExitAndRetrain || e isa ExitAndInitialise
             exit(e.code)
         else
             rethrow()

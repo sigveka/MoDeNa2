@@ -162,7 +162,7 @@ main(int argc, char *argv[])
     }
     catch (const modena::Exception& e)
     {
-        // All non-zero return codes (including ExitAndRestart / ExitAndInitialise)
+        // All non-zero return codes (including ExitAndRetrain / ExitAndInitialise)
         // end up here.  Return the code to the workflow manager (lpad).
         return e.code;
     }

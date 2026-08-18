@@ -94,7 +94,7 @@ mapping is exact — the code is still available on the exception.
 | Code | C++ | Julia | Python |
 |------|-----|-------|--------|
 | `100` | `modena::ParametersUpdated` | `ParametersUpdated` | — |
-| `200` | `modena::ExitAndRestart` | `ExitAndRestart` | `modena.OutOfBounds` |
+| `200` | `modena::ExitAndRetrain` | `ExitAndRetrain` | `modena.OutOfBounds` |
 | `201` | `modena::ExitAndInitialise` | `ExitAndInitialise` | `modena.ParametersNotValid` |
 | `202` | — | — | `modena.ParametersNotValid` |
 | other | `modena::ModenaError` | `ModenaError` | — |

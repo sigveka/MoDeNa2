@@ -201,7 +201,7 @@ _ERROR_HANDLING = {
     'cpp':     ['catch', 'std::exception'],
     'fortran': ['if (ret /= 0)', 'call exit(ret)'],
     'python':  ['try:', 'except modena.OutOfBounds', 'sys.exit(exc.returnCode)'],
-    'julia':   ['catch e', 'ParametersUpdated', 'ExitAndRestart', 'rethrow()'],
+    'julia':   ['catch e', 'ParametersUpdated', 'ExitAndRetrain', 'rethrow()'],
     'matlab':  ['if ret ~= 0', 'exit(ret)'],
     'r':       ['if (ret != 0)', 'quit(status = ret)'],
 }
@@ -248,6 +248,6 @@ class TestErrorHandling:
         three need different responses -- retry, exit, exit."""
         code = I.snippet(_model(_DEMO, ['y']), 'julia')['code']
         assert 'ParametersUpdated' in code and 'continue' in code
-        assert 'ExitAndRestart' in code and 'exit(e.code)' in code
+        assert 'ExitAndRetrain' in code and 'exit(e.code)' in code
         assert 'ExitAndInitialise' in code
         assert 'rethrow()' in code

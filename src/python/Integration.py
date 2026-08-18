@@ -362,7 +362,7 @@ for step in 1:1
         call!(model)
     catch e
         e isa ParametersUpdated && continue      # 100: retrained, retry step
-        e isa ExitAndRestart    && exit(e.code)  # 200: FireWorks relaunches us
+        e isa ExitAndRetrain    && exit(e.code)  # 200: retrain, then resume
         e isa ExitAndInitialise     && exit(e.code)  # 201: model needs init
         rethrow()                                # ModenaError or anything else
     end

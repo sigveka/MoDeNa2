@@ -90,11 +90,14 @@ struct ParametersUpdated : Exception { using Exception::Exception; };
 /**
  * @brief Thrown when modena_model_call returns 200.
  *
- * MoDeNa requires a new Design of Experiments campaign.  The simulation must
- * exit, the workflow manager runs the DoE tasks, and then the simulation is
- * restarted from the beginning.
+ * An input left the surrogate's trained domain.  Exit with `e.code`; FireWorks
+ * runs exact simulations at the new points, refits the parameters, and then
+ * re-queues this simulation.
+ *
+ * Renamed from ExitAndRestart to name what the framework does next, matching
+ * ExitAndInitialise.
  */
-struct ExitAndRestart : Exception { using Exception::Exception; };
+struct ExitAndRetrain : Exception { using Exception::Exception; };
 
 /**
  * @brief Thrown when modena_model_call returns 201.
@@ -415,7 +418,7 @@ public:
      *
      * @throws ParametersUpdated (ret == 100) The surrogate was retrained.
      *         Discard this call's outputs and retry the current time step.
-     * @throws ExitAndRestart    (ret == 200) Exit and restart the simulation.
+     * @throws ExitAndRetrain    (ret == 200) Exit; surrogate needs retraining.
      * @throws ExitAndInitialise (ret == 201) Exit; model needs initialising.
      * @throws Exception         on any other non-zero return or C-level error.
      */
@@ -423,7 +426,7 @@ public:
     {
         const int ret = modena_model_call(model_, inputs_, outputs_);
         if (ret == 100) throw ParametersUpdated(ret);
-        if (ret == 200) throw ExitAndRestart(ret);
+        if (ret == 200) throw ExitAndRetrain(ret);
         if (ret == 201) throw ExitAndInitialise(ret);
         if (ret != 0 || modena_error_occurred())
             throw Exception(modena_error_occurred() ? modena_error() : ret);
