@@ -46,6 +46,8 @@ classdef Modena < handle
         OUT_OF_BOUNDS         = 200
         MODEL_NOT_IN_DATABASE = 201
         PARAMETERS_NOT_VALID  = 202
+        INDEX_SET_NOT_IN_DATABASE = 401
+        INTERNAL_ERROR        = 1
     end
 
     properties (Access = private)

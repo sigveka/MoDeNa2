@@ -114,13 +114,32 @@ extern PyObject *modena_ParametersNotValid;
 /**
  * @brief Error codes returned by modena_error().
  */
+/**
+ * @brief Legacy error codes.  Only MODENA_SUCCESS is live.
+ *
+ * @deprecated The three "not found" values are never assigned to
+ * `modena_error_code` by any code path, and never were:
+ *
+ *   - a surrogate *model* that is missing sets 201
+ *     (MODENA_MODEL_NOT_IN_DATABASE), not 1;
+ *   - a surrogate *function* that is missing also sets 201, not 2;
+ *   - a missing *index set* sets 401
+ *     (MODENA_INDEX_SET_NOT_IN_DATABASE), not 3.
+ *
+ * They are retained because this header is installed and removing public
+ * symbols warrants a version bump.  Use `enum modena_status_t` below for
+ * anything new; these names will go at the next major release.
+ *
+ * MODENA_SUCCESS is not deprecated -- modena_error_occurred() compares
+ * against it.
+ */
 enum modena_error_t
 {
     MODENA_SUCCESS            = 0, /**< No error. */
-    MODENA_MODEL_NOT_FOUND    = 1, /**< `modena_model_new()` could not find the `_id` in MongoDB. */
-    MODENA_FUNCTION_NOT_FOUND = 2, /**< `modena_function_new()` could not find the function. */
-    MODENA_INDEX_SET_NOT_FOUND = 3, /**< `modena_index_set_new()` could not find the index set. */
-    MODENA_MODEL_LAST              /**< Sentinel — do not use. */
+    MODENA_MODEL_NOT_FOUND    = 1, /**< @deprecated Never set; a missing model sets 201. */
+    MODENA_FUNCTION_NOT_FOUND = 2, /**< @deprecated Never set; a missing function sets 201. */
+    MODENA_INDEX_SET_NOT_FOUND = 3, /**< @deprecated Never set; a missing index set sets 401. */
+    MODENA_MODEL_LAST              /**< @deprecated Sentinel; no longer used for bounds checks. */
 };
 
 /**
@@ -145,7 +164,9 @@ enum modena_status_t
     MODENA_RETRAINED             = 100, /**< Surrogate retrained mid-run — retry this step in-process; do not exit. */
     MODENA_OUT_OF_BOUNDS         = 200, /**< Input left the trained domain — exit; FireWorks retrains and re-queues. */
     MODENA_MODEL_NOT_IN_DATABASE = 201, /**< Model absent from MongoDB — exit; FireWorks initialises it from its module. */
-    MODENA_PARAMETERS_NOT_VALID  = 202  /**< Model has no fitted parameters — exit; FireWorks runs its initialisation workflow. */
+    MODENA_PARAMETERS_NOT_VALID  = 202, /**< Model has no fitted parameters — exit; FireWorks runs its initialisation workflow. */
+    MODENA_INDEX_SET_NOT_IN_DATABASE = 401, /**< An IndexSet the model needs is missing.  Not recoverable: IndexSets are stored when their package is imported, so there is no workflow to queue. */
+    MODENA_INTERNAL_ERROR        = 1    /**< libmodena failed internally (allocation, CPython call).  Shares the numeric value of the deprecated MODENA_MODEL_NOT_FOUND, which is why that name was misleading. */
 };
 
 /**

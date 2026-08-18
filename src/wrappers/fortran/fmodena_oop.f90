@@ -88,6 +88,8 @@ module fmodena_oop
     integer(c_int), parameter, public :: MODENA_OUT_OF_BOUNDS         = 200
     integer(c_int), parameter, public :: MODENA_MODEL_NOT_IN_DATABASE = 201
     integer(c_int), parameter, public :: MODENA_PARAMETERS_NOT_VALID  = 202
+    integer(c_int), parameter, public :: MODENA_INDEX_SET_NOT_IN_DATABASE = 401
+    integer(c_int), parameter, public :: MODENA_INTERNAL_ERROR         = 1
 
     private
     public :: modena_model

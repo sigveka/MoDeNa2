@@ -234,10 +234,15 @@ class IndexSet(Document):
 
     @classmethod
     def exceptionLoad(self, indexSetId):
-        """Method raising a exception when a surrogate model has not been
-        instantiated
+        """Signal that an IndexSet could not be loaded from the database.
+
+        Unlike a surrogate model, an IndexSet has no initialisation workflow --
+        it is written to MongoDB when its model package is imported.  A missing
+        one is therefore a configuration problem, not something FireWorks can
+        repair, so ``handleReturnCode`` terminates with an actionable message
+        rather than queueing a detour.
         """
-        return 401
+        return INDEX_SET_NOT_IN_DATABASE
 
 
     @classmethod

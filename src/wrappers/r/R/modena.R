@@ -31,6 +31,14 @@ MODENA_MODEL_NOT_IN_DATABASE <- 201L
 #' @export
 MODENA_PARAMETERS_NOT_VALID <- 202L
 
+#' @rdname MODENA_OK
+#' @export
+MODENA_INDEX_SET_NOT_IN_DATABASE <- 401L
+
+#' @rdname MODENA_OK
+#' @export
+MODENA_INTERNAL_ERROR <- 1L
+
 # Load libmodena at package attach time so the first Modena$new() call does
 # not pay the ~100 ms dlopen + Python initialisation cost.
 .onLoad <- function(libname, pkgname) {   # nolint: object_name_linter

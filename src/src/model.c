@@ -623,8 +623,8 @@ int write_outside_point
             Py_DECREF(pOutside);
             Modena_PyErr_Print();
             PyGILState_Release(gstate);
-            modena_error_code = 1;
-            return 1;
+            modena_error_code = MODENA_INTERNAL_ERROR;
+            return MODENA_INTERNAL_ERROR;
         }
         PyList_SET_ITEM(pOutside, j, pVal);
     }

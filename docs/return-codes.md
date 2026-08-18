@@ -7,9 +7,11 @@ must agree with.
 The numbers themselves are defined in `src/python/Strategy.py`:
 
 ```python
-OUT_OF_BOUNDS         = 200
-MODEL_NOT_IN_DATABASE = 201
-PARAMETERS_NOT_VALID  = 202
+OUT_OF_BOUNDS             = 200
+MODEL_NOT_IN_DATABASE     = 201
+PARAMETERS_NOT_VALID      = 202
+INDEX_SET_NOT_IN_DATABASE = 401
+INTERNAL_ERROR            = 1
 ```
 
 Because C, Fortran, MATLAB and R compare integers rather than catching typed
@@ -24,9 +26,15 @@ writing the numbers inline:
 | MATLAB | `Modena.OUT_OF_BOUNDS`, … (constant properties) |
 | R | `MODENA_OUT_OF_BOUNDS`, … (exported) |
 
-`modena_status_t` is deliberately separate from `modena_error_t` (0–3, for
-"model / function / index set not found"). `MODENA_MODEL_NOT_FOUND` in that
-older enum is `1`, and is unrelated to `201`.
+`modena_status_t` is deliberately separate from `modena_error_t`, which is
+**deprecated**. Its three "not found" values are never assigned by any code
+path and never were — a missing model or function sets `201`, a missing index
+set sets `401`. Only `MODENA_SUCCESS` there is live. The names survive because
+the header is installed; they will go at the next major release.
+
+Note `MODENA_MODEL_NOT_FOUND` is `1`, the same value as
+`MODENA_INTERNAL_ERROR` — which is what actually produces it. That mismatch is
+why the old name was misleading rather than merely unused.
 
 `modena_error_message()` describes all of them; it used to return
 "Unknown error" for anything above `3`, which is every code that actually
@@ -76,6 +84,8 @@ exists but has no usable fitted parameters — see below.
 | `200` | `OutOfBounds` | Queue a retraining detour for the out-of-bounds point, then relaunch this binary |
 | `201` | `ParametersNotValid` | Identify the model via `loadFromModule()`, initialise it, relaunch |
 | `202` | `ParametersNotValid` | Identify the uninitialised model, run its initialisation workflow, relaunch |
+| `401` | `TerminateWorkflow` | Stop, naming the missing IndexSet. Not recoverable: IndexSets are written to MongoDB when their package is imported, so there is no workflow to queue — check `MODENA_PATH` and that `initModels` has run |
+| `1` | `TerminateWorkflow` | Stop. An internal libmodena failure (allocation, CPython call) |
 | any other non-zero | `TerminateWorkflow` | Stop. The failure is not recoverable |
 
 > `201` does **not** mean "clean exit" or "workflow complete", and it does not

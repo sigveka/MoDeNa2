@@ -65,6 +65,7 @@ _log = logging.getLogger('modena.strategy')
 __all__ = (
 # Workflow protocol return codes
 'OUT_OF_BOUNDS', 'MODEL_NOT_IN_DATABASE', 'PARAMETERS_NOT_VALID',
+'INDEX_SET_NOT_IN_DATABASE', 'INTERNAL_ERROR',
 # --> Base Classes for different types of Strategies
 'StrategyBaseClass', 'InitialisationStrategy', 'OutOfBoundsStrategy',
 'ImproveErrorStrategy', 'ParameterFittingStrategy',
@@ -2257,9 +2258,11 @@ class ParameterRefitting(FireTaskBase):
 #: here, once: ``SurrogateModel.exception*()`` returns them, ``libmodena``
 #: reads them back off these exception instances, and the C layer no longer
 #: needs to know the numbers at all.
-OUT_OF_BOUNDS        = 200   #: an input left the model's trained domain
-MODEL_NOT_IN_DATABASE = 201  #: not in MongoDB; load it from its module
-PARAMETERS_NOT_VALID = 202   #: the model has no usable fitted parameters
+OUT_OF_BOUNDS             = 200  #: an input left the model's trained domain
+MODEL_NOT_IN_DATABASE     = 201  #: not in MongoDB; load it from its module
+PARAMETERS_NOT_VALID      = 202  #: the model has no usable fitted parameters
+INDEX_SET_NOT_IN_DATABASE = 401  #: an IndexSet the model needs is missing
+INTERNAL_ERROR            = 1    #: libmodena failed internally (allocation etc.)
 
 
 class OutOfBounds(Exception):
@@ -2853,6 +2856,20 @@ class ModenaFireTask(FireTaskBase):
             raise ParametersNotValid(
                 'Exact task raised ParametersNotValid',
                 [model],
+                returnCode
+            )
+
+        elif returnCode == INDEX_SET_NOT_IN_DATABASE:
+            # An IndexSet has no initialisation workflow -- it is written to
+            # MongoDB when its model package is imported -- so there is no
+            # detour to queue.  Before this branch existed, 401 fell into the
+            # catch-all below and was reported as "An unknown error occurred",
+            # which told the user nothing about what to fix.
+            raise TerminateWorkflow(
+                'An IndexSet required by this model is not in the database. '
+                'IndexSets are stored when their model package is imported, '
+                'so this usually means the package is not on MODENA_PATH or '
+                'initModels has never been run for it.',
                 returnCode
             )
 

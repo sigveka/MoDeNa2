@@ -30,7 +30,11 @@ EXPECTED = {
     'OUT_OF_BOUNDS': 200,
     'MODEL_NOT_IN_DATABASE': 201,
     'PARAMETERS_NOT_VALID': 202,
+    'INDEX_SET_NOT_IN_DATABASE': 401,
+    'INTERNAL_ERROR': 1,
 }
+
+N = len(EXPECTED)
 
 
 def _run(cmd, cwd=None):
@@ -41,23 +45,21 @@ def _run(cmd, cwd=None):
 
 
 def _parsed(out):
-    """Take the last whitespace-separated run of five integers."""
+    """Take the last whitespace-separated run of N integers."""
     for line in reversed(out.strip().splitlines()):
-        parts = line.split()
-        ints = [p for p in parts if p.lstrip('-').isdigit()]
-        if len(ints) == 5:
+        ints = [p for p in line.split() if p.lstrip('-').isdigit()]
+        if len(ints) == N:
             return [int(i) for i in ints]
-    raise AssertionError(f'no five-integer line in:\n{out}')
+    raise AssertionError(f'no {N}-integer line in:\n{out}')
 
 
 @pytest.mark.integration
 def test_python_is_the_source_of_truth():
-    from modena.Strategy import (
-        MODEL_NOT_IN_DATABASE, OUT_OF_BOUNDS, PARAMETERS_NOT_VALID,
-    )
-    assert OUT_OF_BOUNDS == EXPECTED['OUT_OF_BOUNDS']
-    assert MODEL_NOT_IN_DATABASE == EXPECTED['MODEL_NOT_IN_DATABASE']
-    assert PARAMETERS_NOT_VALID == EXPECTED['PARAMETERS_NOT_VALID']
+    import modena.Strategy as S
+    for name, value in EXPECTED.items():
+        if name in ('OK', 'RETRAINED'):
+            continue          # no Python constant; they are C-side only
+        assert getattr(S, name) == value, name
 
 
 @pytest.mark.integration
@@ -67,9 +69,10 @@ def test_c_enum_matches(tmp_path):
     src = tmp_path / 't.c'
     src.write_text(
         '#include <modena.h>\n#include <stdio.h>\n'
-        'int main(void){printf("%d %d %d %d %d\\n", MODENA_OK,'
+        'int main(void){printf("%d %d %d %d %d %d %d\\n", MODENA_OK,'
         ' MODENA_RETRAINED, MODENA_OUT_OF_BOUNDS,'
-        ' MODENA_MODEL_NOT_IN_DATABASE, MODENA_PARAMETERS_NOT_VALID);'
+        ' MODENA_MODEL_NOT_IN_DATABASE, MODENA_PARAMETERS_NOT_VALID,'
+        ' MODENA_INDEX_SET_NOT_IN_DATABASE, MODENA_INTERNAL_ERROR);'
         'return 0;}\n')
     build = _run(['gcc', '-o', 'a.out', 't.c', f'-I{INC}', f'-I{INC}/modena',
                   f'-I{PY_INC}', f'-L{LIB}', f'-Wl,-rpath,{LIB}', '-lmodena'],
@@ -86,8 +89,9 @@ def test_fortran_parameters_match(tmp_path):
     src = tmp_path / 't.f90'
     src.write_text(
         'program t\n  use fmodena_oop\n  use iso_c_binding\n  implicit none\n'
-        "  print '(5I6)', MODENA_OK, MODENA_RETRAINED, MODENA_OUT_OF_BOUNDS, &\n"
-        '       MODENA_MODEL_NOT_IN_DATABASE, MODENA_PARAMETERS_NOT_VALID\n'
+        "  print '(7I6)', MODENA_OK, MODENA_RETRAINED, MODENA_OUT_OF_BOUNDS, &\n"
+        '       MODENA_MODEL_NOT_IN_DATABASE, MODENA_PARAMETERS_NOT_VALID, &\n'
+        '       MODENA_INDEX_SET_NOT_IN_DATABASE, MODENA_INTERNAL_ERROR\n'
         'end program t\n')
     build = _run(['gfortran', '-o', 'a.out', 't.f90', f'-I{INC}/modena',
                   f'-L{LIB}', f'-Wl,-rpath,{LIB}',
@@ -105,7 +109,8 @@ def test_r_constants_match(tmp_path):
     src.write_text(
         'library(modena)\n'
         'cat(MODENA_OK, MODENA_RETRAINED, MODENA_OUT_OF_BOUNDS,\n'
-        '    MODENA_MODEL_NOT_IN_DATABASE, MODENA_PARAMETERS_NOT_VALID, "\\n")\n')
+        '    MODENA_MODEL_NOT_IN_DATABASE, MODENA_PARAMETERS_NOT_VALID,\n'
+        '    MODENA_INDEX_SET_NOT_IN_DATABASE, MODENA_INTERNAL_ERROR, "\\n")\n')
     run = _run(['Rscript', 't.R'], cwd=tmp_path)
     assert run.returncode == 0, run.stderr
     assert _parsed(run.stdout) == list(EXPECTED.values())
@@ -117,9 +122,10 @@ def test_matlab_constants_match(tmp_path):
         pytest.skip('octave not available')
     src = tmp_path / 't.m'
     src.write_text(
-        'printf("%d %d %d %d %d\\n", Modena.OK, Modena.RETRAINED, ...\n'
+        'printf("%d %d %d %d %d %d %d\\n", Modena.OK, Modena.RETRAINED, ...\n'
         '       Modena.OUT_OF_BOUNDS, Modena.MODEL_NOT_IN_DATABASE, ...\n'
-        '       Modena.PARAMETERS_NOT_VALID);\n')
+        '       Modena.PARAMETERS_NOT_VALID, Modena.INDEX_SET_NOT_IN_DATABASE, ...\n'
+        '       Modena.INTERNAL_ERROR);\n')
     run = _run(['octave', '--no-gui', '--quiet',
                 '--path', str(PREFIX / 'share' / 'modena' / 'matlab'),
                 't.m'], cwd=tmp_path)
@@ -134,6 +140,12 @@ def test_error_message_describes_the_protocol_codes():
     import ctypes
     lib = ctypes.CDLL(str(LIB / 'libmodena.so'))
     lib.modena_error_message.restype = ctypes.c_char_p
-    for code in (200, 201, 202):
+    for code in (1, 100, 200, 201, 202, 401):
         msg = lib.modena_error_message(code).decode()
         assert msg != 'Unknown error', f'{code} has no message'
+
+    # The deprecated MODENA_*_NOT_FOUND values are intentionally absent: no
+    # code path assigns them, so a message could only mis-describe a code
+    # that arrived some other way.
+    for code in (2, 3):
+        assert lib.modena_error_message(code).decode() == 'Unknown error'

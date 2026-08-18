@@ -939,3 +939,25 @@ class TestProtocolCodes:
         from unittest.mock import MagicMock
         exc = ParametersNotValid('msg', MagicMock())
         assert exc.returnCode == PARAMETERS_NOT_VALID
+
+    def test_index_set_and_internal_codes_are_defined(self):
+        from modena.Strategy import INDEX_SET_NOT_IN_DATABASE, INTERNAL_ERROR
+        assert (INDEX_SET_NOT_IN_DATABASE, INTERNAL_ERROR) == (401, 1)
+
+    def test_401_terminates_with_an_actionable_message(self):
+        """401 used to fall into the catch-all and report 'An unknown error
+        occurred', which said nothing about what to fix.  An IndexSet has no
+        initialisation workflow, so terminating is right -- but it must say
+        why."""
+        from modena.Strategy import (
+            BackwardMappingScriptTask, INDEX_SET_NOT_IN_DATABASE,
+            TerminateWorkflow,
+        )
+        task = BackwardMappingScriptTask.__new__(BackwardMappingScriptTask)
+        with pytest.raises(TerminateWorkflow) as excinfo:
+            BackwardMappingScriptTask.handleReturnCode(
+                task, INDEX_SET_NOT_IN_DATABASE)
+        message = excinfo.value.args[0]
+        assert 'IndexSet' in message
+        assert 'unknown error' not in message.lower()
+        assert excinfo.value.args[1] == INDEX_SET_NOT_IN_DATABASE
