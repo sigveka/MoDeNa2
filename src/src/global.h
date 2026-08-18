@@ -142,32 +142,9 @@ enum modena_error_t
     MODENA_MODEL_LAST              /**< @deprecated Sentinel; no longer used for bounds checks. */
 };
 
-/**
- * @brief Workflow protocol status codes.
- *
- * A separate space from `modena_error_t`: these are what
- * modena_model_call() returns and what a MoDeNa-aware binary exits with, so
- * the FireWorks worker can act on them.  They are defined in
- * `src/python/Strategy.py` and mirrored here for C, Fortran, MATLAB and R
- * callers, which compare integers rather than catching typed exceptions the
- * way the C++, Julia and Python wrappers do.
- *
- * `MODENA_RETRAINED` is only ever a *call result*.  A process that exits with
- * it is not retried — handleReturnCode() treats any unrecognised non-zero
- * status as fatal.
- *
- * @see docs/return-codes.md
- */
-enum modena_status_t
-{
-    MODENA_OK                    = 0,   /**< Success; outputs are valid. */
-    MODENA_RETRAINED             = 100, /**< Surrogate retrained mid-run — retry this step in-process; do not exit. */
-    MODENA_OUT_OF_BOUNDS         = 200, /**< Input left the trained domain — exit; FireWorks retrains and re-queues. */
-    MODENA_MODEL_NOT_IN_DATABASE = 201, /**< Model absent from MongoDB — exit; FireWorks initialises it from its module. */
-    MODENA_PARAMETERS_NOT_VALID  = 202, /**< Model has no fitted parameters — exit; FireWorks runs its initialisation workflow. */
-    MODENA_INDEX_SET_NOT_IN_DATABASE = 401, /**< An IndexSet the model needs is missing.  Not recoverable: IndexSets are stored when their package is imported, so there is no workflow to queue. */
-    MODENA_INTERNAL_ERROR        = 1    /**< libmodena failed internally (allocation, CPython call).  Shares the numeric value of the deprecated MODENA_MODEL_NOT_FOUND, which is why that name was misleading. */
-};
+/* Workflow protocol status codes -- enum modena_status_t.
+ * Generated from src/status-codes.cmake; see that file to add one. */
+#include "modena_status.h"
 
 /**
  * @brief Return `true` if an error has been set.

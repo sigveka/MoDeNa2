@@ -68,28 +68,16 @@ module fmodena_oop
 
     use iso_c_binding
     use fmodena
+    ! Status codes, generated from src/python/_status_codes.py.  Not
+    ! re-exported: this module's default accessibility is `private`, so
+    ! callers that want the constants add `use fmodena_status` alongside
+    ! `use fmodena_oop`.  Listing them in a `public ::` statement here would
+    ! mean maintaining a second copy of the names, which is what the
+    ! generator exists to avoid.
+    use fmodena_status
 
     implicit none
 
-    ! ---------------------------------------------------------------------- !
-    ! Workflow protocol status codes.
-    !
-    ! Mirrors `enum modena_status_t` in global.h and the constants in
-    ! src/python/Strategy.py, which is where they are defined.  Compare
-    ! against these rather than writing 100/200/201/202 inline.
-    !
-    ! MODENA_RETRAINED is only ever a call result: exiting with it is treated
-    ! as an unrecognised failure and terminates the workflow.
-    !
-    ! See docs/return-codes.md.
-    ! ---------------------------------------------------------------------- !
-    integer(c_int), parameter, public :: MODENA_OK                    = 0
-    integer(c_int), parameter, public :: MODENA_RETRAINED             = 100
-    integer(c_int), parameter, public :: MODENA_OUT_OF_BOUNDS         = 200
-    integer(c_int), parameter, public :: MODENA_MODEL_NOT_IN_DATABASE = 201
-    integer(c_int), parameter, public :: MODENA_PARAMETERS_NOT_VALID  = 202
-    integer(c_int), parameter, public :: MODENA_INDEX_SET_NOT_IN_DATABASE = 401
-    integer(c_int), parameter, public :: MODENA_INTERNAL_ERROR         = 1
 
     private
     public :: modena_model

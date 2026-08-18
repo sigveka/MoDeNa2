@@ -1,0 +1,27 @@
+/**
+ * @file modena_status.h
+ * @brief Workflow protocol status codes.
+ *
+ * GENERATED from src/status-codes.cmake -- do not edit.  Add or change a code
+ * there and every binding (C, Python, Fortran, MATLAB, R) picks it up.
+ *
+ * These are what modena_model_call() returns and what a MoDeNa-aware binary
+ * exits with, so the FireWorks worker can act on them.  A separate space from
+ * the deprecated `modena_error_t` in global.h.
+ *
+ * MODENA_RETRAINED is only ever a *call result*.  A process that exits with it
+ * is not retried -- handleReturnCode() treats any unrecognised non-zero status
+ * as fatal.
+ *
+ * @see docs/return-codes.md
+ */
+
+#ifndef __MODENA_STATUS_H__
+#define __MODENA_STATUS_H__
+
+enum modena_status_t
+{
+@MODENA_STATUS_BLOCK@
+};
+
+#endif /* __MODENA_STATUS_H__ */

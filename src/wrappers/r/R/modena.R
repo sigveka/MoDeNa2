@@ -1,43 +1,8 @@
 #' @useDynLib modena, .registration = TRUE
 NULL
 
-#' Workflow protocol status codes
-#'
-#' Mirrors \code{enum modena_status_t} in \file{global.h} and the constants in
-#' \file{src/python/Strategy.py}, which is where they are defined.  Compare
-#' \code{m$call()} against these rather than writing 100/200/201/202 inline.
-#'
-#' \code{MODENA_RETRAINED} is only ever a call result: quitting with it is
-#' treated as an unrecognised failure and terminates the workflow.
-#'
-#' @format Named integer constants.
-#' @seealso \file{docs/return-codes.md}
-#' @export
-MODENA_OK <- 0L
-
-#' @rdname MODENA_OK
-#' @export
-MODENA_RETRAINED <- 100L
-
-#' @rdname MODENA_OK
-#' @export
-MODENA_OUT_OF_BOUNDS <- 200L
-
-#' @rdname MODENA_OK
-#' @export
-MODENA_MODEL_NOT_IN_DATABASE <- 201L
-
-#' @rdname MODENA_OK
-#' @export
-MODENA_PARAMETERS_NOT_VALID <- 202L
-
-#' @rdname MODENA_OK
-#' @export
-MODENA_INDEX_SET_NOT_IN_DATABASE <- 401L
-
-#' @rdname MODENA_OK
-#' @export
-MODENA_INTERNAL_ERROR <- 1L
+# Status codes live in status_codes.R, generated from
+# src/status-codes.cmake at build time.
 
 # Load libmodena at package attach time so the first Modena$new() call does
 # not pay the ~100 ms dlopen + Python initialisation cost.

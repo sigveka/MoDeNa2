@@ -11,7 +11,18 @@
 #   use fmodena_oop
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-add_library(fmodena_oop SHARED fmodena_oop.f90)
+# Status codes, from the single definition in src/status-codes.cmake.
+modena_status_block(MODENA_STATUS_BLOCK fortran)
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/fmodena_status.f90.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/fmodena_status.f90"
+    @ONLY
+)
+
+add_library(fmodena_oop SHARED
+    fmodena_oop.f90
+    "${CMAKE_CURRENT_BINARY_DIR}/fmodena_status.f90"
+)
 
 # Expose the generated .mod file to dependents at build time.
 set_target_properties(fmodena_oop PROPERTIES
@@ -37,5 +48,6 @@ install(
 
 install(
     FILES ${CMAKE_CURRENT_BINARY_DIR}/fmodena_oop.mod
+          ${CMAKE_CURRENT_BINARY_DIR}/fmodena_status.mod
     DESTINATION ${INSTALL_INCLUDE_DIR}/modena
 )

@@ -1,0 +1,4 @@
+# GENERATED from src/status-codes.cmake + NAMESPACE.in -- do not edit.
+useDynLib(modena, .registration = TRUE)
+export(Modena)
+@MODENA_STATUS_EXPORTS@

@@ -1,0 +1,13 @@
+/**
+ * @file modena_status_messages.h
+ * @brief Human-readable text for each status code -- one initialiser row per line.
+ *
+ * GENERATED from src/status-codes.cmake -- do not edit.  The text is the
+ * description field of the code list, so a code and its message cannot drift.
+ *
+ * Deliberately NOT self-contained and not installed: it is meant to be
+ * included *inside* the modena_errordesc[] initialiser in global.c, which is
+ * why it carries no include guard.
+ */
+
+@MODENA_STATUS_MESSAGE_TABLE@

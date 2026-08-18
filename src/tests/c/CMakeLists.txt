@@ -17,10 +17,12 @@ find_package(Python3 COMPONENTS Development REQUIRED)
 add_executable(test_siunits
     test_siunits.c
     ${CMAKE_SOURCE_DIR}/src/src/inputsoutputs.c
+    ${CMAKE_BINARY_DIR}/src/src      # generated modena_status.h, via global.h
 )
 
 target_include_directories(test_siunits PRIVATE
     ${CMAKE_SOURCE_DIR}/src/src      # inputsoutputs.h, global.h, inline.h
+    ${CMAKE_BINARY_DIR}/src/src      # generated modena_status.h, via global.h
     ${Python3_INCLUDE_DIRS}          # Python.h pulled in via global.h
 )
 
@@ -40,10 +42,12 @@ set_tests_properties(modena_c_siunits PROPERTIES LABELS "c;unit")
 add_executable(test_inputsoutputs
     test_inputsoutputs.c
     ${CMAKE_SOURCE_DIR}/src/src/inputsoutputs.c
+    ${CMAKE_BINARY_DIR}/src/src      # generated modena_status.h, via global.h
 )
 
 target_include_directories(test_inputsoutputs PRIVATE
     ${CMAKE_SOURCE_DIR}/src/src
+    ${CMAKE_BINARY_DIR}/src/src      # generated modena_status.h, via global.h
     ${Python3_INCLUDE_DIRS}
 )
 

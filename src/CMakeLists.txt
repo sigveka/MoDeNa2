@@ -75,6 +75,12 @@ else()
         "${CMAKE_INSTALL_PREFIX}/lib/python${Python3_VERSION_MAJMIN}/site-packages")
 endif()
 
+# Workflow protocol status codes.  Reads src/python/_status_codes.py -- the
+# single definition -- and provides the generators that render it into C,
+# Fortran, MATLAB and R.  Must come after Python3_EXECUTABLE is found, and
+# before the subdirectories that configure_file their templates.
+include("${CMAKE_CURRENT_LIST_DIR}/status-codes.cmake")
+
 # R library directory.  The R package installs under the project prefix like
 # every other component rather than into R's per-user library -- see
 # src/wrappers/r/CMakeLists.txt.  Defined here because both that file and the

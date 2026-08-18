@@ -1,0 +1,23 @@
+!> @file fmodena_status.f90
+!! @brief Workflow protocol status codes.
+!!
+!! GENERATED from src/status-codes.cmake -- do not edit.  Add or change a code
+!! there and every binding (C, Python, Fortran, MATLAB, R) picks it up.
+!!
+!! Use alongside `fmodena_oop`:
+!!
+!!     use fmodena_oop
+!!     use fmodena_status
+!!
+!! @see docs/return-codes.md
+module fmodena_status
+
+    use iso_c_binding
+
+    implicit none
+
+    public
+
+@MODENA_STATUS_BLOCK@
+
+end module fmodena_status

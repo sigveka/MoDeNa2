@@ -1,0 +1,18 @@
+# Workflow protocol status codes.
+#
+# GENERATED from src/status-codes.cmake -- do not edit.  Add or change a code
+# there and every binding (C, Python, Fortran, MATLAB, R) picks it up.
+#
+# See docs/return-codes.md.
+
+#' Workflow protocol status codes
+#'
+#' Compare \code{m$call()} against these rather than writing the numbers
+#' inline.  \code{MODENA_RETRAINED} is only ever a call result: quitting with
+#' it is treated as an unrecognised failure and terminates the workflow.
+#'
+#' @name modena-status-codes
+#' @format Named integer constants.
+NULL
+
+@MODENA_STATUS_BLOCK@

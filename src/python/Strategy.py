@@ -65,7 +65,7 @@ _log = logging.getLogger('modena.strategy')
 __all__ = (
 # Workflow protocol return codes
 'OUT_OF_BOUNDS', 'MODEL_NOT_IN_DATABASE', 'PARAMETERS_NOT_VALID',
-'INDEX_SET_NOT_IN_DATABASE', 'INTERNAL_ERROR',
+'INDEX_SET_NOT_IN_DATABASE', 'INTERNAL_ERROR', 'OK', 'RETRAINED',
 # --> Base Classes for different types of Strategies
 'StrategyBaseClass', 'InitialisationStrategy', 'OutOfBoundsStrategy',
 'ImproveErrorStrategy', 'ParameterFittingStrategy',
@@ -2251,18 +2251,15 @@ class ParameterRefitting(FireTaskBase):
         return model.parameterFittingStrategy().newPointsFWAction(model)
 
 
-#: Workflow protocol return codes.
-#:
-#: These are the integers a MoDeNa-aware binary exits with, and the only
-#: channel from a subprocess back to ``handleReturnCode()``.  They are defined
-#: here, once: ``SurrogateModel.exception*()`` returns them, ``libmodena``
-#: reads them back off these exception instances, and the C layer no longer
-#: needs to know the numbers at all.
-OUT_OF_BOUNDS             = 200  #: an input left the model's trained domain
-MODEL_NOT_IN_DATABASE     = 201  #: not in MongoDB; load it from its module
-PARAMETERS_NOT_VALID      = 202  #: the model has no usable fitted parameters
-INDEX_SET_NOT_IN_DATABASE = 401  #: an IndexSet the model needs is missing
-INTERNAL_ERROR            = 1    #: libmodena failed internally (allocation etc.)
+# Workflow protocol status codes.  Generated from src/status-codes.cmake
+# into _status_codes.py at build time, so the numbers exist once for all
+# five language bindings.  Re-exported here (see __all__) because this is
+# where callers expect to find them.
+from modena._status_codes import (
+    OK, INTERNAL_ERROR, RETRAINED, OUT_OF_BOUNDS,
+    MODEL_NOT_IN_DATABASE, PARAMETERS_NOT_VALID,
+    INDEX_SET_NOT_IN_DATABASE,
+)
 
 
 class OutOfBounds(Exception):

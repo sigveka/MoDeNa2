@@ -88,23 +88,12 @@ struct modena_errordesc
     const char *message;
 } modena_errordesc[] =
 {
-    { MODENA_SUCCESS, "No error" },
-    /* The three MODENA_*_NOT_FOUND values (1, 2, 3) are deliberately absent:
-     * nothing assigns them, so an entry here could only ever mis-describe a
-     * code that arrived by another route.  Value 1 *is* produced -- by an
-     * internal failure, not a missing model -- and is listed under its
-     * accurate name below. */
-    { MODENA_INTERNAL_ERROR,        "Internal error in libmodena" },
-    /* Workflow protocol codes.  These are the values modena_error_code
-     * actually receives in practice -- modena_model_new() assigns whatever
-     * SurrogateModel.exception*() returned -- yet the lookup below used to
-     * reject anything >= MODENA_MODEL_LAST, so every real code reported
-     * "Unknown error". */
-    { MODENA_RETRAINED,             "Surrogate retrained — retry this step" },
-    { MODENA_OUT_OF_BOUNDS,         "Input outside the surrogate's trained domain" },
-    { MODENA_MODEL_NOT_IN_DATABASE, "Surrogate model not in database — initialise it from its module" },
-    { MODENA_PARAMETERS_NOT_VALID,  "Surrogate model has no valid fitted parameters" },
-    { MODENA_INDEX_SET_NOT_IN_DATABASE, "Index set not in database — is the model package on MODENA_PATH?" }
+    /* Rows are generated from the same list that defines the codes, so a
+     * code and its message cannot drift apart.  MODENA_SUCCESS is the
+     * only entry from the deprecated modena_error_t; the three
+     * MODENA_*_NOT_FOUND values are deliberately absent because nothing
+     * assigns them. */
+#include "modena_status_messages.h"
 };
 
 const char* modena_error_message(int error_code)

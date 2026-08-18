@@ -1,0 +1,16 @@
+Package: modena
+Type: Package
+Title: R Interface to the MoDeNa Surrogate Model Framework
+Version: 1.0.0
+Authors@R: person("MoDeNa", "Consortium", role = c("aut", "cre"),
+    email = "modena@example.com")
+Description: R wrapper for the MoDeNa C library (libmodena). Allows R
+    simulation codes to load and evaluate MoDeNa surrogate models that were
+    trained via the Python/MongoDB back-end.  Provides the 'Modena' reference
+    class with the same interface as the Julia and MATLAB wrappers.
+License: LGPL-3
+Encoding: UTF-8
+SystemRequirements: libmodena (MoDeNa C library), Python >= 3.10, MongoDB
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

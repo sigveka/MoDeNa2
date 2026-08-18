@@ -88,7 +88,8 @@ def test_fortran_parameters_match(tmp_path):
         pytest.skip('gfortran not available')
     src = tmp_path / 't.f90'
     src.write_text(
-        'program t\n  use fmodena_oop\n  use iso_c_binding\n  implicit none\n'
+        'program t\n  use fmodena_oop\n  use fmodena_status\n'
+        '  use iso_c_binding\n  implicit none\n'
         "  print '(7I6)', MODENA_OK, MODENA_RETRAINED, MODENA_OUT_OF_BOUNDS, &\n"
         '       MODENA_MODEL_NOT_IN_DATABASE, MODENA_PARAMETERS_NOT_VALID, &\n'
         '       MODENA_INDEX_SET_NOT_IN_DATABASE, MODENA_INTERNAL_ERROR\n'

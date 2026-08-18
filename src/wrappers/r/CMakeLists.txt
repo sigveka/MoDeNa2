@@ -16,9 +16,33 @@ set(R_PKG_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(R_PKG_INST_DIR "${CMAKE_INSTALL_PREFIX}/share/modena/R/modena")
 
 # Install the full R package source tree so `R CMD INSTALL <path>` always works.
+modena_status_block(MODENA_STATUS_BLOCK r)
+modena_status_exports(MODENA_STATUS_EXPORTS)
+configure_file(
+    "${R_PKG_SRC_DIR}/NAMESPACE.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/NAMESPACE"
+    @ONLY
+)
+install(
+    FILES       "${CMAKE_CURRENT_BINARY_DIR}/NAMESPACE"
+    DESTINATION "${R_PKG_INST_DIR}"
+)
+configure_file(
+    "${R_PKG_SRC_DIR}/R/status_codes.R.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/status_codes.R"
+    @ONLY
+)
+# Must land in the copied source tree BEFORE R CMD INSTALL runs, so it is
+# installed with the rest of the package rather than after it.
+install(
+    FILES       "${CMAKE_CURRENT_BINARY_DIR}/status_codes.R"
+    DESTINATION "${R_PKG_INST_DIR}/R"
+)
+
 install(
     DIRECTORY   "${R_PKG_SRC_DIR}/"
     DESTINATION "${R_PKG_INST_DIR}"
+    PATTERN     "*.in"           EXCLUDE
     PATTERN     "CMakeLists.txt" EXCLUDE
     PATTERN     ".git"           EXCLUDE
 )

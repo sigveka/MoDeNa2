@@ -22,7 +22,7 @@ writing the numbers inline:
 |---|---|
 | Python | `from modena.Strategy import OUT_OF_BOUNDS, ...` |
 | C / C++ | `enum modena_status_t` in `modena.h` — `MODENA_OUT_OF_BOUNDS`, … |
-| Fortran | `use fmodena_oop` — `MODENA_OUT_OF_BOUNDS`, … |
+| Fortran | `use fmodena_status` — `MODENA_OUT_OF_BOUNDS`, … |
 | MATLAB | `Modena.OUT_OF_BOUNDS`, … (constant properties) |
 | R | `MODENA_OUT_OF_BOUNDS`, … (exported) |
 

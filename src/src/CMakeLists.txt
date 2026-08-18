@@ -16,8 +16,26 @@ include_directories(${Python3_INCLUDE_DIRS})
 
 # Obtain Headers and Sources ------------------------------------------------ #
 
+# Generated before the glob so it is picked up as a public header.
+modena_status_block(MODENA_STATUS_BLOCK c)
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/modena_status.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/modena_status.h"
+    @ONLY
+)
+modena_status_message_table(MODENA_STATUS_MESSAGE_TABLE)
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/modena_status_messages.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/modena_status_messages.h"
+    @ONLY
+)
+
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.c)
+# Only the enum is public.  modena_status_messages.h is include-as-data for
+# global.c and is deliberately not self-contained, so it is not installed.
+list(APPEND HEADERS "${CMAKE_CURRENT_BINARY_DIR}/modena_status.h")
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Build Libraries ----------------------------------------------------------- #
 
@@ -28,6 +46,14 @@ target_link_libraries(modena ${LTDL_LIBRARIES} ${Python3_LIBRARIES})
 
 target_include_directories(modena INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/modena>
+  $<INSTALL_INTERFACE:include/modena>
+)
+
+# global.h includes the generated modena_status.h, so anything that includes
+# modena.h -- the wrappers, the tests, the examples -- needs the directory it
+# is generated into.  PUBLIC, not INTERFACE: libmodena's own sources need it too.
+target_include_directories(modena PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
   $<INSTALL_INTERFACE:include/modena>
 )
 

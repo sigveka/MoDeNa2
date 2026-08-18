@@ -32,22 +32,17 @@ classdef Modena < handle
 % See also: modena_gateway
 
     properties (Constant)
-        % Workflow protocol status codes.  Mirrors enum modena_status_t in
-        % global.h and the constants in src/python/Strategy.py, which is
-        % where they are defined.  Compare call() against these rather than
-        % writing 100/200/201/202 inline.
+        % Workflow protocol status codes.
         %
-        % RETRAINED is only ever a call result: exiting with it is treated as
-        % an unrecognised failure and terminates the workflow.
+        % GENERATED from src/status-codes.cmake -- do not edit this block in
+        % the installed Modena.m; edit the code list and rebuild.
+        %
+        % Compare call() against these rather than writing the numbers
+        % inline.  RETRAINED is only ever a call result: exiting with it is
+        % treated as an unrecognised failure and terminates the workflow.
         %
         % See docs/return-codes.md.
-        OK                    = 0
-        RETRAINED             = 100
-        OUT_OF_BOUNDS         = 200
-        MODEL_NOT_IN_DATABASE = 201
-        PARAMETERS_NOT_VALID  = 202
-        INDEX_SET_NOT_IN_DATABASE = 401
-        INTERNAL_ERROR        = 1
+@MODENA_STATUS_BLOCK@
     end
 
     properties (Access = private)

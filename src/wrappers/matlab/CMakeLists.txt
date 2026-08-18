@@ -20,8 +20,15 @@ set(MATLAB_PKG_DIR "${CMAKE_INSTALL_PREFIX}/share/modena/matlab"
     CACHE PATH "Install directory for the MATLAB/Octave wrapper files")
 
 # Always install the pure M-code class — no compilation required.
+modena_status_block(MODENA_STATUS_BLOCK matlab)
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/m/Modena.m.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/Modena.m"
+  @ONLY
+)
+
 install(
-  FILES "${CMAKE_CURRENT_SOURCE_DIR}/m/Modena.m"
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/Modena.m"
   DESTINATION "${MATLAB_PKG_DIR}"
 )
 

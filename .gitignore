@@ -53,6 +53,20 @@
 !*.py.in
 !*.h.in
 !*.sh.in
+# Templates for the generated status-code bindings.  Each extension needs its
+# own entry: the allowlist matches the FULL name, so `!*.py.in` does nothing
+# for `fmodena_status.f90.in`.  Leaving these out silently produced a tree
+# that could not be configured from a fresh clone.
+!*.f90.in
+!*.m.in
+!*.R.in
+
+# R package metadata.  Both are extensionless, so the allowlist excluded them
+# and the R wrapper has never been installable from a clone -- R CMD INSTALL
+# requires DESCRIPTION, and NAMESPACE declares useDynLib and the exports.
+!DESCRIPTION
+!NAMESPACE
+!NAMESPACE.in
 
 # Repo essentials that the allowlist would otherwise exclude
 !.gitignore
