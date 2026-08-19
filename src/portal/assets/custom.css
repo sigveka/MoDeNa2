@@ -1,0 +1,24 @@
+/* MoDeNa Portal — custom styles */
+
+/* Monospace for C code display */
+.language-c,
+pre code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 0.85rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 12px;
+    display: block;
+    overflow-x: auto;
+}
+
+/* Tighten DataTable header padding */
+.dash-header {
+    background-color: #f8f9fa !important;
+}
+
+/* Cytoscape graph border */
+#dependency-graph {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}

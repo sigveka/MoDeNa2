@@ -1,0 +1,7 @@
+#!@Python3_EXECUTABLE@
+# Installed by CMake — calls modena_portal.run:main() directly.
+# No importlib.metadata lookup required.
+# modena_portal is installed alongside modena in the cmake site-packages
+# directory, so no sys.path manipulation is needed here.
+from modena_portal.run import main
+main()

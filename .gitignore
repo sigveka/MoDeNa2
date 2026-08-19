@@ -60,6 +60,18 @@
 !*.f90.in
 !*.m.in
 !*.R.in
+!*.pc.in
+!modena-portal.in
+
+# Portal stylesheet.  Referenced by src/portal/setup.py.in as package_data and
+# by the CMake DEPS glob, so an untracked copy ships an unstyled portal.
+# Scoped rather than a bare `!*.css`, which would also pull in vendored
+# third-party stylesheets under applications/.
+!src/portal/assets/*.css
+
+# Dependency list for the portal.  Not read by the build (setup.py.in declares
+# the same set), but it is authored, not generated.
+!requirements.txt
 
 # R package metadata.  Both are extensionless, so the allowlist excluded them
 # and the R wrapper has never been installable from a clone -- R CMD INSTALL
