@@ -1,0 +1,9 @@
+pyproject.toml
+setup.cfg
+modena_lexer/__init__.py
+modena_lexer.egg-info/PKG-INFO
+modena_lexer.egg-info/SOURCES.txt
+modena_lexer.egg-info/dependency_links.txt
+modena_lexer.egg-info/entry_points.txt
+modena_lexer.egg-info/requires.txt
+modena_lexer.egg-info/top_level.txt

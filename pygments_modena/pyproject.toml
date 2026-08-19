@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modena-lexer"
+version = "0.1.0"
+description = "Pygments lexers for MoDeNa C and Python APIs"
+requires-python = ">=3.10"
+dependencies = ["pygments"]
+
+[project.entry-points."pygments.lexers"]
+ModenaCLexer     = "modena_lexer:ModenaCLexer"
+ModenaPythonLexer = "modena_lexer:ModenaPythonLexer"

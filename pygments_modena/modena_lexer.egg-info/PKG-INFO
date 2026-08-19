@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: modena-lexer
+Version: 0.1.0
+Summary: Pygments lexers for MoDeNa C and Python APIs
+Requires-Python: >=3.10
+Requires-Dist: pygments

@@ -1,0 +1,1395 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-scale modelling framework with surrogate models">
+      
+      
+      
+        <link rel="canonical" href="https://sigveka.github.io/MoDeNa2/return-codes/">
+      
+      
+        <link rel="prev" href="../quick-start-r/">
+      
+      
+        <link rel="next" href="../architecture/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Return Codes - MoDeNa</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#return-codes" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="MoDeNa" class="md-header__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MoDeNa
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Return Codes
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quick-start-user/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  User Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quick-start-developer/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quick-start-c/" class="md-tabs__link">
+          
+  
+  
+  Language Bindings
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Return Codes
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../core-developer-guide/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Core Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../model-registry/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Model Registry
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../fireworks/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FireWorks
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="MoDeNa" class="md-nav__button md-logo" aria-label="MoDeNa" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MoDeNa
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-user/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-developer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language Bindings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Language Bindings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-fortran/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fortran
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-julia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Julia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MATLAB / Octave
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick-start-r/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    R
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-different-things-are-called-a-return-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two different things are called a "return code"
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-results-what-modena_model_call-returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call results — what modena_model_call() returns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exit-codes-what-handlereturncode-acts-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit codes — what handleReturnCode() acts on
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-initialisation-the-202-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-initialisation — the 202 path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#languages-that-raise-instead-of-returning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Languages that raise instead of returning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core-developer-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-registry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fireworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FireWorks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-different-things-are-called-a-return-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two different things are called a "return code"
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-results-what-modena_model_call-returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call results — what modena_model_call() returns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exit-codes-what-handlereturncode-acts-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit codes — what handleReturnCode() acts on
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-initialisation-the-202-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-initialisation — the 202 path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#languages-that-raise-instead-of-returning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Languages that raise instead of returning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="return-codes">Return codes<a class="headerlink" href="#return-codes" title="Permanent link">&para;</a></h1>
+<p>The canonical reference for every MoDeNa status code. The per-language
+quick-starts reproduce the subset each one needs; this page is the source they
+must agree with.</p>
+<p>The numbers themselves are defined in <code>src/python/Strategy.py</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">OUT_OF_BOUNDS</span>             <span class="o">=</span> <span class="mi">200</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">MODEL_NOT_IN_DATABASE</span>     <span class="o">=</span> <span class="mi">201</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">PARAMETERS_NOT_VALID</span>      <span class="o">=</span> <span class="mi">202</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">INDEX_SET_NOT_IN_DATABASE</span> <span class="o">=</span> <span class="mi">401</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">INTERNAL_ERROR</span>            <span class="o">=</span> <span class="mi">1</span>
+</code></pre></div>
+<p>Because C, Fortran, MATLAB and R compare integers rather than catching typed
+exceptions, each exposes the same set as named constants. Use them instead of
+writing the numbers inline:</p>
+<table>
+<thead>
+<tr>
+<th>Language</th>
+<th>How to reach them</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python</td>
+<td><code>from modena.Strategy import OUT_OF_BOUNDS, ...</code></td>
+</tr>
+<tr>
+<td>C / C++</td>
+<td><code>enum modena_status_t</code> in <code>modena.h</code> — <code>MODENA_OUT_OF_BOUNDS</code>, …</td>
+</tr>
+<tr>
+<td>Fortran</td>
+<td><code>use fmodena_status</code> — <code>MODENA_OUT_OF_BOUNDS</code>, …</td>
+</tr>
+<tr>
+<td>MATLAB</td>
+<td><code>Modena.OUT_OF_BOUNDS</code>, … (constant properties)</td>
+</tr>
+<tr>
+<td>R</td>
+<td><code>MODENA_OUT_OF_BOUNDS</code>, … (exported)</td>
+</tr>
+</tbody>
+</table>
+<p><code>modena_status_t</code> is deliberately separate from <code>modena_error_t</code>, which is
+<strong>deprecated</strong>. Its three "not found" values are never assigned by any code
+path and never were — a missing model or function sets <code>201</code>, a missing index
+set sets <code>401</code>. Only <code>MODENA_SUCCESS</code> there is live. The names survive because
+the header is installed; they will go at the next major release.</p>
+<p>Note <code>MODENA_MODEL_NOT_FOUND</code> is <code>1</code>, the same value as
+<code>MODENA_INTERNAL_ERROR</code> — which is what actually produces it. That mismatch is
+why the old name was misleading rather than merely unused.</p>
+<p><code>modena_error_message()</code> describes all of them; it used to return
+"Unknown error" for anything above <code>3</code>, which is every code that actually
+occurs.</p>
+<p><code>SurrogateModel.exception*()</code> returns them, libmodena reads them back off the
+raised exception, and <code>handleReturnCode()</code> dispatches on them. No other file
+should contain the literals.</p>
+<hr />
+<h2 id="two-different-things-are-called-a-return-code">Two different things are called a "return code"<a class="headerlink" href="#two-different-things-are-called-a-return-code" title="Permanent link">&para;</a></h2>
+<p>This is the distinction the language guides used to blur, and getting it wrong
+breaks a workflow silently.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>What it is</th>
+<th>Who reads it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Call result</strong></td>
+<td>the <code>int</code> returned by <code>modena_model_call()</code></td>
+<td>your application, in-process</td>
+</tr>
+<tr>
+<td><strong>Exit code</strong></td>
+<td>the status your process terminates with</td>
+<td><code>handleReturnCode()</code>, in the FireWorks worker</td>
+</tr>
+</tbody>
+</table>
+<p>They overlap but are not the same list. <code>100</code> is only ever a call result — a
+process that <em>exits</em> with 100 does not get retried, it falls into
+<code>handleReturnCode</code>'s catch-all and terminates the workflow.</p>
+<hr />
+<h2 id="call-results-what-modena_model_call-returns">Call results — what <code>modena_model_call()</code> returns<a class="headerlink" href="#call-results-what-modena_model_call-returns" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>What the application must do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Success</td>
+<td>Use the outputs; continue</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Failure</td>
+<td>Abort; this is not a protocol signal</td>
+</tr>
+<tr>
+<td><code>100</code></td>
+<td>Surrogate was retrained mid-run; parameters are now updated</td>
+<td><strong>Retry the current step in-process.</strong> Do not exit</td>
+</tr>
+<tr>
+<td><code>200</code></td>
+<td>Out of bounds — a new design of experiments is needed, then this run restarts</td>
+<td>Exit with <code>200</code></td>
+</tr>
+<tr>
+<td><code>201</code></td>
+<td>The model was not in the database and must be initialised from its module</td>
+<td>Exit with <code>201</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>202</code> never appears here. It comes from <code>modena_model_new()</code> when the model
+exists but has no usable fitted parameters — see below.</p>
+<hr />
+<h2 id="exit-codes-what-handlereturncode-acts-on">Exit codes — what <code>handleReturnCode()</code> acts on<a class="headerlink" href="#exit-codes-what-handlereturncode-acts-on" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Exception raised</th>
+<th>Framework response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code></td>
+<td><code>OutOfBounds</code></td>
+<td>Queue a retraining detour for the out-of-bounds point, then relaunch this binary</td>
+</tr>
+<tr>
+<td><code>201</code></td>
+<td><code>ParametersNotValid</code></td>
+<td>Identify the model via <code>loadFromModule()</code>, initialise it, relaunch</td>
+</tr>
+<tr>
+<td><code>202</code></td>
+<td><code>ParametersNotValid</code></td>
+<td>Identify the uninitialised model, run its initialisation workflow, relaunch</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td><code>TerminateWorkflow</code></td>
+<td>Stop, naming the missing IndexSet. Not recoverable: IndexSets are written to MongoDB when their package is imported, so there is no workflow to queue — check <code>MODENA_PATH</code> and that <code>initModels</code> has run</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td><code>TerminateWorkflow</code></td>
+<td>Stop. An internal libmodena failure (allocation, CPython call)</td>
+</tr>
+<tr>
+<td>any other non-zero</td>
+<td><code>TerminateWorkflow</code></td>
+<td>Stop. The failure is not recoverable</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><code>201</code> does <strong>not</strong> mean "clean exit" or "workflow complete", and it does not
+mean "no restart". Both branches of <code>handleReturnCode(201)</code> treat it as a
+model that needs initialising, and <code>executeAndCatchExceptions()</code> appends a
+<em>resume after init</em> Firework — so the simulation is re-queued exactly as it
+is for <code>200</code>. The guides described it as a normal termination, and
+<code>model.c</code>'s comment block called it "exit for new DOE without Restart";
+both were wrong. The C++/Julia exception was called <code>ExitNoRestart</code> for the
+same reason and is now <code>ExitAndInitialise</code>. If you have application code
+that exits 201 to signal success, it is signalling the opposite.</p>
+</blockquote>
+<hr />
+<h2 id="auto-initialisation-the-202-path">Auto-initialisation — the 202 path<a class="headerlink" href="#auto-initialisation-the-202-path" title="Permanent link">&para;</a></h2>
+<p><code>modena_model_new()</code> returns <code>NULL</code> with <code>modena_error_code = 202</code> when the
+model is in MongoDB but has no fitted parameters — freshly registered, with
+<code>initModels</code> never run. The application propagates it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">modena_model_t</span><span class="w"> </span><span class="o">*</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">modena_model_new</span><span class="p">(</span><span class="s">"myModel"</span><span class="p">);</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">modena_error_occurred</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">modena_error</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w">   </span><span class="cm">/* 202 */</span>
+</code></pre></div>
+<p>FireWorks then inserts an initialisation detour and re-queues the simulation.
+This is why <code>./workflow</code> succeeds without running <code>./initModels</code> first.</p>
+<hr />
+<h2 id="languages-that-raise-instead-of-returning">Languages that raise instead of returning<a class="headerlink" href="#languages-that-raise-instead-of-returning" title="Permanent link">&para;</a></h2>
+<p>The C++, Julia and Python wrappers convert the codes into exceptions. The
+mapping is exact — the code is still available on the exception.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>C++</th>
+<th>Julia</th>
+<th>Python</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>100</code></td>
+<td><code>modena::ParametersUpdated</code></td>
+<td><code>ParametersUpdated</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>200</code></td>
+<td><code>modena::ExitAndRetrain</code></td>
+<td><code>ExitAndRetrain</code></td>
+<td><code>modena.OutOfBounds</code></td>
+</tr>
+<tr>
+<td><code>201</code></td>
+<td><code>modena::ExitAndInitialise</code></td>
+<td><code>ExitAndInitialise</code></td>
+<td><code>modena.ParametersNotValid</code></td>
+</tr>
+<tr>
+<td><code>202</code></td>
+<td>—</td>
+<td>—</td>
+<td><code>modena.ParametersNotValid</code></td>
+</tr>
+<tr>
+<td>other</td>
+<td><code>modena::ModenaError</code></td>
+<td><code>ModenaError</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>In C++ and Julia the code is <code>e.code</code>; in Python it is <code>exc.returnCode</code>, and
+<code>exc.model</code> identifies the surrogate that failed.</p>
+<p><strong>Python differs in an important way.</strong> <code>SurrogateModel.callModel()</code> raises
+rather than exiting, so <em>the caller decides</em>. Whether to exit depends on who
+launched the script:</p>
+<ul>
+<li>Launched by FireWorks as a <code>BackwardMappingScriptTask</code> subprocess — exit with
+  <code>exc.returnCode</code>. The process exit status is the only channel back to
+  <code>handleReturnCode()</code>.</li>
+<li>Run standalone — do not exit. Nothing is reading the status, and the exception
+  carries more than an integer does.</li>
+</ul>
+<hr />
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>modena model show &lt;id&gt;</code> — whether a model is trained</li>
+<li><a href="../architecture/">Architecture</a> — the full out-of-bounds loop</li>
+<li><code>src/src/CLAUDE.md</code> — the C side of the 202 protocol</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
