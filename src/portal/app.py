@@ -5,7 +5,7 @@ Run in development:
     python src/portal/app.py
 
 Run with gunicorn (production):
-    gunicorn "modena_portal.app:server" --bind 0.0.0.0:8050 --workers 2
+    gunicorn "modena_portal.app:server" --bind 127.0.0.1:8050 --workers 2
 
 Requirements:
     - MODENA_URI env var (defaults to mongodb://localhost:27017/test)
@@ -35,4 +35,6 @@ import modena_portal.callbacks.evaluator_callbacks   # noqa: F401, E402
 import modena_portal.callbacks.diagnostics_callbacks # noqa: F401, E402
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8050)
+    # Same bind policy as the console script -- never 0.0.0.0 by default.
+    from modena_portal.run import _serve
+    _serve(debug=True)

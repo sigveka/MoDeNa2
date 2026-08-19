@@ -42,3 +42,23 @@ install(
     PROGRAMS ${ENTRY_SCRIPT}
     DESTINATION ${INSTALL_BIN_DIR}
 )
+
+# ---------------------------------------------------------------------------
+# Portal unit tests.
+#
+# These existed (data/test_queries.py) but were never registered, so three of
+# them had rotted through the named-parameter rework unnoticed -- they still
+# passed parameters as a positional list years after the schema became a dict.
+# Registered here so that cannot happen again.
+#
+# Pure logic: no MongoDB, no libmodena, no browser.
+# ---------------------------------------------------------------------------
+if(MODENA_BUILD_TESTS)
+    add_test(
+        NAME    modena_portal_unit
+        COMMAND ${Python3_EXECUTABLE} -m pytest "${CMAKE_CURRENT_SOURCE_DIR}"
+                --tb=short -q
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties(modena_portal_unit PROPERTIES LABELS "python;unit;portal")
+endif()

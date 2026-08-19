@@ -64,7 +64,7 @@ def test_parameter_table_basic():
     sf_params = {
         'R': _Entry(0, 0.0, 9e99),
     }
-    model = _Model(sf_params, [287.0])
+    model = _Model(sf_params, {'R': 287.0})
     rows = get_parameter_table(model)
     assert len(rows) == 1
     assert rows[0] == {
@@ -76,31 +76,33 @@ def test_parameter_table_basic():
     }
 
 
-def test_parameter_table_sorted_by_argpos():
+def test_parameter_table_follows_declaration_order():
+    """Post Phase 3 there is no argPos field: dict-key insertion order in
+    surrogateFunction.parameters IS the argPos order, and the fitted values
+    are keyed by name so they cannot be mismatched to a slot."""
     sf_params = {
         'P1': _Entry(1, 0.0, 10.0),
         'P0': _Entry(0, 0.0, 10.0),
     }
-    model = _Model(sf_params, [1.0, 2.0])
+    model = _Model(sf_params, {'P0': 2.0, 'P1': 1.0})
     rows = get_parameter_table(model)
-    assert rows[0]['name'] == 'P0'
-    assert rows[0]['value'] == 1.0
-    assert rows[1]['name'] == 'P1'
-    assert rows[1]['value'] == 2.0
+    assert [r['name'] for r in rows] == ['P1', 'P0']
+    assert [r['value'] for r in rows] == [1.0, 2.0]
+    assert [r['argPos'] for r in rows] == [0, 1]
 
 
 def test_parameter_table_missing_value():
-    # model.parameters is shorter than argPos - should return None
+    # An unfitted parameter is simply absent from the dict -> value is None.
     sf_params = {
         'P0': _Entry(0, 0.0, 10.0),
         'P1': _Entry(1, 0.0, 10.0),
     }
-    model = _Model(sf_params, [5.0])  # only one value, P1 is missing
+    model = _Model(sf_params, {'P0': 5.0})      # P1 never fitted
     rows = get_parameter_table(model)
     assert rows[0]['value'] == 5.0
     assert rows[1]['value'] is None
 
 
 def test_parameter_table_empty():
-    model = _Model({}, [])
+    model = _Model({}, {})
     assert get_parameter_table(model) == []
