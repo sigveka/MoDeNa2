@@ -95,7 +95,12 @@ def estimate_cost(model, n_points: int, lpad=None) -> dict:
     try:
         for fw_id in lpad.get_fw_ids(query={'state': 'COMPLETED'}):
             fw = lpad.get_fw_by_id(fw_id)
-            if model._id not in (fw.name or '') or 'exact' not in (fw.name or ''):
+            name = fw.name or ''
+            # exactTasks() names these '<model> — sim i/n' (SurrogateModel.py).
+            # Match that rather than the word "exact", which appears in no
+            # firework name -- an earlier version of this filter matched
+            # nothing and silently reported "no basis" after a full init.
+            if not name.startswith(f'{model._id} — sim '):
                 continue
             for launch in getattr(fw, 'launches', []):
                 start, end = launch.time_start, launch.time_end

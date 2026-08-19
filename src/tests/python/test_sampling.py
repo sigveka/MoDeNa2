@@ -180,6 +180,24 @@ class TestGuards:
         cost = S.estimate_cost(_model(), 4, lpad)
         assert cost['seconds_each'] is None and cost['basis'] == 0
 
+    def test_cost_matches_the_exact_task_naming_convention(self, S):
+        """exactTasks() names fireworks '<model> — sim i/n'.  An earlier
+        filter looked for the word 'exact', which appears in no firework name,
+        so it silently reported 'no basis' straight after a full init."""
+        from datetime import datetime, timedelta
+        t0 = datetime(2026, 1, 1)
+        launch = SimpleNamespace(time_start=t0, time_end=t0 + timedelta(seconds=10))
+        names = {1: 'demo — sim 1/2', 2: 'demo — sim 2/2',
+                 3: 'demo — fitting', 4: 'init root — demo',
+                 5: 'other — sim 1/1'}
+        lpad = MagicMock()
+        lpad.get_fw_ids.side_effect = lambda query=None: (
+            list(names) if query['state'] == 'COMPLETED' else [])
+        lpad.get_fw_by_id.side_effect = lambda i: SimpleNamespace(
+            name=names[i], launches=[launch])
+        cost = S.estimate_cost(_model(), 3, lpad)
+        assert cost['basis'] == 2, 'only this model\'s sim fireworks count'
+
     def test_cost_averages_previous_launches(self, S):
         from datetime import datetime, timedelta
         t0 = datetime(2026, 1, 1)
@@ -188,7 +206,7 @@ class TestGuards:
         lpad.get_fw_ids.side_effect = lambda query=None: (
             [1] if query['state'] == 'COMPLETED' else [])
         lpad.get_fw_by_id.return_value = SimpleNamespace(
-            name='demo — exact simulation', launches=[launch])
+            name='demo — sim 1/1', launches=[launch])
         cost = S.estimate_cost(_model(), 5, lpad)
         assert cost['seconds_each'] == 60.0
         assert cost['seconds_total'] == 300.0
