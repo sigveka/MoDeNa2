@@ -23,7 +23,9 @@ full cost.  So a caller asks for *how many* points, never for *which sampler*.
 
 from __future__ import annotations
 
+import getpass
 import logging
+import socket
 from datetime import datetime, timezone
 
 _log = logging.getLogger('modena.sampling')
@@ -167,7 +169,8 @@ def plan_points(model, n_points: int) -> list:
     return strategy.newPoints(model)
 
 
-def request_points(model, n_points: int, lpad=None, run=True) -> dict:
+def request_points(model, n_points: int, lpad=None, run=True,
+                   source: str = 'api') -> dict:
     """Queue exact simulations for *n_points* new points, then a refit.
 
     Mirrors the out-of-bounds detour: exactTasks(points) fanned out, then
@@ -197,6 +200,24 @@ def request_points(model, n_points: int, lpad=None, run=True) -> dict:
     model.save()          # the exact tasks load the model by id at run time
 
     wf = model.exactTasks(points)
+
+    # Provenance.  Queued simulations spend real compute, and without this the
+    # only record of a request is the firework names -- which cannot say who
+    # asked, from where, or when.  Two batches appeared during development
+    # that could not be attributed afterwards; that is the failure this
+    # prevents.  Workflow.metadata is queryable, so `modena fw status` and the
+    # Runs page can surface it.
+    wf.metadata = {
+        'modena_request': {
+            'model_id': model._id,
+            'n_points': n_points,
+            'source': source,
+            'user': getpass.getuser(),
+            'host': socket.gethostname(),
+            'requested_at': datetime.now(timezone.utc).isoformat(),
+        }
+    }
+
     wf.append_wf(
         Workflow([Firework(ParameterFitting(surrogateModelId=model._id),
                            name=f'{model._id} — fitting after sampling')],
@@ -207,7 +228,8 @@ def request_points(model, n_points: int, lpad=None, run=True) -> dict:
     _log.info(
         'requested %d new point(s) for %s', n_points, model._id,
         extra={'event': 'points_requested', 'model_id': model._id,
-               'n_points': n_points},
+               'n_points': n_points, 'source': source,
+               'user': getpass.getuser()},
     )
 
     # Queue either way; `run` only decides whether local workers are started
@@ -225,5 +247,6 @@ def request_points(model, n_points: int, lpad=None, run=True) -> dict:
         'n_points': n_points,
         'points': points,
         'launched': run,
+        'source': source,
         'requested_at': datetime.now(timezone.utc),
     }

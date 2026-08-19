@@ -94,8 +94,23 @@ def find_file(name: str, path: Path | None = None) -> Path | None:
 # fw subcommand handlers                                              #
 # ------------------------------------------------------------------ #
 
-def _fw_status(_args):
-    _lpad_cmd(lambda lp: lp.status())
+def _fw_status(args):
+    def _show(lp):
+        lp.status()
+        if getattr(args, 'who', False):
+            prov = lp.request_provenance()
+            print()
+            if not prov:
+                print('No workflow carries a request record. Work queued '
+                      'before the audit trail, or by another route.')
+                return
+            print('Requested work:')
+            for name, m in prov.items():
+                print(f"  {name}")
+                print(f"    {m['n_points']} point(s) for {m['model_id']} — "
+                      f"{m['source']} by {m['user']}@{m['host']} "
+                      f"at {m['requested_at']}")
+    _lpad_cmd(_show)
 
 
 def _fw_reset(args):
@@ -687,6 +702,162 @@ def _fw_launch(args):
         sys.exit(1)
 
 
+
+# ------------------------------------------------------------------ #
+# model quality / sample / integrate                                  #
+# ------------------------------------------------------------------ #
+# Thin wrappers: Diagnostics, Sampling and Integration live in the modena
+# package precisely so both the portal and the CLI can drive them.  Anyone on
+# a cluster head node is a CLI-only user -- the portal binds to loopback --
+# so parity here is not a convenience.
+
+def _fmt_seconds(seconds):
+    if seconds is None:
+        return 'unknown'
+    if seconds < 90:
+        return f'{seconds:.1f} s'
+    if seconds < 5400:
+        return f'{seconds / 60:.1f} min'
+    return f'{seconds / 3600:.1f} h'
+
+
+def _load_or_exit(model_id):
+    import modena as _modena
+    try:
+        return _modena.SurrogateModel.load(model_id)
+    except Exception as exc:                                   # noqa: BLE001
+        print(f'[modena] ERROR: could not load {model_id!r}: {exc}',
+              file=sys.stderr)
+        sys.exit(1)
+
+
+def _model_quality(args):
+    """Score the stored parameters, and optionally compare CV strategies."""
+    from modena.Diagnostics import (
+        CV_STRATEGIES, METRICS, cross_validate, fit_quality,
+    )
+
+    model = _load_or_exit(args.id)
+    metric = METRICS[args.metric]()
+
+    try:
+        q = fit_quality(model, metric=metric)
+    except ValueError as exc:
+        print(f'[modena] {exc}', file=sys.stderr)
+        sys.exit(1)
+
+    print(f'Model:     {args.id}')
+    print(f'Metric:    {q["metric"]}')
+    print(f'Error:     {q["error"]:.6g}')
+    print(f'Samples:   {q["n_samples"]}  (fitted on {q["n_samples_fitted"]})')
+    if q['stale']:
+        print(f'Status:    STALE — {q["n_new_samples"]} sample(s) collected '
+              f'since the last fit')
+        print(f'           run: modena model refit {args.id}')
+    else:
+        print('Status:    up to date')
+
+    if not args.compare:
+        return
+
+    print()
+    print(f'{"cross-validation":<16} {"folds":>6} {"cv error":>13} {"full fit":>13}')
+    print('-' * 52)
+    best, best_name = None, None
+    for name in (args.strategies or list(CV_STRATEGIES)):
+        cls, kw = CV_STRATEGIES[name]
+        try:
+            r = cross_validate(model, crossValidation=cls(**kw), metric=metric)
+        except Exception as exc:                               # noqa: BLE001
+            print(f'{name:<16} {"—":>6} {str(exc)[:30]:>28}')
+            continue
+        print(f'{name:<16} {r["n_folds"]:>6} {r["cv_error"]:>13.6g} '
+              f'{r["full_fit_error"]:>13.6g}')
+        if best is None or r['cv_error'] < best:
+            best, best_name = r['cv_error'], name
+    if best_name:
+        print()
+        print(f'Best: {best_name} ({best:.6g}).  Nothing was written — '
+              f'use "modena model refit {args.id}" to store a new fit.')
+
+
+def _model_sample(args):
+    """Queue exact simulations for new training points."""
+    from modena.Sampling import (
+        InFlight, NotSamplable, estimate_cost, plan_points, request_points,
+    )
+
+    model = _load_or_exit(args.id)
+    try:
+        points = plan_points(model, args.points)
+        cost = estimate_cost(model, args.points)
+    except (NotSamplable, ValueError) as exc:
+        print(f'[modena] ERROR: {exc}', file=sys.stderr)
+        sys.exit(1)
+
+    names = list(points)
+    print(f'{args.points} new point(s) for {args.id}:')
+    for i in range(args.points):
+        print('  ' + '  '.join(f'{k}={points[k][i]:.6g}' for k in names))
+    print()
+    if cost['seconds_each'] is None:
+        print('Cost:  unknown — this exact simulation has not completed before.')
+    else:
+        print(f'Cost:  ~{_fmt_seconds(cost["seconds_total"])} total '
+              f'({_fmt_seconds(cost["seconds_each"])} each, from '
+              f'{cost["basis"]} previous run(s))')
+
+    if args.dry_run:
+        print('\n--dry-run given; nothing queued.')
+        return
+
+    if not args.yes:
+        try:
+            ans = input('Queue these simulations? [y/N] ')
+        except EOFError:
+            print('[modena] No terminal to confirm on; pass --yes.',
+                  file=sys.stderr)
+            sys.exit(1)
+        if ans.strip().lower() not in ('y', 'yes'):
+            print('[modena] Cancelled.')
+            return
+
+    try:
+        result = request_points(model, args.points, run=args.run, source='cli')
+    except InFlight as exc:
+        print(f'[modena] ERROR: {exc}', file=sys.stderr)
+        sys.exit(1)
+
+    if args.run:
+        print(f'[modena] Ran {result["n_points"]} simulation(s).')
+    else:
+        print(f'[modena] Queued {result["n_points"]} simulation(s). '
+              f'Run them with: modena fw launch')
+
+
+def _model_integrate(args):
+    """Print ready-to-paste integration code for this model."""
+    from modena.Integration import LANGUAGES, snippet
+
+    model = _load_or_exit(args.id)
+    s = snippet(model, args.lang)
+
+    if args.output:
+        path = Path(args.output)
+        path.write_text(s['code'])
+        print(f'[modena] Wrote {s["label"]} example → {path}')
+        print(f'[modena] Build with: {s["build"]}')
+        return
+
+    if s['supplied'] and not args.quiet:
+        for name, provider in s['supplied'].items():
+            print(f'# NOTE: {name} is supplied by substitute model {provider} '
+                  f'— do not claim its argPos', file=sys.stderr)
+    print(s['code'])
+    if not args.quiet:
+        print(f'\n# Build and run:\n#   {s["build"]}')
+
+
 def _init_models(args):
     """Run the initialisation workflow for registered surrogate models."""
     import importlib as _importlib
@@ -1096,6 +1267,8 @@ def _build_parser():
     # modena fw status
     p = fw_sub.add_parser('status', aliases=['ls', 'list'],
                           help='Show all Firework IDs, names, and states')
+    p.add_argument('--who', action='store_true',
+                   help='Also show who requested each batch of queued work')
     p.set_defaults(func=_fw_status)
 
     # modena fw reset
@@ -1222,6 +1395,89 @@ def _build_parser():
     p.add_argument('id', type=str, help='Model ID (e.g. thermalDiffusion[material=Cu])')
     _add_launcher_args(p)
     p.set_defaults(func=_model_refit)
+
+    # modena model quality
+    p = model_sub.add_parser(
+        'quality',
+        help='Score a model\'s stored parameters against its training data',
+        description=(
+            'Report how well the stored parameters fit the stored data, and '
+            'whether points have been collected since the last fit.\n\n'
+            '--compare additionally re-fits under each cross-validation '
+            'strategy and prints the errors side by side. Nothing is written: '
+            'use "modena model refit" to store a new fit.\n\n'
+            'Examples:\n'
+            '  modena model quality flowRate\n'
+            '  modena model quality flowRate --compare\n'
+            '  modena model quality flowRate --compare --metric RelativeError'
+        ),
+    )
+    p.add_argument('id', type=str, help='Model ID')
+    p.add_argument('--compare', action='store_true',
+                   help='Also compare cross-validation strategies')
+    p.add_argument('--strategies', nargs='+', metavar='NAME',
+                   help='Limit --compare to these strategies')
+    p.add_argument('--metric', default='AbsoluteError',
+                   choices=['AbsoluteError', 'RelativeError', 'NormalizedError'],
+                   help='Error metric (default: AbsoluteError)')
+    p.set_defaults(func=_model_quality)
+
+    # modena model sample
+    p = model_sub.add_parser(
+        'sample',
+        help='Queue exact simulations to collect more training points',
+        description=(
+            'Choose new points using the model\'s own sampling strategy, show '
+            'the cost, and queue the exact simulations.\n\n'
+            'The sampler is the model\'s, not a flag: models with a '
+            'composition constraint declare CASTRO variants precisely because '
+            'naive sampling would produce physically invalid points, which '
+            'would then be simulated at full cost.\n\n'
+            'Queued work does not start on its own -- run "modena fw launch", '
+            'or pass --run to do both here.\n\n'
+            'Examples:\n'
+            '  modena model sample flowRate --points 5 --dry-run\n'
+            '  modena model sample flowRate --points 5 --yes\n'
+            '  modena model sample flowRate --points 5 --yes --run'
+        ),
+    )
+    p.add_argument('id', type=str, help='Model ID')
+    p.add_argument('--points', '-n', type=int, default=5, metavar='N',
+                   help='Number of new points (default: 5)')
+    p.add_argument('--dry-run', action='store_true',
+                   help='Show the points and cost, queue nothing')
+    p.add_argument('--yes', '-y', action='store_true',
+                   help='Skip the confirmation prompt')
+    p.add_argument('--run', action='store_true',
+                   help='Also run the simulations now instead of only queueing')
+    p.set_defaults(func=_model_sample)
+
+    # modena model integrate
+    p = model_sub.add_parser(
+        'integrate',
+        help='Print integration code for calling this model from an application',
+        description=(
+            'Generate a ready-to-paste example that calls this specific model '
+            'from the language of your choice, with its real inputs, outputs '
+            'and build command.\n\n'
+            'Inputs supplied by a substitute model are omitted deliberately: '
+            'claiming their argument positions makes '
+            'modena_model_argPos_check() fail at runtime.\n\n'
+            'Examples:\n'
+            '  modena model integrate flowRate --lang c\n'
+            '  modena model integrate flowRate --lang fortran -o main.f90'
+        ),
+    )
+    p.add_argument('id', type=str, help='Model ID')
+    p.add_argument('--lang', '-l', default='c',
+                   choices=['c', 'cpp', 'fortran', 'python', 'julia',
+                            'matlab', 'r'],
+                   help='Target language (default: c)')
+    p.add_argument('--output', '-o', metavar='FILE',
+                   help='Write to a file instead of stdout')
+    p.add_argument('--quiet', '-q', action='store_true',
+                   help='Code only — no build command or notes')
+    p.set_defaults(func=_model_integrate)
 
     # modena model restore
     p = model_sub.add_parser(

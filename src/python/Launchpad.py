@@ -111,6 +111,24 @@ class ModenaLaunchPad(LaunchPad):
         for r in rows:
             print('  '.join(str(r[c]).ljust(widths[c]) for c in cols))
 
+    def request_provenance(self) -> dict:
+        """Return ``{workflow name: modena_request}`` for tracked requests.
+
+        Workflows queued by Sampling.request_points() carry who asked, from
+        where, and when.  Anything without it predates the audit trail or was
+        queued by another route.
+        """
+        out = {}
+        for fw_id in self.get_fw_ids():
+            try:
+                wf = self.get_wf_by_fw_id(fw_id)
+            except Exception:                                  # noqa: BLE001
+                continue
+            meta = (wf.metadata or {}).get('modena_request')
+            if meta and wf.name not in out:
+                out[wf.name] = meta
+        return out
+
     def state_counts(self) -> dict:
         """Return a dict mapping state name to count of fireworks in that state."""
         states = ['READY', 'RUNNING', 'WAITING', 'COMPLETED',

@@ -211,3 +211,45 @@ class TestGuards:
         assert cost['seconds_each'] == 60.0
         assert cost['seconds_total'] == 300.0
         assert cost['basis'] == 1
+
+
+# ---------------------------------------------------------------------------
+# Provenance
+# ---------------------------------------------------------------------------
+# Two batches of simulations appeared during development that could not be
+# attributed afterwards -- the workflow carried no record of who asked.  For a
+# surface that spends compute on someone's behalf, "5 simulations appeared and
+# nobody knows why" is a design fault, not an inconvenience.
+
+class TestProvenance:
+
+    def _queued_workflow(self, S, monkeypatch, **kw):
+        monkeypatch.setattr(S, 'in_flight', lambda model, lpad=None: 0)
+        model = _model(improve=_sampler())
+        wf = MagicMock()
+        model.exactTasks = MagicMock(return_value=wf)
+        lpad = MagicMock()
+        S.request_points(model, 2, lpad=lpad, run=False, **kw)
+        return wf
+
+    def test_records_who_what_and_when(self, S, monkeypatch):
+        import getpass
+        wf = self._queued_workflow(S, monkeypatch, source='portal')
+        meta = wf.metadata['modena_request']
+        assert meta['model_id'] == 'demo'
+        assert meta['n_points'] == 2
+        assert meta['source'] == 'portal'
+        assert meta['user'] == getpass.getuser()
+        assert meta['requested_at']            # ISO 8601 timestamp
+
+    def test_source_defaults_to_api(self, S, monkeypatch):
+        wf = self._queued_workflow(S, monkeypatch)
+        assert wf.metadata['modena_request']['source'] == 'api'
+
+    def test_source_is_reported_back_to_the_caller(self, S, monkeypatch):
+        monkeypatch.setattr(S, 'in_flight', lambda model, lpad=None: 0)
+        model = _model(improve=_sampler())
+        model.exactTasks = MagicMock()
+        result = S.request_points(model, 2, lpad=MagicMock(), run=False,
+                                  source='cli')
+        assert result['source'] == 'cli'

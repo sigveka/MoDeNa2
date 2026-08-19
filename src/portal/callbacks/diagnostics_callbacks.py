@@ -341,7 +341,8 @@ def queue_sampling(n_clicks, n_points, model_id):
         model = get_model_full(model_id)
         # run=False: add the workflow to the launchpad and return immediately.
         # Blocking a Dash callback on a CFD run is not an option.
-        result = request_points(model, int(n_points or 0), run=False)
+        result = request_points(model, int(n_points or 0), run=False,
+                                source='portal')
     except InFlight as exc:
         return dbc.Badge(str(exc), color='warning')
     except (NotSamplable, ValueError) as exc:
