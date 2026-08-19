@@ -139,7 +139,14 @@ def layout(model_id: str = ""):
                 className="text-muted"
             ), className="mt-3"),
         ])
-        tabs = [overview_tab, doc_tab, fitdata_tab, quality_tab, refit_tab]
+        sampling_tab = dbc.Tab(label="Collect Data", tab_id="tab-sampling", children=[
+            html.Div(id='sampling-content', children=html.Span(
+                "Switch to this tab to request more training points.",
+                className="text-muted"
+            ), className="mt-3"),
+        ])
+        tabs = [overview_tab, doc_tab, fitdata_tab, quality_tab, refit_tab,
+                sampling_tab]
     else:
         tabs = [overview_tab, doc_tab]
 

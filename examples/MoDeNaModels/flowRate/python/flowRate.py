@@ -143,9 +143,14 @@ m = BackwardMappingModel(
         crossValidation= Strategy.Holdout(testDataPercentage=0.2),
         acceptanceCriterion= Strategy.MaxError(threshold=0.5),
         optimizer= Strategy.TrustRegionReflective(),
-        improveErrorStrategy= Strategy.NonLinFitWithErrorContol(
+        # StochasticSampling is the only ImproveErrorStrategy: it is what
+        # collects more points when the fit is rejected.  This used to name
+        # NonLinFitWithErrorContol -- a ParameterFittingStrategy, whose
+        # newPoints() is the unimplemented base method -- so a rejected fit
+        # would have raised NotImplementedError.  Latent because flowRate
+        # fits to ~2e-07 against a threshold of 0.5, so the branch never ran.
+        improveErrorStrategy= Strategy.StochasticSampling(
             nNewPoints= 2,
-            constraints = "p0 / p1 > 0"
         ),
         maxIterations= 5 # Currently not used
     ),

@@ -259,3 +259,102 @@ def render_snippet(active_lang, model_id):
         _log.exception('snippet generation failed for %s/%s', model_id, language)
         return dbc.Alert(f"Could not generate snippet: {exc}", color="danger")
     return make_snippet_view(s, model_id)
+
+
+# ---------------------------------------------------------------------------
+# Sampling tab — request more training data
+# ---------------------------------------------------------------------------
+# Everything here is deliberately two-step: estimate/preview first, queue only
+# on an explicit second click.  Each point is an exact simulation, so an
+# accidental click is expensive in a way a refit never is.
+
+@callback(
+    Output('sampling-content', 'children'),
+    Input('detail-tabs', 'active_tab'),
+    State('detail-model-id', 'data'),
+    prevent_initial_call=True,
+)
+def load_sampling_on_tab(active_tab, model_id):
+    if active_tab != 'tab-sampling' or not model_id:
+        return no_update
+    from modena.Sampling import NotSamplable, plan_points
+    from modena_portal.components.sampling_panel import make_sampling_form
+
+    # Fail early and explain, rather than offering a button that cannot work.
+    try:
+        model = get_model_full(model_id)
+        plan_points(model, 1)
+    except NotSamplable as exc:
+        return dbc.Alert(str(exc), color='secondary')
+    except Exception as exc:                                   # noqa: BLE001
+        _log.exception('sampling unavailable for %s', model_id)
+        return dbc.Alert(f'Cannot sample this model: {exc}', color='danger')
+    return make_sampling_form()
+
+
+@callback(
+    Output('sampling-estimate', 'children'),
+    Output('sampling-preview', 'children'),
+    Output('sampling-run-btn', 'disabled'),
+    Input('sampling-estimate-btn', 'n_clicks'),
+    State('sampling-n', 'value'),
+    State('detail-model-id', 'data'),
+    prevent_initial_call=True,
+)
+def estimate_sampling(n_clicks, n_points, model_id):
+    if not n_clicks or not model_id:
+        return no_update, no_update, no_update
+
+    from modena.Sampling import NotSamplable, estimate_cost, plan_points
+    from modena_portal.components.sampling_panel import (
+        make_cost_readout, make_points_preview,
+    )
+
+    try:
+        n_points = int(n_points or 0)
+        model = get_model_full(model_id)
+        points = plan_points(model, n_points)
+        cost = estimate_cost(model, n_points)
+    except (NotSamplable, ValueError) as exc:
+        return dbc.Alert(str(exc), color='warning', className='py-2 mb-0'), None, True
+    except Exception as exc:                                   # noqa: BLE001
+        _log.exception('cost estimate failed for %s', model_id)
+        return dbc.Alert(f'{exc}', color='danger', className='py-2 mb-0'), None, True
+
+    return make_cost_readout(cost), make_points_preview(points), False
+
+
+@callback(
+    Output('sampling-status', 'children'),
+    Input('sampling-run-btn', 'n_clicks'),
+    State('sampling-n', 'value'),
+    State('detail-model-id', 'data'),
+    prevent_initial_call=True,
+)
+def queue_sampling(n_clicks, n_points, model_id):
+    if not n_clicks or not model_id:
+        return no_update
+
+    from modena.Sampling import InFlight, NotSamplable, request_points
+
+    try:
+        model = get_model_full(model_id)
+        # run=False: add the workflow to the launchpad and return immediately.
+        # Blocking a Dash callback on a CFD run is not an option.
+        result = request_points(model, int(n_points or 0), run=False)
+    except InFlight as exc:
+        return dbc.Badge(str(exc), color='warning')
+    except (NotSamplable, ValueError) as exc:
+        return dbc.Badge(str(exc), color='warning')
+    except Exception as exc:                                   # noqa: BLE001
+        _log.exception('queueing points failed for %s', model_id)
+        return dbc.Badge(f'Failed: {exc}', color='danger')
+
+    # Queued, not necessarily started: the portal does not run workers, so the
+    # fireworks sit READY until an rlaunch/qlaunch worker picks them up.
+    # Saying "queued" and pointing at the Runs page is the honest phrasing.
+    return dbc.Badge(
+        f"Queued {result['n_points']} simulation(s) — they stay READY until a "
+        f"worker runs them. Watch the Runs page.",
+        color='success',
+    )
