@@ -311,6 +311,60 @@ def run(
         lpad.reset('', require_password=False)
     lpad.add_wf(wf)
 
+    return launch(
+        lpad=lpad, njobs=njobs, launcher=launcher, fworker=fworker,
+        qadapter=qadapter, launch_dir=launch_dir, escalate_at=escalate_at,
+        sleep_time=sleep_time, timeout=timeout,
+    )
+
+
+def launch(
+    *,
+    lpad=None,
+    njobs: int = 0,
+    launcher: str = 'rapidfire',
+    fworker=None,
+    qadapter=None,
+    launch_dir: str | Path = '.',
+    escalate_at: int = 0,
+    sleep_time: int = 1,
+    timeout: int | None = None,
+):
+    """Run workers against an existing launchpad until no READY work remains.
+
+    ``run()`` builds a workflow, adds it, and launches.  This is the launching
+    half on its own, for work that is *already* queued -- the portal's Collect
+    Data tab adds fireworks without starting anything, and FireWorks' own
+    ``rlaunch`` cannot be used instead because it reads its own launchpad
+    config rather than MODENA_URI, so it connects to the wrong database.
+
+    Args:
+        lpad: a ``ModenaLaunchPad``; ``None`` creates one from ``MODENA_URI``.
+
+    Other arguments are as for :func:`run`.
+
+    Returns:
+        The ``ModenaLaunchPad`` used.
+    """
+    _ensure_fw_config()
+
+    if launcher not in ('rapidfire', 'qlaunch', 'auto'):
+        raise ValueError(
+            f"launcher must be 'rapidfire', 'qlaunch', or 'auto', got {launcher!r}"
+        )
+
+    fworker  = _resolve_fworker(fworker)
+    qadapter = _resolve_qadapter(qadapter)
+    if launcher in ('qlaunch', 'auto') and qadapter is None:
+        raise ValueError(
+            f"launcher={launcher!r} requires a qadapter.  "
+            "Pass qadapter='path/to/qadapter.yaml', a QueueAdapterBase "
+            "instance, or set QUEUEADAPTER_LOC in FW_config.yaml."
+        )
+
+    if lpad is None:
+        lpad = ModenaLaunchPad.from_modena_uri()
+
     n_ready   = len(lpad.get_fw_ids(query={'state': 'READY'}))
     n_waiting = len(lpad.get_fw_ids(query={'state': 'WAITING'}))
     strm_lvl  = _fw_strm_lvl()

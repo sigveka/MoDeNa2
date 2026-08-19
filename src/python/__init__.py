@@ -149,7 +149,7 @@ del _reg
 
 from .Strategy import *
 from .SurrogateModel import *
-from .Runner import run
+from .Runner import run, launch
 
 
 def lpad():

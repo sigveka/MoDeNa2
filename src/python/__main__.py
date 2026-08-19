@@ -634,7 +634,10 @@ def _ensure_models_path_registered(prefix: Path) -> None:
 def _build_run_kwargs(args) -> dict:
     """Build modena.run() kwargs from the common launcher CLI args."""
     njobs = 1 if args.sequential else args.jobs
-    run_kwargs = dict(njobs=njobs, launcher=args.launcher, reset=args.reset)
+    # `fw launch` omits --reset entirely (it only runs already-queued work),
+    # so the attribute may be absent.
+    run_kwargs = dict(njobs=njobs, launcher=args.launcher,
+                      reset=getattr(args, 'reset', False))
     if args.launcher in ('qlaunch', 'auto'):
         # qadapter may legitimately be None: Runner.run() falls back to
         # QUEUEADAPTER_LOC in FW_config.yaml and raises a clear ValueError
@@ -658,6 +661,27 @@ def _launch(wf_or_models, args) -> None:
     import modena as _modena
     try:
         _modena.run(wf_or_models, **_build_run_kwargs(args))
+    except ValueError as exc:
+        print(f'[modena] ERROR: {exc}', file=sys.stderr)
+        sys.exit(1)
+
+
+def _fw_launch(args):
+    """Run workers against whatever is already queued."""
+    import modena as _modena
+
+    lp = _modena.lpad()
+    ready = len(lp.get_fw_ids(query={'state': 'READY'}))
+    waiting = len(lp.get_fw_ids(query={'state': 'WAITING'}))
+    if not ready and not waiting:
+        print('[modena] Launchpad has no queued work. Nothing to run.')
+        return
+    print(f'[modena] Running {ready} READY ({waiting} waiting) firework(s)...')
+
+    kwargs = _build_run_kwargs(args)
+    kwargs.pop('reset', None)          # launch() never resets; it only runs
+    try:
+        _modena.launch(lpad=lp, **kwargs)
     except ValueError as exc:
         print(f'[modena] ERROR: {exc}', file=sys.stderr)
         sys.exit(1)
@@ -979,9 +1003,12 @@ def _quickstart(_args):
 # Entry point                                                         #
 # ------------------------------------------------------------------ #
 
-def _add_launcher_args(p) -> None:
+def _add_launcher_args(p, reset: bool = True) -> None:
     """Add --jobs, --sequential, --reset, --launcher, --qadapter, --fworker,
-    --launch-dir, and --escalate-at to an ArgumentParser subcommand."""
+    --launch-dir, and --escalate-at to an ArgumentParser subcommand.
+
+    ``reset=False`` omits --reset, for subcommands that only run already-queued
+    work and have nothing to clear."""
     p.add_argument(
         '--jobs', '-j', type=int, default=0, metavar='N',
         help='rapidfire/auto: number of local worker processes (default: 1).  '
@@ -993,13 +1020,14 @@ def _add_launcher_args(p) -> None:
         help='Run sequentially in a single process '
              '(equivalent to --jobs 1; this is the default)',
     )
-    p.add_argument(
+    if reset:
+        p.add_argument(
         '--reset', action='store_true',
         help='Clear the launchpad before adding this workflow.  DESTRUCTIVE: '
              'deletes every existing firework and its run history.  Without '
              'this flag the new workflow is added alongside what is already '
              'queued.',
-    )
+        )
     p.add_argument(
         '--launcher', choices=['rapidfire', 'qlaunch', 'auto'],
         default='rapidfire',
@@ -1090,6 +1118,28 @@ def _build_parser():
         help='Age threshold in seconds (default: 3600)',
     )
     p.set_defaults(func=_fw_orphans)
+
+    # modena fw launch
+    p = fw_sub.add_parser(
+        'launch',
+        help='Run whatever is already queued on the launchpad',
+        description=(
+            'Start workers against the existing queue and keep going until no '
+            'READY fireworks remain.\n\n'
+            'This is how work queued by something that does not run it itself '
+            'gets executed -- the portal\'s Collect Data tab, or an earlier '
+            '"modena init --launcher qlaunch" whose jobs are still pending.\n\n'
+            'FireWorks\' own "rlaunch" is not a substitute: it reads its own '
+            'launchpad configuration rather than MODENA_URI, so it connects to '
+            'a different database and sees none of this work.\n\n'
+            'Examples:\n'
+            '  modena fw launch\n'
+            '  modena fw launch --jobs 4\n'
+            '  modena fw launch --launcher qlaunch --qadapter qadapter.yaml'
+        ),
+    )
+    _add_launcher_args(p, reset=False)
+    p.set_defaults(func=_fw_launch)
 
     # modena fw run
     p = fw_sub.add_parser('run', help='Run a workflow script or YAML file')

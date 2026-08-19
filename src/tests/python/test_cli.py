@@ -561,3 +561,42 @@ def test_model_ls_and_show_agree_on_ordering(capsys):
         show_out = capsys.readouterr().out
     assert 'b, a' in ls_out and 'Inputs:     b, a' in show_out
     assert 'P0, P1' in ls_out and 'Parameters: P0, P1' in show_out
+
+
+# ---------------------------------------------------------------------------
+# modena fw launch
+# ---------------------------------------------------------------------------
+# The portal queues fireworks without running them, and FireWorks' own
+# `rlaunch` reads its own launchpad config rather than MODENA_URI -- so it
+# connects to a different database and sees none of that work.  Without this
+# command there was no supported way to drain the queue.
+
+class TestFwLaunch:
+
+    def test_launch_is_a_registered_command(self, ):
+        args = cli._build_parser().parse_args(['fw', 'launch'])
+        assert args.func is cli._fw_launch
+
+    def test_launch_has_no_reset_flag(self):
+        """It only runs already-queued work; there is nothing to clear."""
+        with pytest.raises(SystemExit):
+            cli._build_parser().parse_args(['fw', 'launch', '--reset'])
+
+    def test_reports_an_empty_launchpad_instead_of_launching(self, capsys):
+        fake = MagicMock()
+        fake.lpad.return_value.get_fw_ids.return_value = []
+        with patch.dict(sys.modules, {'modena': fake}):
+            cli._fw_launch(_launcher_args())
+        assert 'no queued work' in capsys.readouterr().out
+        fake.launch.assert_not_called()
+
+    def test_launches_when_work_is_queued(self, capsys):
+        fake = MagicMock()
+        fake.lpad.return_value.get_fw_ids.side_effect = (
+            lambda query=None: [1, 2, 3] if query['state'] == 'READY' else [])
+        with patch.dict(sys.modules, {'modena': fake}):
+            cli._fw_launch(_launcher_args(jobs=2))
+        assert '3 READY' in capsys.readouterr().out
+        assert fake.launch.call_count == 1
+        assert 'reset' not in fake.launch.call_args.kwargs, 'launch never resets'
+        assert fake.launch.call_args.kwargs['njobs'] == 2
