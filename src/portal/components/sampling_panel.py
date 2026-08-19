@@ -102,7 +102,8 @@ def make_launch_controls():
                 html.Strong('This spends compute. '),
                 'Each point runs the full exact simulation. On a cluster that '
                 'is real allocation, and the work cannot be un-queued from '
-                'here — use the Runs page to defuse it.',
+                'here — use the Runs page to defuse it. Queued work does not '
+                'start until a worker is running (modena fw launch).',
             ],
             color='warning', className='py-2 mt-3',
         ),

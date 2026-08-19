@@ -350,11 +350,15 @@ def queue_sampling(n_clicks, n_points, model_id):
         _log.exception('queueing points failed for %s', model_id)
         return dbc.Badge(f'Failed: {exc}', color='danger')
 
-    # Queued, not necessarily started: the portal does not run workers, so the
-    # fireworks sit READY until an rlaunch/qlaunch worker picks them up.
-    # Saying "queued" and pointing at the Runs page is the honest phrasing.
-    return dbc.Badge(
-        f"Queued {result['n_points']} simulation(s) — they stay READY until a "
-        f"worker runs them. Watch the Runs page.",
-        color='success',
-    )
+    # Queued, not started: the portal runs no workers, so these sit READY
+    # until something drains the queue.  Naming the command matters -- an
+    # earlier version said only "watch the Runs page", which sent the reader
+    # to a page where nothing would ever happen.
+    return html.Span([
+        dbc.Badge(f"Queued {result['n_points']} simulation(s)", color='success'),
+        html.Span(' — nothing runs them yet. Start a worker with ',
+                  className='ms-2'),
+        html.Code('modena fw launch'),
+        html.Span(' (or '), html.Code('--launcher qlaunch'),
+        html.Span(' on a cluster), then watch the Runs page.'),
+    ])
