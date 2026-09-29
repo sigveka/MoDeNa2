@@ -212,6 +212,23 @@ set_tests_properties(modena_oob_exception PROPERTIES
     ENVIRONMENT "MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
 )
 
+# -- The out-of-bounds -> refit loop, end to end --------------------------
+# Runs the twoTanks simulation against a freshly initialised flowRate and
+# asserts it leaves the trained box, refits, and finishes -- in 1..6 refits.
+# Installs the example packages itself and uses a database of its own
+# (derived from MODENA_URI, dropped afterwards), so it needs neither
+# buildModels nor initModels and cannot disturb the other live tests.
+add_test(
+    NAME    modena_twotanks_loop
+    COMMAND ${Python3_EXECUTABLE} -m pytest
+            "${CMAKE_CURRENT_SOURCE_DIR}/test_twotanks_loop.py"
+            -m live --tb=short -q
+)
+set_tests_properties(modena_twotanks_loop PROPERTIES
+    LABELS      "python;live;workflow"
+    TIMEOUT     900
+)
+
 # -- Status codes agree across every binding ------------------------------
 # The protocol numbers exist in five places (Python, the C enum, and the
 # Fortran / MATLAB / R mirrors).  Five copies is what let "201 = clean exit"

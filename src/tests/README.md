@@ -203,6 +203,31 @@ ctest --preset dev -L live
 | `test_matlab_smoke` | MATLAB / Octave (via MEX gateway + `Modena.m` class) | Same coverage via `m.set_input`/`m.call`/`m.get_output`, plus Phase 3 named-parameter accessors (`m.parameters()` returning a struct, `m.get_parameter('P0')`).  Registered when `WITH_MATLAB=ON`; prefers Octave over MATLAB (faster startup, no license). |
 | `test_julia_smoke.jl` | Julia (`Modena.jl`, pure `ccall` bindings) | Same coverage via `set!`/`call!`/`output`, plus `parameters(m)` / `parameter(m, "P0")` and the 1-based↔0-based argPos conversion.  Also covers the Libdl discovery of `libmodena.so`, the `RTLD_GLOBAL` libpython priming, and named access *after* `check` (the GIL-release segfault class).  Registered when `WITH_JULIA=ON`. |
 
+### The out-of-bounds → refit loop (`modena_twotanks_loop`)
+
+`test_twotanks_loop.py` runs the loop MoDeNa exists for: the twoTanks
+simulation (`twoTanksMacroscopicProblem`) calls `flowRate`, leaves its trained
+box, exits with 200, and FireWorks samples new points, refits and restarts the
+simulation until a run finishes inside the box.  It asserts the workflow
+completes and that it took **1 to 6 refits**.
+
+It is self-contained: it installs `examples/MoDeNaModels/flowRate` and
+`twoTank` into a temporary prefix, runs with a temporary `HOME` (because
+`modena install` writes `~/.modena/config.toml`), and uses its own database
+derived from `MODENA_URI` (`modena_looptest_<id>`, dropped afterwards).  It
+needs a reachable MongoDB but neither `buildModels` nor `initModels`, and
+takes about 25 s.
+
+The refit count follows from `flowRate`'s initial points.  Each out-of-bounds
+event widens only the offending input, to 1.2× the offending value, and the
+simulation restarts from t = 0; an input therefore needs about
+log(range)/log(1.2) events to cover what the simulation visits
+(rho0 0.422–3.483, p0 36 364–300 000 Pa, p1Byp0 0.0333–0.9998, D fixed).
+The initial box ends each input within one such step of that envelope, so
+each input triggers at most one refit.  The earlier, narrow box
+(rho0 3.4–3.5, p0 2.8–3.2e5, p1Byp0 0.03–0.04) needed 42.  If this test starts
+reporting more than six, the initial points no longer fit the simulation.
+
 ### Notes
 
 - The tests link against `libmodena` but never call `Py_Initialize()`.
@@ -219,7 +244,6 @@ ctest --preset dev -L live
 |---|---|---|
 | `Strategy.py` sampling / fitting | Requires R + rpy2 + MongoDB | Add under `installed` (mongomock) or `live` once R is available in CI |
 | `modena_model_call` in C | Requires `Py_Initialize()` + MongoDB | Covered end-to-end by the `live` smokes |
-| Full backward-mapping loop | Requires compiled surrogate + MongoDB | Add an `examples/`-based smoke test |
 | `SurrogateFunction` Ccode compilation | Requires gcc | Covered by `modena_python_installed` (`test_compile_surrogate.py`) |
 
 ---

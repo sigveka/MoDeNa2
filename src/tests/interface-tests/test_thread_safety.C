@@ -14,7 +14,7 @@
  * the substitute-model output buffer racing — would produce a scrambled
  * output that differs from the reference.
  *
- * Registered under the "integration" and "thread" labels; requires a
+ * Registered under the "live" and "thread" labels; requires a
  * live MongoDB with the `flowRate` model initialized.
  *
  * This mirrors the pattern in examples/twoTanksMT/ but is a small,

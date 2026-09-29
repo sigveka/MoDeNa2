@@ -430,9 +430,9 @@ m = BackwardMappingModel(
     initialisationStrategy=Strategy.InitialPoints(
         initialPoints={
             'D':      [0.01, 0.01, 0.01, 0.01],
-            'rho0':   [3.4,  3.5,  3.4,  3.5 ],
-            'p0':     [2.8e5, 3.2e5, 2.8e5, 3.2e5],
-            'p1Byp0': [0.03, 0.03, 0.04, 0.04],
+            'rho0':   [0.5,  3.5,  0.5,  3.5 ],
+            'p0':     [4.2e4, 3.2e5, 4.2e4, 3.2e5],
+            'p1Byp0': [0.03, 0.03, 0.9,  0.9 ],
         },
     ),
     outOfBoundsStrategy=Strategy.ExtendSpaceStochasticSampling(
@@ -449,7 +449,11 @@ m = BackwardMappingModel(
 **`_id`** — the name used when calling `modena_model_new("flowRate")`.
 
 **`initialisationStrategy`** — points evaluated once by `./initModels` to seed
-the database before the first simulation run.
+the database before the first simulation run.  Their min/max per input is the
+initial trained box, so size it from the range the solver will visit: each
+out-of-bounds event widens only one input by a factor of 1.2 and restarts the
+simulation.  For twoTanks the box above costs 1–3 refits; a box around the
+starting point alone (rho0 3.4–3.5, p0 2.8–3.2e5, p1Byp0 0.03–0.04) costs 42.
 
 **`outOfBoundsStrategy`** — what to do when the solver queries outside the
 trained region.  `ExtendSpaceStochasticSampling` adds random points around the
