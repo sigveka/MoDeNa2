@@ -74,8 +74,24 @@ set_property(
 set_target_properties(modena PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 # --> FORTRAN
-add_library(fmodena SHARED fmodena.f90)
-target_link_libraries(fmodena ${LTDL_LIBRARIES} ${Python3_LIBRARIES})
+#
+# Guarded on WITH_FORTRAN, which src/CMakeLists.txt defaults to whatever
+# check_language(Fortran) found.  Creating this target without the Fortran
+# language enabled does not merely build nothing -- it fails the generate step
+# for the whole project:
+#
+#   CMake Error: Cannot determine link language for target "fmodena".
+#   Exporting the target "fmodena" is not allowed since its linker language
+#   cannot be determined
+#
+# so a machine with no gfortran could not configure MoDeNa at all.  That went
+# unseen because every machine the project was built on happened to have one.
+set(_MODENA_INSTALL_TARGETS twoTanksFullProblem modena)
+if(WITH_FORTRAN)
+    add_library(fmodena SHARED fmodena.f90)
+    target_link_libraries(fmodena ${LTDL_LIBRARIES} ${Python3_LIBRARIES})
+    list(APPEND _MODENA_INSTALL_TARGETS fmodena)
+endif()
 
 # Build executables
 add_executable(twoTanksFullProblem twoTanksFullProblem.C)
@@ -106,7 +122,7 @@ configure_file(
 # Installation -------------------------------------------------------------- #
 if(CMAKE_VERSION VERSION_GREATER "2.8.12")
   install(
-    TARGETS twoTanksFullProblem modena fmodena
+    TARGETS ${_MODENA_INSTALL_TARGETS}
     EXPORT MODENATargets
     RUNTIME DESTINATION ${INSTALL_BIN_DIR}
     LIBRARY DESTINATION ${INSTALL_LIB_DIR}/modena
@@ -116,7 +132,7 @@ if(CMAKE_VERSION VERSION_GREATER "2.8.12")
   )
 else()
   install(
-    TARGETS twoTanksFullProblem modena fmodena
+    TARGETS ${_MODENA_INSTALL_TARGETS}
     EXPORT MODENATargets
     RUNTIME DESTINATION ${INSTALL_BIN_DIR}
     LIBRARY DESTINATION ${INSTALL_LIB_DIR}/modena
@@ -132,12 +148,14 @@ install(
     "${INSTALL_LIB_DIR}/pkgconfig"
 )
 
-install(
-  FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/fmodena.mod"
-  DESTINATION
-    "${INSTALL_INCLUDE_DIR}/modena"
-)
+if(WITH_FORTRAN)
+  install(
+    FILES
+      "${CMAKE_CURRENT_BINARY_DIR}/fmodena.mod"
+    DESTINATION
+      "${INSTALL_INCLUDE_DIR}/modena"
+  )
+endif()
 
 install(EXPORT MODENATargets
   FILE
