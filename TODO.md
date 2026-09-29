@@ -2,34 +2,62 @@
 
 Planned work and known limitations for MoDeNa 2.x.
 
+Last reconciled against the tree on **2026-09-28** (`40e5b09`).
+
+---
+
+## Recently landed
+
+Work delivered since this file was last written, listed here so the open
+items below are not read as a description of the whole project.
+
+### In-place surrogate parameter update — **done**
+
+Was: the optimizer called `modena_model_new()` on every iteration, allocating
+and discarding a full `modena_model_t` per callback.
+
+`CrossValidation.fit()` (`src/python/Strategy.py`) now constructs one
+`modena_model_t` and assigns `cModel.parameters` per iteration;
+`modena_model_t_set_parameters()` (`src/src/model.c`) writes the internal
+`double[]` in place.  The public C function
+`modena_model_set_parameters()` originally proposed here was **not** added —
+the Python-side setter covered the need, and nothing in C wanted it.
+
+### Parallel cross-validation folds — **done**
+
+Folds are submitted to a `concurrent.futures.ProcessPoolExecutor` in
+`NonLinFitWithErrorContol` (`src/python/Strategy.py`).  The picklability
+problem was solved with `_FitProxy`, a plain-data snapshot from which each
+worker re-initialises its own `modena_model_t`; no MongoEngine object and no
+`modena_model_t` crosses the process boundary.  Falls back to serial when the
+model has `substituteModels`.
+
+This was the stated prerequisite for Phase 4, which is therefore unblocked.
+
+### Return-code protocol, defined once — **done**
+
+The out-of-bounds / parameters-not-valid protocol codes are now declared in
+one place (`src/python/_status_codes.py`) and generated into the C, Fortran,
+MATLAB and R bindings at build time.  `handleReturnCode` dispatches on named
+constants instead of integer literals, and the `200`-or-`202` fallback — a
+race, since the two were indistinguishable at the call site — is gone:
+`OutOfBounds` and `ParametersNotValid` now carry their own `returnCode`.
+`docs/return-codes.md` is the reference; `ExitNoRestart` and `ExitAndRestart`
+were renamed `ExitAndInitialise` and `ExitAndRetrain`.
+
+### Per-model integration snippets — **done**
+
+`modena model integrate` generates a ready-to-paste call site for a given
+model in all seven supported languages, protocol handling included.  Guarded
+by the `modena_generated_snippets` ctest entry.
+
+### Local portal — substantially built out
+
+See *Relationship to the existing portal* below for what it now covers.
+
 ---
 
 ## Near-term
-
-### In-place surrogate parameter update
-
-**File:** `src/src/model.c`, `src/python/Strategy.py`
-
-During surrogate fitting, the optimizer calls `modena_model_new()` on every
-iteration to evaluate the surrogate at a candidate parameter vector.  This
-allocates and immediately discards a full `modena_model_t` struct per call.
-
-The fix is to add a parameter-update function to the C API:
-
-```c
-/* model.h */
-void modena_model_set_parameters(
-    modena_model_t *model,
-    const double   *parameters,
-    size_t          n
-);
-```
-
-The Python binding would expose this as `modena_model_t.set_parameters(list)`,
-allowing `NonLinFitWithErrorContol._fit()` to reuse a single C struct across
-all optimizer iterations instead of reconstructing it each time.
-
----
 
 ### `JigglePoint` non-convergence strategy
 
@@ -59,26 +87,12 @@ grid intersections or phase boundaries but succeed at nearby inputs.
 reads by raw integer index.  If the two sides fall out of sync the failure is
 silent at runtime — the surrogate silently uses wrong bounds or segfaults.
 
-A C-level integration test that loads a known model, calls `minMax()`, and
-asserts the correct values at each tuple position would catch any future
-accidental reordering.
-
----
-
-### Parallel cross-validation folds
-
-**File:** `src/python/Strategy.py`
-
-The cross-validation loop in `NonLinFitWithErrorContol` runs folds sequentially.
-Parallelising with `ProcessPoolExecutor` is the natural fix, but is currently
-blocked because `modena_model_t` (the C struct wrapper) is not picklable and
-cannot be sent to worker processes.
-
-The fix requires restructuring `_fit()` to accept only plain serialisable data
-(parameter bounds, `fitData` arrays) and re-initialise `modena_model_t` inside
-each worker.  This is also a prerequisite for making data-driven surrogate types
-(Phase 4) practical — GP and neural network fitting is expensive enough that
-sequential folds would be prohibitively slow.
+`src/tests/python/test_minmax_abi.py` pins the tuple's shape and ordering from
+the Python side, and catches an accidental reorder in `SurrogateModel`.  What is
+still missing is the other half: a C-level test that loads a known model, calls
+`modena_model_get_minMax()`, and asserts the values at each index — so that a
+change to the *reader* in `model.c` also fails loudly.  No test under
+`src/tests/c/` references `minMax` today.
 
 ---
 
@@ -142,7 +156,9 @@ guards when the implementations are added.
 ### Phase 4 — Data-driven surrogate function types
 
 *Requires new `SurrogateFunction` subclasses and auto-generated C evaluation code.
-Parallel CV folds (above) should be completed first.*
+Its prerequisite — parallel CV folds — has landed, so this phase is unblocked.
+Nothing is implemented yet: `SurrogateFunction` still has only `CFunction` and
+`Function` as subclasses, and sklearn is not a dependency.*
 
 Currently every surrogate requires the model author to write the C evaluation
 function by hand.  This is appropriate when the functional form is known
@@ -206,7 +222,8 @@ C code generation is straightforward for RBF and polynomial kernels.
 
 ### Phase 5 — Neural network surrogates
 
-*Further out.  Parallel CV folds and Phase 4 linear methods should land first.*
+*Further out.  Parallel CV folds have landed; Phase 4 linear methods have not,
+and should come first.  The design decision below is settled; no code exists.*
 
 Neural networks offer flexible approximation for highly nonlinear sub-models
 but introduce significant infrastructure requirements.
@@ -396,14 +413,22 @@ compiles the surrogate `.so` locally, and registers the model in the local
 MongoDB — exactly as if the user had run `initModels`, but without running
 any exact simulations.
 
+**None of this exists yet.**  Note the name clash to resolve first: `modena
+install` is already taken — it installs *local model packages* from a directory
+into `~/.modena/models`, which is a different operation.  The archive verbs
+(`publish`, `search`, `info`) are unclaimed; the current top-level commands are
+`fw`, `model`, `init`, `install`, `sweep`, `simulate`, `doctor`, `quickstart`.
+
 ---
 
 ### Portal pages
 
 The existing local portal (`src/portal/`) already has the core building
 blocks: model library table, per-model detail pages (overview, parameters,
-I/O bounds, dependency graph, fit data, C code, interactive evaluator), and
-a runs view.  The public portal extends this with:
+I/O bounds, dependency graph, fit data, C code, interactive evaluator), fit
+quality and strategy comparison, a sampling panel that can request training
+points, a refit panel, an integration-snippet panel, and a runs view with
+actions.  The public portal extends this with:
 
 | Page | Description |
 |---|---|
@@ -435,12 +460,18 @@ a runs view.  The public portal extends this with:
 |---|---|---|
 | **Audience** | Developer running a local simulation | Community of researchers |
 | **Data source** | Local MongoDB | Hosted archive database |
-| **Authentication** | None | ORCID / institutional login |
+| **Authentication** | Loopback-bound by default; credentials required to expose it | ORCID / institutional login |
 | **Editing** | Full — documentation, retrigger fits | Read-only (install to use) |
 | **Deployment** | `modena-portal`, localhost | Hosted web service |
 
-The local portal is partially implemented.  The public portal reuses its
-components and extends them.
+The local portal is no longer a sketch: 34 modules under `src/portal/`, with
+pages, callbacks and components for the library, per-model detail, evaluator,
+diagnostics and runs, plus its own pytest suite wired into ctest as
+`modena_portal_unit`.  Feature parity with the CLI was closed in `40e5b09`.
+The public portal reuses these components and extends them.
+
+Still thin: there are no Dash callback tests — coverage is `portal/data/` and
+`portal/security.py` only.
 
 ---
 
