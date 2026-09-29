@@ -8,8 +8,9 @@ points, refits, and restarts the simulation -- until a run finishes inside
 the box.
 
 It installs the example packages itself (examples/MoDeNaModels/flowRate and
-twoTank) and works in a database of its own, derived from MODENA_URI and
-dropped afterwards, so it neither needs examples/twoTanks/buildModels to have
+twoTank) and works in a database of its own, derived from MODENA_URI (under
+ctest, the MODENA_TEST_URI cache variable) and dropped afterwards, so it
+neither uses the live fixture nor needs examples/twoTanks/buildModels to have
 run nor touches the database the other live tests share.  HOME points into
 the temporary directory because `modena install` registers its prefix in
 ~/.modena/config.toml; PYTHONUSERBASE keeps the real user site-packages

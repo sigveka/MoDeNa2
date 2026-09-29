@@ -234,6 +234,40 @@ class TestTiersAreAssigned:
             + '\n  '.join(problems)
         )
 
+    def test_every_live_interface_test_is_attached_to_a_database(self):
+        """A live test outside both lists runs against the ambient MODENA_URI.
+
+        interface-tests/CMakeLists.txt attaches the tests in _MODENA_LIVE_TESTS
+        to the live fixture (test database, fitted flowRate, resource lock);
+        _MODENA_SELF_CONTAINED_LIVE_TESTS manage a database of their own.  A
+        new live test added to neither would silently use -- and possibly
+        write to -- whatever database the developer's shell names.
+        """
+        cmake = (_IFACE_DIR / 'CMakeLists.txt').read_text()
+
+        def listed(var):
+            body = re.search(rf'set\({var}\s(.*?)\)', cmake, re.S)
+            assert body, f'{var} is not defined in interface-tests/CMakeLists.txt'
+            return set(body.group(1).split())
+
+        attached = listed('_MODENA_LIVE_TESTS')
+        own_db = listed('_MODENA_SELF_CONTAINED_LIVE_TESTS')
+        assert not attached & own_db, f'in both lists: {attached & own_db}'
+
+        live_here = {
+            name for name, registrations in _ctest_entries().items()
+            if any('live' in labels for labels in registrations)
+            and re.search(rf'add_test\(\s*NAME\s+{name}\b', cmake)
+        }
+        assert live_here, 'no live test found in interface-tests/CMakeLists.txt'
+        unattached = live_here - attached - own_db
+        assert not unattached, (
+            f'live tests attached to no database: {sorted(unattached)}; add '
+            f'them to _MODENA_LIVE_TESTS in interface-tests/CMakeLists.txt'
+        )
+        stale = (attached | own_db) - live_here
+        assert not stale, f'listed but not registered as live: {sorted(stale)}'
+
     def test_no_live_test_under_python(self):
         """conftest.py here stubs the database, so `live` cannot pass here."""
         offenders = [

@@ -54,6 +54,7 @@ add_test(
     WORKING_DIRECTORY ${_TEST_DIR}
 )
 set_tests_properties(modena_python_installed PROPERTIES
-    LABELS      "python;installed"
-    ENVIRONMENT "MODENA_PATHS_FILE=${_MODENA_PATHS_FILE}"
+    LABELS            "python;installed"
+    ENVIRONMENT       "MODENA_PATHS_FILE=${_MODENA_PATHS_FILE}"
+    FIXTURES_REQUIRED modena_installed
 )

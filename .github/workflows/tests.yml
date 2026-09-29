@@ -19,9 +19,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The interface smoke tests evaluate a real surrogate, so they need a live
-  # database and a fitted flowRate -- see src/tests/interface-tests/CMakeLists.txt.
-  MODENA_URI: mongodb://localhost:27017/modena
+  # The live tier needs a MongoDB; the service below provides one on
+  # localhost:27017, which is where MODENA_TEST_URI points by default.  CTest
+  # fixtures prepare it (install flowRate, reset the launchpad, fit) -- see
+  # src/tests/CMakeLists.txt -- so no setup step belongs in this file.
+  #
   # `modena install` shells out to pip, and Ubuntu's system interpreter is
   # marked externally managed under PEP 668.
   PIP_BREAK_SYSTEM_PACKAGES: "1"
@@ -80,22 +82,6 @@ jobs:
             if [ -n "$val" ]; then echo "$v=$val" >> "$GITHUB_ENV"; fi
           done
           echo "$HOME/bin" >> "$GITHUB_PATH"
-
-      # The C, C++, Fortran and snippet smokes call modena_model_new("flowRate"),
-      # which reads the fitted surrogate out of MongoDB.  Without these two steps
-      # they fail inside modena_model_new with no model to load.
-      - name: Build and register the example models
-        run: cd examples/twoTanks && ./buildModels
-
-      # FireWorks stores its own counters in the same database and refuses to
-      # queue anything until they exist ("Could not get next FW id").  A
-      # developer's launchpad was initialised long ago; a fresh service has
-      # nothing, so this has to happen before any workflow is submitted.
-      - name: Initialise the FireWorks launchpad
-        run: cd examples/twoTanks && modena fw reset --force
-
-      - name: Fit the flowRate surrogate
-        run: cd examples/twoTanks && ./initModels
 
       - name: CTest
         run: ctest --preset dev
@@ -179,19 +165,6 @@ jobs:
             if [ -n "$val" ]; then echo "$v=$val" >> "$GITHUB_ENV"; fi
           done
           echo "$HOME/bin" >> "$GITHUB_PATH"
-
-      - name: Build and register the example models
-        run: cd examples/twoTanks && ./buildModels
-
-      # FireWorks stores its own counters in the same database and refuses to
-      # queue anything until they exist ("Could not get next FW id").  A
-      # developer's launchpad was initialised long ago; a fresh service has
-      # nothing, so this has to happen before any workflow is submitted.
-      - name: Initialise the FireWorks launchpad
-        run: cd examples/twoTanks && modena fw reset --force
-
-      - name: Fit the flowRate surrogate
-        run: cd examples/twoTanks && ./initModels
 
       # Which tests registered is itself worth recording: a wrapper that
       # silently stops registering its tests is the failure mode this repo

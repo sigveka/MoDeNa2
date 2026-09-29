@@ -23,7 +23,7 @@ pytest marker have the same name.
 |---|---|---|
 | `unit` (pytest: unmarked) | the source tree only; MongoDB is a MagicMock or mongomock | `modena_python_unit`, `modena_c_*`, `modena_portal_unit` |
 | `installed` | `cmake --install` has run: headers, `libmodena`, wrapper packages at the prefix | `modena_python_installed`, `modena_status_codes` |
-| `live` | a real MongoDB at `MODENA_URI` holding a fitted `flowRate` | every `modena_iface_*` smoke, `modena_generated_snippets`, `modena_oob_exception` |
+| `live` | a reachable MongoDB; CTest fixtures fill the database `MODENA_TEST_URI` names | every `modena_iface_*` smoke, `modena_generated_snippets`, `modena_oob_exception`, `modena_twotanks_loop` |
 
 Language labels (`python`, `c`, `cpp`, `fortran`, `julia`, `r`, `octave`,
 `matlab`) are a second, independent axis: `ctest -L live -L julia` runs the
@@ -51,15 +51,36 @@ ctest --preset dev -L unit          # no install, no database
 
 cmake --install build
 ctest --preset dev -L installed     # needs the install
-
-# live: needs MongoDB and a fitted flowRate first
-(cd examples/twoTanks && ./buildModels && modena fw reset --force && ./initModels)
-ctest --preset dev -L live
+ctest --preset dev -L live          # needs the install and a running MongoDB
 ```
 
-`modena fw reset --force` clears the FireWorks launchpad in the database
-`MODENA_URI` names.  Point `MODENA_URI` at a throwaway database before running
-the `live` tier on a machine whose launchpad you care about.
+There is no manual setup for any tier.  CTest fixtures (`src/tests/CMakeLists.txt`)
+run before the tests that need them:
+
+| Fixture | Runs before | Does |
+|---|---|---|
+| `modena_fixture_installed` | every `installed` and `live` test | fails fast, naming the stale files, if the installed `libmodena` is older than the build or an installed `modena` module differs from `src/python/` — otherwise these tiers would quietly test whatever was installed last |
+| `modena_fixture_live_setup` | every `live` test using the shared database | drops the test database, installs `examples/MoDeNaModels/flowRate` into `build/test-live/`, resets the FireWorks launchpad, fits `flowRate` |
+| `modena_fixture_live_cleanup` | after them | drops the test database |
+
+**The test database** is the CMake cache variable `MODENA_TEST_URI`
+(default `mongodb://localhost:27017/modena_ctest`), not the `MODENA_URI` in
+your shell.  The fixture drops it, so configure refuses a database name that
+does not start with `modena_` and contain `test`: your working `modena`
+database and SurrogateModel's default `test` database are never touched.
+Everything else the fixture writes (model packages, compiled surrogates,
+FireWorks launch directories) stays under `build/test-live/`.
+
+```bash
+cmake --preset dev -DMODENA_TEST_URI=mongodb://dbhost:27017/modena_ctest_alice
+```
+
+The `live` tests take a CTest `RESOURCE_LOCK` on that database, so
+`ctest -j` does not run two of them against it at once.
+
+If the install check fails but you deliberately want to run against the
+installed MoDeNa anyway, exclude that one fixture:
+`ctest --preset dev -L live -FA '^modena_installed$'`.
 
 Directly with pytest (it picks up `src/tests/pytest.ini` from any of these):
 
@@ -186,8 +207,8 @@ Each links a real language binding against libmodena and evaluates the
 `flowRate` surrogate to end-to-end verify the wrapper is wired
 correctly.  They are in the `live` tier because they require:
 
-* a live MongoDB pointed to by `MODENA_URI` (default `mongodb://localhost:27017/test`),
-* the `flowRate` model already initialized (`cd examples/twoTanks && ./initModels`).
+* a MongoDB holding a fitted `flowRate` model, which the live fixture
+  prepares in the database `MODENA_TEST_URI` names (see *Running the tests*).
 
 Run with:
 
@@ -214,7 +235,8 @@ completes and that it took **1 to 6 refits**.
 It is self-contained: it installs `examples/MoDeNaModels/flowRate` and
 `twoTank` into a temporary prefix, runs with a temporary `HOME` (because
 `modena install` writes `~/.modena/config.toml`), and uses its own database
-derived from `MODENA_URI` (`modena_looptest_<id>`, dropped afterwards).  It
+on the `MODENA_TEST_URI` server (`modena_looptest_<id>`, dropped afterwards),
+so it does not use the live fixture.  It
 needs a reachable MongoDB but neither `buildModels` nor `initModels`, and
 takes about 25 s.
 
