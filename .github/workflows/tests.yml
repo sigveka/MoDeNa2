@@ -30,15 +30,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-
-      - name: Install Python dependencies
+      # libmodena *embeds* CPython, so find_package(Python3 COMPONENTS
+      # Development) resolves Development.Embed and needs a shared
+      # libpython3.so.  The actions/setup-python runtime does not always ship
+      # one, and both jobs failed at Configure on the first run because of it.
+      # Ubuntu's python3-dev does ship it, so use the system interpreter.
+      # PEP 668 marks it externally managed, hence --break-system-packages.
+      - name: Install Python toolchain and dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install \
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-dev python3-pip
+          python3 -m pip install --break-system-packages \
             'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
             pytest mongomock
 
@@ -57,7 +59,7 @@ jobs:
       # Run pytest directly as well as through CTest: CTest reports one
       # pass/fail per entry, this gives the per-test summary in the log.
       - name: Pytest
-        run: python -m pytest src/tests/python -q
+        run: python3 -m pytest src/tests/python -q
 
   # ---------------------------------------------------------------------- #
   # Everything apt can provide.  The `full` preset skips any component whose
@@ -71,16 +73,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-
       - name: Install system toolchains
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gfortran octave r-base-core r-base-dev
+            gfortran octave r-base-core r-base-dev python3-dev python3-pip
 
       - name: Install R test dependency
         run: |
@@ -89,10 +86,15 @@ jobs:
           R_LIBS_USER="$HOME/R/library" Rscript -e \
             'install.packages("testthat", repos="https://cloud.r-project.org")'
 
+      # libmodena *embeds* CPython, so find_package(Python3 COMPONENTS
+      # Development) resolves Development.Embed and needs a shared
+      # libpython3.so.  The actions/setup-python runtime does not always ship
+      # one, and both jobs failed at Configure on the first run because of it.
+      # Ubuntu's python3-dev does ship it, so use the system interpreter.
+      # PEP 668 marks it externally managed, hence --break-system-packages.
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install \
+          python3 -m pip install --break-system-packages \
             'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
             pytest mongomock \
             dash dash-bootstrap-components dash-cytoscape
