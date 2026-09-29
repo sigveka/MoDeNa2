@@ -18,30 +18,46 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The interface smoke tests evaluate a real surrogate, so they need a live
+  # database and a fitted flowRate -- see src/tests/interface-tests/CMakeLists.txt.
+  MODENA_URI: mongodb://localhost:27017/modena
+  # `modena install` shells out to pip, and Ubuntu's system interpreter is
+  # marked externally managed under PEP 668.
+  PIP_BREAK_SYSTEM_PACKAGES: "1"
+
 jobs:
   # ---------------------------------------------------------------------- #
-  # The gate: C library + Python, no optional wrappers.  Keep this one fast
-  # and dependency-light so a failure here always means a real regression
-  # rather than a missing toolchain.
+  # The gate: C library + Python, no optional wrappers.  Keep this one
+  # dependency-light so a failure here always means a real regression rather
+  # than a missing toolchain.
   # ---------------------------------------------------------------------- #
   core:
     name: Core (dev preset)
     runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
-      # libmodena *embeds* CPython, so find_package(Python3 COMPONENTS
-      # Development) resolves Development.Embed and needs a shared
-      # libpython3.so.  The actions/setup-python runtime does not always ship
-      # one, and both jobs failed at Configure on the first run because of it.
-      # Ubuntu's python3-dev does ship it, so use the system interpreter.
-      # PEP 668 marks it externally managed, hence --break-system-packages.
-      - name: Install Python toolchain and dependencies
+      # libltdl is a hard dependency (find_package(LTDL REQUIRED)).  libmodena
+      # embeds CPython, so find_package(Python3 COMPONENTS Development) needs a
+      # shared libpython3.so, which python3-dev provides.
+      - name: Install toolchain and Python dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libltdl-dev python3-dev python3-pip
-          python3 -m pip install --break-system-packages \
+          python3 -m pip install \
             'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
             pytest mongomock
 
@@ -54,11 +70,38 @@ jobs:
       - name: Install
         run: cmake --install build
 
+      # Each `run:` is a fresh shell, so export once into the job environment
+      # rather than sourcing in every later step.
+      - name: Put MoDeNa on the environment
+        run: |
+          . "$HOME/share/modena/modena-env.sh"
+          for v in LD_LIBRARY_PATH PYTHONPATH MODENA_LIB_DIR MODENA_MATLAB_DIR R_LIBS; do
+            eval "val=\${$v-}"
+            if [ -n "$val" ]; then echo "$v=$val" >> "$GITHUB_ENV"; fi
+          done
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      # The C, C++, Fortran and snippet smokes call modena_model_new("flowRate"),
+      # which reads the fitted surrogate out of MongoDB.  Without these two steps
+      # they fail inside modena_model_new with no model to load.
+      - name: Build and register the example models
+        run: cd examples/twoTanks && ./buildModels
+
+      # FireWorks stores its own counters in the same database and refuses to
+      # queue anything until they exist ("Could not get next FW id").  A
+      # developer's launchpad was initialised long ago; a fresh service has
+      # nothing, so this has to happen before any workflow is submitted.
+      - name: Initialise the FireWorks launchpad
+        run: cd examples/twoTanks && modena fw reset --force
+
+      - name: Fit the flowRate surrogate
+        run: cd examples/twoTanks && ./initModels
+
       - name: CTest
         run: ctest --preset dev
 
-      # Run pytest directly as well as through CTest: CTest reports one
-      # pass/fail per entry, this gives the per-test summary in the log.
+      # Also run pytest directly: CTest reports one pass/fail per entry, this
+      # gives the per-test summary in the log.
       - name: Pytest
         run: python3 -m pytest src/tests/python -q
 
@@ -71,6 +114,17 @@ jobs:
   wrappers:
     name: Wrappers + portal (full preset)
     runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -88,15 +142,9 @@ jobs:
           R_LIBS_USER="$HOME/R/library" Rscript -e \
             'install.packages("testthat", repos="https://cloud.r-project.org")'
 
-      # libmodena *embeds* CPython, so find_package(Python3 COMPONENTS
-      # Development) resolves Development.Embed and needs a shared
-      # libpython3.so.  The actions/setup-python runtime does not always ship
-      # one, and both jobs failed at Configure on the first run because of it.
-      # Ubuntu's python3-dev does ship it, so use the system interpreter.
-      # PEP 668 marks it externally managed, hence --break-system-packages.
       - name: Install Python dependencies
         run: |
-          python3 -m pip install --break-system-packages \
+          python3 -m pip install \
             'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
             pytest mongomock \
             dash dash-bootstrap-components dash-cytoscape
@@ -109,6 +157,28 @@ jobs:
 
       - name: Install
         run: cmake --install build
+
+      - name: Put MoDeNa on the environment
+        run: |
+          . "$HOME/share/modena/modena-env.sh"
+          for v in LD_LIBRARY_PATH PYTHONPATH MODENA_LIB_DIR MODENA_MATLAB_DIR R_LIBS; do
+            eval "val=\${$v-}"
+            if [ -n "$val" ]; then echo "$v=$val" >> "$GITHUB_ENV"; fi
+          done
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Build and register the example models
+        run: cd examples/twoTanks && ./buildModels
+
+      # FireWorks stores its own counters in the same database and refuses to
+      # queue anything until they exist ("Could not get next FW id").  A
+      # developer's launchpad was initialised long ago; a fresh service has
+      # nothing, so this has to happen before any workflow is submitted.
+      - name: Initialise the FireWorks launchpad
+        run: cd examples/twoTanks && modena fw reset --force
+
+      - name: Fit the flowRate surrogate
+        run: cd examples/twoTanks && ./initModels
 
       # Which tests registered is itself worth recording: a wrapper that
       # silently stops registering its tests is the failure mode this repo
