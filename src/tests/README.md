@@ -83,6 +83,29 @@ If the install check fails but you deliberately want to run against the
 installed MoDeNa anyway, exclude that one fixture:
 `ctest --preset live -FA '^modena_installed$'`.
 
+### Two modes: your machine, and a clean one
+
+The same suite answers two different questions:
+
+| Mode | Command | Answers |
+|---|---|---|
+| **Local** | `ctest --preset dev` (or `unit` / `installed` / `live`) | does *my* build and install work? |
+| **Clean** | `ci/docker-tests dev` (or `full`) | does MoDeNa build, install and pass from nothing? |
+
+`ci/docker-tests` needs only Docker.  It builds `ci/Dockerfile` from the
+**git-tracked files** (with their working-tree content: uncommitted edits to
+tracked files are included, untracked files are not), starts a throwaway
+MongoDB on a private network, then configures, builds, installs and runs
+`ctest --preset <preset>` as a non-root user whose `$HOME` is the install
+prefix.  Everything is removed afterwards.  It catches what a local run
+cannot: a dependency that happens to be installed on your machine but is not
+declared, and a file your build needs that the allowlist `.gitignore`
+silently excludes from a clone.
+
+CI runs exactly this command (`.github/workflows/tests.yml`), so passing
+locally in Docker and passing in CI mean the same thing.  Add
+`--results DIR` to collect the CTest JUnit report.
+
 Directly with pytest (it picks up `src/tests/pytest.ini` from any of these):
 
 ```bash

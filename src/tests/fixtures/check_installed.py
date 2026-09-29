@@ -22,13 +22,19 @@ import importlib.util
 import sys
 from pathlib import Path
 
+#: Seconds the build may be newer than the install and still count as it.
+_MTIME_TOLERANCE = 2.0
+
 
 def _stale_library(built: Path, installed: Path):
     if not installed.exists():
         return f'{installed} does not exist'
-    # IS_NEWER_THAN semantics: equal timestamps are fine, only strictly newer
-    # is stale.  Contents cannot be compared -- install rewrites the RPATH.
-    if built.stat().st_mtime > installed.stat().st_mtime:
+    # Contents cannot be compared -- install rewrites the RPATH.  Timestamps
+    # can, with a tolerance: `cmake --install` copies the build's mtime onto
+    # the installed file but truncates it to whole seconds, so a fresh install
+    # reads up to a second *older* than the build.  Comparing strictly failed
+    # every clean install; real staleness is minutes to weeks.
+    if built.stat().st_mtime - installed.stat().st_mtime > _MTIME_TOLERANCE:
         return f'{installed} is older than the build ({built})'
     return None
 

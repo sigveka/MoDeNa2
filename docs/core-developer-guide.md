@@ -255,6 +255,10 @@ editing), `--preset installed` (after `cmake --install build`) and
 the `MODENA_TEST_URI` cache variable and drop it afterwards).  See
 `src/tests/README.md`.
 
+To check that MoDeNa builds and passes from nothing — no local install, only
+declared dependencies, only git-tracked files — run `ci/docker-tests dev`
+(or `full`).  It needs only Docker, and it is exactly what CI runs.
+
 Machine-local settings (e.g. `WITH_MATLAB=ON`, a non-standard prefix) go in
 `CMakeUserPresets.json` in the project root — this file is gitignored.
 Example:

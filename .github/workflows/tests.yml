@@ -7,6 +7,12 @@ name: Tests
 # the R testthat suite sat unreferenced by any add_test, how `ctest` reported
 # "0 tests" while every test was registered, and how the whole
 # @pytest.mark.integration tier skipped on every machine for months.
+#
+# Both jobs run ci/docker-tests -- the same command a developer runs locally
+# -- so the toolchain, the Python packages, the MongoDB and the environment
+# are defined once, in ci/Dockerfile, not here.  The image is built from the
+# git-tracked files only, and CTest fixtures prepare the test database, so
+# this file holds no setup steps at all.
 
 on:
   push:
@@ -18,16 +24,6 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # The live tier needs a MongoDB; the service below provides one on
-  # localhost:27017, which is where MODENA_TEST_URI points by default.  CTest
-  # fixtures prepare it (install flowRate, reset the launchpad, fit) -- see
-  # src/tests/CMakeLists.txt -- so no setup step belongs in this file.
-  #
-  # `modena install` shells out to pip, and Ubuntu's system interpreter is
-  # marked externally managed under PEP 668.
-  PIP_BREAK_SYSTEM_PACKAGES: "1"
-
 jobs:
   # ---------------------------------------------------------------------- #
   # The gate: C library + Python, no optional wrappers.  Keep this one
@@ -37,140 +33,38 @@ jobs:
   core:
     name: Core (dev preset)
     runs-on: ubuntu-latest
-
-    services:
-      mongodb:
-        image: mongo:7
-        ports: ['27017:27017']
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       - uses: actions/checkout@v4
 
-      # libltdl is a hard dependency (find_package(LTDL REQUIRED)).  libmodena
-      # embeds CPython, so find_package(Python3 COMPONENTS Development) needs a
-      # shared libpython3.so, which python3-dev provides.
-      - name: Install toolchain and Python dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libltdl-dev python3-dev python3-pip
-          python3 -m pip install \
-            'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
-            pytest mongomock
+      - name: Build, install and test in a clean container
+        run: ci/docker-tests dev --results results
 
-      - name: Configure
-        run: cmake --preset dev
-
-      - name: Build
-        run: cmake --build --preset dev
-
-      - name: Install
-        run: cmake --install build
-
-      # Each `run:` is a fresh shell, so export once into the job environment
-      # rather than sourcing in every later step.
-      - name: Put MoDeNa on the environment
-        run: |
-          . "$HOME/share/modena/modena-env.sh"
-          for v in LD_LIBRARY_PATH PYTHONPATH MODENA_LIB_DIR MODENA_MATLAB_DIR R_LIBS; do
-            eval "val=\${$v-}"
-            if [ -n "$val" ]; then echo "$v=$val" >> "$GITHUB_ENV"; fi
-          done
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-
-      - name: CTest
-        run: ctest --preset dev
-
-      # Also run pytest directly: CTest reports one pass/fail per entry, this
-      # gives the per-test summary in the log.
-      - name: Pytest
-        run: python3 -m pytest src/tests/python -q
+      - name: Upload the CTest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-dev
+          path: results/
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------- #
-  # Everything apt can provide.  The `full` preset skips any component whose
-  # toolchain is absent (Julia, MATLAB, Doxygen here) with a warning rather
-  # than failing to configure, so this stays a real gate without needing a
-  # fully provisioned machine.
+  # Everything apt can provide: Fortran, Octave, R, the portal.  The `full`
+  # preset skips any component whose toolchain is absent (Julia and MATLAB
+  # here) with a warning rather than failing to configure.
   # ---------------------------------------------------------------------- #
   wrappers:
     name: Wrappers + portal (full preset)
     runs-on: ubuntu-latest
-
-    services:
-      mongodb:
-        image: mongo:7
-        ports: ['27017:27017']
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system toolchains
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            gfortran octave octave-dev r-base-core r-base-dev \
-            libltdl-dev python3-dev python3-pip
+      - name: Build, install and test in a clean container
+        run: ci/docker-tests full --results results
 
-      # Ubuntu ships testthat prebuilt.  Installing it from CRAN instead
-      # compiles it and ~20 dependencies from source, where `fs` failed to
-      # build and took pkgload and testthat down with it -- and because
-      # install.packages() only *warns* on a failed package, the step still
-      # exited 0.  CI went green having installed nothing, and the R smoke
-      # then silently did not register: its gate in
-      # src/tests/interface-tests/CMakeLists.txt asks R whether testthat is
-      # importable and skips with a message(STATUS) when it is not.
-      - name: Install R test dependency
-        run: sudo apt-get install -y --no-install-recommends r-cran-testthat
-
-      # Fail here rather than let the smoke test quietly not register.  A
-      # dependency this job installs on purpose is not allowed to go missing
-      # without anyone noticing.
-      - name: Verify testthat is importable
-        run: |
-          probe=$(R --no-save --slave -e "cat(requireNamespace('testthat', quietly=TRUE))")
-          echo "requireNamespace('testthat') -> $probe"
-          test "$probe" = "TRUE"
-
-      - name: Install Python dependencies
-        run: |
-          python3 -m pip install \
-            'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
-            pytest mongomock \
-            dash dash-bootstrap-components dash-cytoscape
-
-      - name: Configure
-        run: cmake --preset full
-
-      - name: Build
-        run: cmake --build --preset full
-
-      - name: Install
-        run: cmake --install build
-
-      - name: Put MoDeNa on the environment
-        run: |
-          . "$HOME/share/modena/modena-env.sh"
-          for v in LD_LIBRARY_PATH PYTHONPATH MODENA_LIB_DIR MODENA_MATLAB_DIR R_LIBS; do
-            eval "val=\${$v-}"
-            if [ -n "$val" ]; then echo "$v=$val" >> "$GITHUB_ENV"; fi
-          done
-          echo "$HOME/bin" >> "$GITHUB_PATH"
-
-      # Which tests registered is itself worth recording: a wrapper that
-      # silently stops registering its tests is the failure mode this repo
-      # has hit more than once.
-      - name: List registered tests
-        run: ctest --test-dir build -N
-
-      - name: CTest
-        run: ctest --preset full
+      - name: Upload the CTest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-full
+          path: results/
+          if-no-files-found: ignore
