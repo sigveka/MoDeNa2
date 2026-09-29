@@ -74,12 +74,12 @@ while t + deltat < tend + 1e-10
 
     code = call(model);
 
-    if code == 100
+    if code == Modena.RETRAINED
         t = t - deltat;   % stay at the same time step and retry
         continue
-    elseif code == 200 || code == 201
+    elseif code == Modena.OUT_OF_BOUNDS || code == Modena.MODEL_NOT_IN_DATABASE
         exit(code);
-    elseif code ~= 0
+    elseif code ~= Modena.OK
         error('Modena:call', 'modena_model_call returned %d', code);
     end
 

@@ -88,8 +88,9 @@ while (t < t_end) {
 
     ret <- m$call()
 
-    if (ret == 100L) { t <- t - dt; next }   # surrogate retrained — retry
-    if (ret != 0L)   stop(paste("MoDeNa exit:", ret))
+    # The modena package exports the status codes; compare against those.
+    if (ret == MODENA_RETRAINED) { t <- t - dt; next }   # retrained — retry
+    if (ret != MODENA_OK)        stop(paste("MoDeNa exit:", ret))
 
     mdot <- m$output(pos_mdot)
     # use mdot ...

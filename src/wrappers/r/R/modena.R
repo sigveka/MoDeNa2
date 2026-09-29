@@ -41,8 +41,9 @@ NULL
 #'     t <- t + dt
 #'     m$set(pos_D, D)
 #'     ret <- m$call()
-#'     if (ret == 100L) { t <- t - dt; next }   # surrogate retrained
-#'     if (ret != 0L)   stop(paste("MoDeNa exit:", ret))
+#'     # The package exports the status codes; compare against those.
+#'     if (ret == MODENA_RETRAINED) { t <- t - dt; next }
+#'     if (ret != MODENA_OK)        stop(paste("MoDeNa exit:", ret))
 #'     mdot <- m$output(pos_q)
 #'     # use mdot ...
 #' }

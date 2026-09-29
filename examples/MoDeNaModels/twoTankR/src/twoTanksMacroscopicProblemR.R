@@ -71,11 +71,11 @@ while (t + deltat < tend + 1e-10) {
 
     ret <- model$call()
 
-    if (ret == 100L) {
+    if (ret == MODENA_RETRAINED) {
         t <- t - deltat   # surrogate retrained — stay at same step and retry
         next
     }
-    if (ret != 0L) {
+    if (ret != MODENA_OK) {
         quit(status = ret)
     }
 

@@ -82,8 +82,11 @@ modena_inputs_set(inputs, pos_p1Byp0, p1 / p0);
 
 int ret = modena_model_call(model, inputs, outputs);
 
-if (ret == 100) { t -= dt; continue; }  // retrained — retry this step
-if (ret != 0)   { exit(ret); }          // 200/201 — FireWorks takes over
+// Status constants come from modena_status.h, which this header pulls in.
+// Never exit with MODENA_RETRAINED: it is a call result, and a process that
+// exits with it terminates the workflow instead of resuming.
+if (ret == MODENA_RETRAINED) { t -= dt; continue; }  // retry this step
+if (ret != MODENA_OK)        { exit(ret); }          // FireWorks takes over
 
 double mdot = modena_outputs_get(outputs, pos_mdot);
 ~~~~

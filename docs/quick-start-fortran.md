@@ -80,6 +80,7 @@ Adapted from
 program twoTanks
     use iso_c_binding
     use fmodena_oop
+    use fmodena_status
     implicit none
 
     integer, parameter :: dp = selected_real_kind(15)
@@ -134,11 +135,14 @@ program twoTanks
 
         ret = model%call()
 
-        if (ret == 100) then
+        ! fmodena_status declares the MODENA_* constants.  Never exit with
+        ! MODENA_RETRAINED — it is a call result, and exiting with it kills
+        ! the workflow rather than resuming it.
+        if (ret == MODENA_RETRAINED) then
             t = t - deltat   ! surrogate retrained — retry this step
             cycle
-        else if (ret /= 0) then
-            call exit(ret)   ! 200/201 — let FireWorks handle restart
+        else if (ret /= MODENA_OK) then
+            call exit(ret)   ! let FireWorks handle the restart
         end if
 
         mdot = model%get_output(0_c_size_t)

@@ -114,9 +114,11 @@ int main(void)
 
         int ret = modena_model_call(model, inputs, outputs);
 
-        /* Handle return codes */
-        if (ret == 100) { t -= deltat; continue; } /* retrained — retry step */
-        if (ret != 0)   { exit(ret); }              /* 200/201 — FireWorks handles */
+        /* Handle return codes.  The MODENA_* constants come from
+         * modena_status.h, which modena.h pulls in — compare against them
+         * rather than writing the numbers inline. */
+        if (ret == MODENA_RETRAINED) { t -= deltat; continue; } /* retry step */
+        if (ret != MODENA_OK)        { exit(ret); }  /* FireWorks handles it */
 
         double mdot = modena_outputs_get(outputs, pos_mdot);
 
@@ -142,17 +144,21 @@ int main(void)
 
 ## Return codes
 
-| Code | Meaning | Required action |
-|------|---------|----------------|
-| `0` | Success | Continue normally |
-| `1` | Failure | Abort — not a protocol signal |
-| `100` | Surrogate retrained mid-run | Retry the step **in-process**; do not exit |
-| `200` | Out of bounds — new DoE, then restart | `exit(200)` — FireWorks relaunches |
-| `201` | Model not in database; initialise from its module | `exit(201)` |
-| `202` | Model has no fitted parameters (from `modena_model_new`) | `exit(202)` |
+`modena.h` includes `modena_status.h`, which declares `enum modena_status_t`.
+Use the names — they are generated from a single definition, so they cannot
+drift from what the Python layer produces.
 
-Exiting with `100` terminates the workflow — it is a call result, not an exit
-code. See [Return codes](return-codes.md) for the full protocol.
+| Constant | Value | Required action |
+|------|---------|----------------|
+| `MODENA_OK` | `0` | Continue normally |
+| `MODENA_INTERNAL_ERROR` | `1` | Abort — not a protocol signal |
+| `MODENA_RETRAINED` | `100` | Retry the step **in-process**; do not exit |
+| `MODENA_OUT_OF_BOUNDS` | `200` | `exit(ret)` — FireWorks retrains and relaunches |
+| `MODENA_MODEL_NOT_IN_DATABASE` | `201` | `exit(ret)` — FireWorks initialises it |
+| `MODENA_PARAMETERS_NOT_VALID` | `202` | `exit(ret)` — from `modena_model_new` |
+
+Exiting with `MODENA_RETRAINED` terminates the workflow — it is a call result,
+not an exit code. See [Return codes](return-codes.md) for the full protocol.
 
 ---
 

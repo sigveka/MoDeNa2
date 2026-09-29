@@ -74,8 +74,9 @@ int main(void)
 
         int ret = modena_model_call(model, inputs, outputs);
 
-        if (ret == 100) { t -= dt; continue; }   /* retrained — retry step */
-        if (ret != 0)   { exit(ret); }            /* 200/201 — let FireWorks handle */
+        /* MODENA_* comes from modena_status.h, included by modena.h. */
+        if (ret == MODENA_RETRAINED) { t -= dt; continue; }  /* retry step */
+        if (ret != MODENA_OK)        { exit(ret); }  /* FireWorks handles it */
 
         double mdot = modena_outputs_get(outputs, pos_mdot);
         /* use mdot … */
@@ -136,6 +137,7 @@ automatically when the `modena_model` variable goes out of scope.
 ```fortran
 program twoTanks
     use fmodena_oop
+    use fmodena_status
     use iso_c_binding
     implicit none
 
@@ -166,11 +168,11 @@ program twoTanks
 
         ret = m%call()
 
-        if (ret == 100) then
+        if (ret == MODENA_RETRAINED) then
             t = t - dt        ! surrogate retrained — retry this step
             cycle
         end if
-        if (ret /= 0) call exit(ret)   ! 200/201 — FireWorks takes over
+        if (ret /= MODENA_OK) call exit(ret)   ! FireWorks takes over
 
         mdot = m%get_output(pos_mdot)
         ! use mdot …
@@ -217,8 +219,9 @@ while t < t_end
 
     code = call(m);
 
-    if code == 100, t = t - dt; continue; end   % retrained — retry step
-    if code == 200 || code == 201, exit(code); end
+    if code == Modena.RETRAINED, t = t - dt; continue; end   % retry step
+    if code == Modena.OUT_OF_BOUNDS || ...
+       code == Modena.MODEL_NOT_IN_DATABASE, exit(code); end
 
     mdot = get_output(m, pos_mdot);
     % use mdot …

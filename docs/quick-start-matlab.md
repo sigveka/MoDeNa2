@@ -133,9 +133,11 @@ while t + deltat < tend + 1e-10
 
     code = call(model);
 
-    if     code == 100,              t = t - deltat; continue   % retrained
-    elseif code == 200 || code == 201, exit(code);              % workflow done
-    elseif code ~= 0
+    % Modena exposes the status codes as constant properties.
+    if     code == Modena.RETRAINED, t = t - deltat; continue   % retrained
+    elseif code == Modena.OUT_OF_BOUNDS || ...
+           code == Modena.MODEL_NOT_IN_DATABASE, exit(code);    % workflow done
+    elseif code ~= Modena.OK
         error('Modena:call', 'modena_model_call returned %d', code);
     end
 

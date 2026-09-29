@@ -149,11 +149,20 @@ int main(void)
     {{
 {sets}
 
-        const int ret = modena_model_call(model, inputs, outputs);
-        if (ret != 0)
+        /* MODENA_RETRAINED means the surrogate was refitted during the call
+         * and these outputs are stale -- repeat the call with the new
+         * parameters.  Never exit with it: it is a call result, and a process
+         * that exits with MODENA_RETRAINED terminates the workflow. */
+        int ret;
+        do {{
+            ret = modena_model_call(model, inputs, outputs);
+        }} while (ret == MODENA_RETRAINED);
+
+        if (ret != MODENA_OK)
         {{
-            /* 100 = surrogate retrained, retry this step.
-             * 200/201 = exit so FireWorks can relaunch. */
+            /* MODENA_OUT_OF_BOUNDS, MODENA_MODEL_NOT_IN_DATABASE or
+             * MODENA_PARAMETERS_NOT_VALID -- exit so FireWorks can run the
+             * exact simulations and relaunch this binary. */
             modena_inputs_destroy(inputs);
             modena_outputs_destroy(outputs);
             modena_model_destroy(model);
@@ -246,6 +255,7 @@ def _fortran(f) -> str:
     note = f'\n{note}\n' if note else ''
     return f'''program {_ident(f['model_id'])[:24]}_example
     use fmodena_oop
+    use fmodena_status
     use iso_c_binding
     implicit none
 
@@ -271,9 +281,17 @@ def _fortran(f) -> str:
     do step = 1, 1
 {sets}
 
+        ! MODENA_RETRAINED means the surrogate was refitted during the call
+        ! and these outputs are stale -- repeat the call.  Never exit with it:
+        ! a process that exits with MODENA_RETRAINED terminates the workflow.
         ret = m%call()
-        if (ret /= 0) then
-            ! 100 = retrained, retry step.  200/201 = exit for FireWorks.
+        do while (ret == MODENA_RETRAINED)
+            ret = m%call()
+        end do
+
+        if (ret /= MODENA_OK) then
+            ! MODENA_OUT_OF_BOUNDS, MODENA_MODEL_NOT_IN_DATABASE or
+            ! MODENA_PARAMETERS_NOT_VALID -- exit so FireWorks can relaunch.
             call exit(ret)
         end if
 
@@ -361,9 +379,9 @@ for step in 1:1
     try
         call!(model)
     catch e
-        e isa ParametersUpdated && continue      # 100: retrained, retry step
-        e isa ExitAndRetrain    && exit(e.code)  # 200: retrain, then resume
-        e isa ExitAndInitialise     && exit(e.code)  # 201: model needs init
+        e isa ParametersUpdated && continue      # retrained -- retry the step
+        e isa ExitAndRetrain    && exit(e.code)  # out of bounds -- retrain
+        e isa ExitAndInitialise && exit(e.code)  # model needs initialising
         rethrow()                                # ModenaError or anything else
     end
 
@@ -396,9 +414,17 @@ check(model);
 for step = 1:1
 {sets}
 
+    % Modena.RETRAINED means the surrogate was refitted during the call and
+    % these outputs are stale -- repeat the call.  Never exit with it: a
+    % process that exits with Modena.RETRAINED terminates the workflow.
     ret = call(model);
-    if ret ~= 0
-        % 100 = retrained, retry.  200/201 = exit for FireWorks.
+    while ret == Modena.RETRAINED
+        ret = call(model);
+    end
+
+    if ret ~= Modena.OK
+        % Modena.OUT_OF_BOUNDS, Modena.MODEL_NOT_IN_DATABASE or
+        % Modena.PARAMETERS_NOT_VALID -- exit so FireWorks can relaunch.
         exit(ret);
     end
 
@@ -433,9 +459,17 @@ m$check()
 for (step in 1:1) {{
 {sets}
 
+    # MODENA_RETRAINED means the surrogate was refitted during the call and
+    # these outputs are stale -- repeat the call.  Never quit with it: a
+    # process that exits with MODENA_RETRAINED terminates the workflow.
     ret <- m$call()
-    if (ret != 0) {{
-        # 100 = retrained, retry.  200/201 = exit for FireWorks.
+    while (ret == MODENA_RETRAINED) {{
+        ret <- m$call()
+    }}
+
+    if (ret != MODENA_OK) {{
+        # MODENA_OUT_OF_BOUNDS, MODENA_MODEL_NOT_IN_DATABASE or
+        # MODENA_PARAMETERS_NOT_VALID -- exit so FireWorks can relaunch.
         quit(status = ret)
     }}
 

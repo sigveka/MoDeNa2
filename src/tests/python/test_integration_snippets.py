@@ -196,15 +196,27 @@ class TestLanguageContracts:
 # handling in a comment.
 
 #: language -> substrings that prove the snippet reacts to a failed call.
+#:
+#: The codes are named, never written as integers: every binding generates its
+#: constants from src/status-codes.cmake, so a snippet comparing against a bare
+#: 100 or 200 is a copy that can drift from the definition.
 _ERROR_HANDLING = {
-    'c':       ['if (ret != 0)'],
+    'c':       ['MODENA_RETRAINED', 'if (ret != MODENA_OK)'],
     'cpp':     ['catch', 'std::exception'],
-    'fortran': ['if (ret /= 0)', 'call exit(ret)'],
+    'fortran': ['use fmodena_status', 'MODENA_RETRAINED',
+                'if (ret /= MODENA_OK)', 'call exit(ret)'],
     'python':  ['try:', 'except modena.OutOfBounds', 'sys.exit(exc.returnCode)'],
     'julia':   ['catch e', 'ParametersUpdated', 'ExitAndRetrain', 'rethrow()'],
-    'matlab':  ['if ret ~= 0', 'exit(ret)'],
-    'r':       ['if (ret != 0)', 'quit(status = ret)'],
+    'matlab':  ['Modena.RETRAINED', 'if ret ~= Modena.OK', 'exit(ret)'],
+    'r':       ['MODENA_RETRAINED', 'if (ret != MODENA_OK)',
+                'quit(status = ret)'],
 }
+
+#: Languages whose snippet must *retry* rather than exit on the retrain code.
+#: Exiting with it is fatal -- handleReturnCode treats any unrecognised
+#: non-zero status as terminal, so the workflow dies instead of resuming.
+#: The C, Fortran, MATLAB and R templates all did exactly that.
+_RETRAIN_RETRY = ('c', 'fortran', 'matlab', 'r')
 
 
 class TestErrorHandling:
@@ -216,6 +228,29 @@ class TestErrorHandling:
             assert expected in code, (
                 f'{lang} snippet does not handle the return-code protocol: '
                 f'{expected!r} missing'
+            )
+
+    @pytest.mark.parametrize('lang', _RETRAIN_RETRY)
+    def test_retrain_code_is_retried_not_exited(self, I, lang):
+        """Exiting with the retrain code terminates the workflow, so the
+        snippet must loop back into the call instead of propagating it."""
+        code = I.snippet(_model(_DEMO, ['y']), lang)['code']
+        retried = ('do {' in code or 'do while' in code
+                   or 'while ret ==' in code or 'while (ret ==' in code)
+        assert retried, f'{lang} snippet does not retry on the retrain code'
+
+    @pytest.mark.parametrize('lang', ALL_LANGUAGES)
+    def test_no_bare_protocol_integers(self, I, lang):
+        """Every binding ships generated constants; a snippet that compares
+        against the literal numbers is a copy that can drift from
+        src/status-codes.cmake."""
+        import re
+        code = I.snippet(_model(_DEMO, ['y']), lang)['code']
+        for value in (100, 200, 201, 202):
+            pattern = rf'(==|!=|/=|~=)\s*{value}\b'
+            assert not re.search(pattern, code), (
+                f'{lang} snippet compares against the literal {value}; '
+                f'use the generated status constant instead'
             )
 
     def test_python_handles_both_exception_types(self, I):

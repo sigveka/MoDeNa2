@@ -528,15 +528,19 @@ void modena_model_outputs_siunits
  * |--------|---------|------------------------|
  * | `0`    | Success — outputs are valid. | Read outputs and continue. |
  * | `1`    | Internal failure (Python exception, missing `.so`, etc.). | Call `exit(1)`. |
- * | `100`  | Surrogate was retrained in-process; parameters updated. | Undo the current time step (decrement `t`) and retry. |
- * | `200`  | Out-of-bounds — new training data required; FireWorks will restart this process. | Call `exit(200)`. |
- * | `201`  | Out-of-bounds — new training data required; no restart needed. | Call `exit(201)`. |
+ * | `100`  | Surrogate was retrained in-process; parameters updated. | Undo the current time step (decrement `t`) and retry. Never `exit()` with this. |
+ * | `200`  | Out-of-bounds — new training data required; FireWorks retrains and re-queues. | Call `exit(ret)`. |
+ * | `201`  | Model is not in the database; FireWorks initialises it from its module. | Call `exit(ret)`. |
+ *
+ * Compare against the `modena_status_t` constants from `modena_status.h`,
+ * which `modena.h` includes, rather than writing the numbers inline — they
+ * are generated from one definition shared with the Python layer.
  *
  * ~~~~{.c}
  * int ret = modena_model_call(model, inputs, outputs);
  *
- * if (ret == 100) { t -= dt; continue; }   // retrained in-process — retry
- * if (ret != 0)   { exit(ret); }           // 200 / 201 — FireWorks takes over
+ * if (ret == MODENA_RETRAINED) { t -= dt; continue; }  // retry the step
+ * if (ret != MODENA_OK)        { exit(ret); }          // FireWorks takes over
  *
  * double mdot = modena_outputs_get(outputs, pos_mdot);
  * ~~~~

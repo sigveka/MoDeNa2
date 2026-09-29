@@ -47,6 +47,7 @@ program twoTanksMacroscopicProblemFortran
 
     use iso_c_binding
     use fmodena_oop
+    use fmodena_status
 
     implicit none
 
@@ -105,17 +106,18 @@ program twoTanksMacroscopicProblemFortran
             call model%set(p1Byp0Pos, p0/p1)
         end if
 
-        ! Call the surrogate.  Non-zero return codes signal workflow events:
-        !   100 = parameters updated (OutOfBounds) — retry the time step
-        !   200 = exit and restart the simulation
-        !   201 = exit; no restart required
+        ! Call the surrogate.  Non-zero return codes signal workflow events;
+        ! fmodena_status declares them:
+        !   MODENA_RETRAINED             retry the time step, do NOT exit
+        !   MODENA_OUT_OF_BOUNDS         exit; FireWorks retrains and re-queues
+        !   MODENA_MODEL_NOT_IN_DATABASE exit; FireWorks initialises the model
         ret = model%call()
 
-        if (ret == 100) then
+        if (ret == MODENA_RETRAINED) then
             ! Model was retrained mid-step; discard this result and retry.
             t = t - deltat
             cycle
-        else if (ret /= 0) then
+        else if (ret /= MODENA_OK) then
             ! Pass the workflow exit code to lpad / FireWorks.
             call exit(ret)
         end if
