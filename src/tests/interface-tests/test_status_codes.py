@@ -23,6 +23,14 @@ LIB = PREFIX / 'lib' / 'modena'
 INC = PREFIX / 'include'
 PY_INC = sysconfig.get_paths()['include']
 
+#: Where the optional wrappers install their packages.  Having the interpreter
+#: on PATH does not mean the matching MoDeNa wrapper was built -- WITH_R and
+#: WITH_MATLAB are off in the `dev` preset -- and these two tests asserted
+#: only the former.  On a clean `dev` tree with R and Octave present they
+#: therefore *failed* rather than skipping.
+R_PKG_DIR    = PREFIX / 'lib' / 'R' / 'modena'
+MATLAB_CLASS = PREFIX / 'share' / 'modena' / 'matlab' / 'Modena.m'
+
 #: name -> value, as defined in src/python/Strategy.py.
 EXPECTED = {
     'OK': 0,
@@ -106,6 +114,8 @@ def test_fortran_parameters_match(tmp_path):
 def test_r_constants_match(tmp_path):
     if not shutil.which('Rscript'):
         pytest.skip('R not available')
+    if not R_PKG_DIR.is_dir():
+        pytest.skip(f'R wrapper not installed at {R_PKG_DIR} (WITH_R=OFF)')
     src = tmp_path / 't.R'
     src.write_text(
         'library(modena)\n'
@@ -121,6 +131,9 @@ def test_r_constants_match(tmp_path):
 def test_matlab_constants_match(tmp_path):
     if not shutil.which('octave'):
         pytest.skip('octave not available')
+    if not MATLAB_CLASS.is_file():
+        pytest.skip(f'MATLAB wrapper not installed at {MATLAB_CLASS} '
+                    f'(WITH_MATLAB=OFF)')
     src = tmp_path / 't.m'
     src.write_text(
         'printf("%d %d %d %d %d %d %d\\n", Modena.OK, Modena.RETRAINED, ...\n'

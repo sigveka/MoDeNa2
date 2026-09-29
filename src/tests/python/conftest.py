@@ -43,11 +43,79 @@ os.environ.setdefault('MODENA_URI', 'mongodb://localhost/testdb')
 # as 'from modena.Launchpad import X' still work because __path__ points at
 # the source tree.
 # ---------------------------------------------------------------------------
+def _discover_build_paths():
+    """Locate the CMake-generated ``_paths.py`` for the build under test.
+
+    The stub below shadows the installed ``modena`` package, so without this
+    the stub carries no ``MODENA_INCLUDE_DIR`` / ``MODENA_LIB_DIR`` and no
+    ``modena.libmodena``.  Every guard that asks "is modena installed?" then
+    answers *no* on every machine, and the whole ``@pytest.mark.integration``
+    tier skips permanently instead of conditionally -- which is exactly what
+    it did until this was added.  ``test_suite_integrity.py`` fails if that
+    silently regresses.
+
+    ``_paths.py.in`` is a template, so the source tree never has a usable
+    copy.  Look for a configured one, nearest first:
+
+      1. ``MODENA_PATHS_FILE`` -- set by the CTest entry, so ctest always
+         tests the tree it just built.
+      2. any ``build*/src/python/_paths.py`` under the repository root.
+      3. an installed ``modena/_paths.py`` on ``sys.path``, skipping the
+         source tree itself.
+
+    Returns the parsed name -> value mapping, or ``{}`` when MoDeNa has not
+    been built or installed -- in which case the integration tier skips for
+    a real reason.
+    """
+    candidates = []
+
+    env_path = os.environ.get('MODENA_PATHS_FILE')
+    if env_path:
+        candidates.append(Path(env_path))
+
+    _REPO_ROOT = _SRC_PYTHON.parent.parent
+    candidates.extend(sorted(_REPO_ROOT.glob('build*/src/python/_paths.py')))
+
+    for entry in sys.path:
+        if not entry or Path(entry).resolve() == _SRC_PYTHON:
+            continue
+        candidates.append(Path(entry) / 'modena' / '_paths.py')
+
+    for candidate in candidates:
+        try:
+            if not candidate.is_file():
+                continue
+            namespace = {}
+            exec(compile(candidate.read_text(), str(candidate), 'exec'), namespace)
+        except (OSError, SyntaxError, ValueError):
+            continue
+        if 'MODENA_LIB_DIR' in namespace:
+            return {k: v for k, v in namespace.items() if k.startswith('MODENA_')}
+
+    return {}
+
+
 if 'modena' not in sys.modules:
     _pkg = types.ModuleType('modena')
     _pkg.__path__    = [str(_SRC_PYTHON)]
     _pkg.__package__ = 'modena'
     _pkg.__version__ = '0.0.0-test'
+
+    # Publish the real installed paths on the stub.  Tests that compile a
+    # surrogate need the include and lib directories the build actually used.
+    _BUILD_PATHS = _discover_build_paths()
+    for _name, _value in _BUILD_PATHS.items():
+        setattr(_pkg, _name, _value)
+
+    # Put the library directory on the package __path__ so `import
+    # modena.libmodena` finds the extension through the normal import system
+    # -- lazily, on first use.  Loading it eagerly here would defeat the point
+    # of the stub, which exists to keep the unit tier free of libmodena,
+    # rpy2 and MongoDB.
+    _LIB_DIR = _BUILD_PATHS.get('MODENA_LIB_DIR')
+    if _LIB_DIR and Path(_LIB_DIR).is_dir():
+        _pkg.__path__.append(str(_LIB_DIR))
+
     sys.modules['modena'] = _pkg
 
 # Ensure src/python is importable directly (for submodule imports)

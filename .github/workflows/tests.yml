@@ -1,0 +1,116 @@
+name: Tests
+
+# Until this existed, nothing ran the suite automatically: the only workflow
+# in this repository deployed the documentation.  627 Python tests and 13
+# CTest entries executed solely when somebody remembered to, locally, against
+# whatever happened to be configured in their build directory.  That is how
+# the R testthat suite sat unreferenced by any add_test, how `ctest` reported
+# "0 tests" while every test was registered, and how the whole
+# @pytest.mark.integration tier skipped on every machine for months.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------- #
+  # The gate: C library + Python, no optional wrappers.  Keep this one fast
+  # and dependency-light so a failure here always means a real regression
+  # rather than a missing toolchain.
+  # ---------------------------------------------------------------------- #
+  core:
+    name: Core (dev preset)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
+            pytest mongomock
+
+      - name: Configure
+        run: cmake --preset dev
+
+      - name: Build
+        run: cmake --build --preset dev
+
+      - name: Install
+        run: cmake --install build
+
+      - name: CTest
+        run: ctest --preset dev
+
+      # Run pytest directly as well as through CTest: CTest reports one
+      # pass/fail per entry, this gives the per-test summary in the log.
+      - name: Pytest
+        run: python -m pytest src/tests/python -q
+
+  # ---------------------------------------------------------------------- #
+  # Everything apt can provide.  The `full` preset skips any component whose
+  # toolchain is absent (Julia, MATLAB, Doxygen here) with a warning rather
+  # than failing to configure, so this stays a real gate without needing a
+  # fully provisioned machine.
+  # ---------------------------------------------------------------------- #
+  wrappers:
+    name: Wrappers + portal (full preset)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install system toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gfortran octave r-base-core r-base-dev
+
+      - name: Install R test dependency
+        run: |
+          mkdir -p "$HOME/R/library"
+          echo "R_LIBS_USER=$HOME/R/library" >> "$GITHUB_ENV"
+          R_LIBS_USER="$HOME/R/library" Rscript -e \
+            'install.packages("testthat", repos="https://cloud.r-project.org")'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            'pydantic>=2.0' mongoengine fireworks scipy jinja2 \
+            pytest mongomock \
+            dash dash-bootstrap-components dash-cytoscape
+
+      - name: Configure
+        run: cmake --preset full
+
+      - name: Build
+        run: cmake --build --preset full
+
+      - name: Install
+        run: cmake --install build
+
+      # Which tests registered is itself worth recording: a wrapper that
+      # silently stops registering its tests is the failure mode this repo
+      # has hit more than once.
+      - name: List registered tests
+        run: ctest --test-dir build -N
+
+      - name: CTest
+        run: ctest --preset full

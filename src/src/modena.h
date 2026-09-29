@@ -33,9 +33,11 @@ License
 @file modena.h
 @brief Public entry point for the MoDeNa C interface library (libmodena).
 
-Include **only** this header in application code.  All other headers
-(`model.h`, `function.h`, `indexset.h`, `inputsoutputs.h`, `global.h`) are
-internal implementation details and are not installed.
+Include **only** this header in application code.  The other installed
+headers (`model.h`, `function.h`, `indexset.h`, `inputsoutputs.h`,
+`global.h`) are internal implementation details -- they ship because this
+header includes them, not because they are part of the public API.  Their
+contents may change without notice; do not include them directly.
 
 @par What libmodena does
 

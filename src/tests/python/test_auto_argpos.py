@@ -145,9 +145,14 @@ class TestAutoArgPosOrdering:
     the compiled .so, and the fitting marshalling all come from dict-key
     insertion order in the SurrogateFunction."""
 
-    def test_parameter_names_ordered_matches_declaration(self, tmp_path, monkeypatch):
-        # We need a real CFunction to test the ordering helpers.  Use the
-        # existing installed libmodena so the compile step succeeds.
+    @pytest.mark.integration
+    def test_parameter_names_ordered_matches_declaration(
+        self, tmp_path, monkeypatch, mongo_db
+    ):
+        # Needs the full stack: CFunction is a MongoEngine document whose
+        # construction compiles the surrogate, so this wants both a database
+        # and the installed libmodena.  It previously took neither -- the
+        # importorskip always fired, hiding the missing mongo_db fixture.
         pytest.importorskip('modena.libmodena')
         from modena.SurrogateModel import CFunction
 

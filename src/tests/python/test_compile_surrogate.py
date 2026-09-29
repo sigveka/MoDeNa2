@@ -37,10 +37,19 @@ def _has_c_compiler():
 
 
 def _modena_installed():
+    """True when the built headers and shared library are both reachable.
+
+    MODENA_LIB_DIR already *is* the directory holding libmodena -- CMake sets
+    it to ``<prefix>/lib/modena``.  This used to glob ``.parent``, i.e. the
+    plain ``lib/`` one level up, which holds no ``libmodena.*`` at all, so the
+    guard answered False on a correctly installed machine and the tests it
+    guards never ran.  ``test_suite_integrity.py`` now fails if it starts
+    answering False again while a build is present.
+    """
     try:
         import modena
         inc = Path(modena.MODENA_INCLUDE_DIR) / 'modena.h'
-        lib = Path(modena.MODENA_LIB_DIR).parent
+        lib = Path(modena.MODENA_LIB_DIR)
         return inc.exists() and any(lib.glob('libmodena.*'))
     except Exception:
         return False
@@ -193,9 +202,14 @@ class TestCompileSurrogateIntegration:
     @pytest.fixture
     def paths(self):
         import modena
+        # MODENA_LIB_DIR *is* the directory holding libmodena; production
+        # passes it unmodified (SurrogateModel.py, _compile_c_surrogate call).
+        # Taking .parent here produced -L<prefix>/lib, where no libmodena
+        # exists, so every test in this class failed to link once the class
+        # became reachable.
         return {
             'include_dir': Path(modena.MODENA_INCLUDE_DIR),
-            'lib_dir':     Path(modena.MODENA_LIB_DIR).parent,
+            'lib_dir':     Path(modena.MODENA_LIB_DIR),
         }
 
     def test_produces_shared_library(self, tmp_path, paths):
@@ -304,24 +318,46 @@ class TestModenaPaths:
         header = Path(modena.MODENA_INCLUDE_DIR) / 'modena.h'
         assert header.exists(), f'modena.h not found at {header}'
 
-    def test_libmodena_present(self):
+    def test_lib_dir_is_the_directory_holding_libmodena(self):
+        """MODENA_LIB_DIR is used verbatim as the linker -L path, so the
+        library must be in it -- not in its parent."""
         import modena
-        lib_dir = Path(modena.MODENA_LIB_DIR).parent
-        libs = list(lib_dir.glob('libmodena.*'))
-        assert libs, f'No libmodena.* found in {lib_dir}'
+        lib_dir = Path(modena.MODENA_LIB_DIR)
+        assert lib_dir.is_dir(), f'MODENA_LIB_DIR does not exist: {lib_dir}'
+        assert any(lib_dir.glob('libmodena.*')), (
+            f'No libmodena.* directly in MODENA_LIB_DIR: {lib_dir}'
+        )
 
-    def test_lib_dir_derivable_from_lib_dir(self):
-        """Path(MODENA_LIB_DIR).parent must be the directory containing libmodena.so."""
-        import modena
-        lib_dir = Path(modena.MODENA_LIB_DIR).parent
-        assert lib_dir.is_dir(), f'Derived lib dir does not exist: {lib_dir}'
+    def test_public_header_is_self_sufficient(self):
+        """A translation unit including only <modena.h> must compile.
 
-    def test_include_dir_contains_public_headers_only(self):
-        """Internal headers must not be installed (only modena.h is public)."""
+        This replaces an assertion that the internal headers are *absent*
+        from the include directory.  They cannot be: modena.h opens with
+        `#include "global.h"`, `"indexset.h"`, `"function.h"` and `"model.h"`,
+        so installing modena.h alone would make it unusable.  "Internal"
+        is an instruction to callers, not an install rule -- and the property
+        actually worth guarding is that the one public entry point pulls in
+        everything it needs by itself.
+        """
+        import subprocess
+        import sysconfig
+        import tempfile
+
         import modena
-        inc = Path(modena.MODENA_INCLUDE_DIR)
-        internal = ['model.h', 'function.h', 'inputsoutputs.h', 'global.h', 'inline.h']
-        installed_internal = [h for h in internal if (inc / h).exists()]
-        assert not installed_internal, (
-            f'Internal headers must not be installed: {installed_internal}'
+
+        cc = sysconfig.get_config_var('CC') or 'cc'
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / 'only_public.c'
+            src.write_text('#include <modena.h>\nint main(void) { return 0; }\n')
+            result = subprocess.run(
+                cc.split() + [
+                    '-fsyntax-only',
+                    f'-I{modena.MODENA_INCLUDE_DIR}',
+                    f'-I{sysconfig.get_path("include")}',
+                    str(src),
+                ],
+                capture_output=True, text=True,
+            )
+        assert result.returncode == 0, (
+            f'#include <modena.h> alone does not compile:\n{result.stderr}'
         )
