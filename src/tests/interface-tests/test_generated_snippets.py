@@ -7,8 +7,8 @@ positions declared plain `integer`, `300000_c_double` (an integer literal
 cannot take a real kind suffix), and MATLAB `set` colliding with an Octave
 builtin.  Pure-Python assertions would have missed all four.
 
-Registered under the `integration` label: needs MongoDB, an initialised
-model, a toolchain, and the installed headers.
+Tier ``live``: needs MongoDB, an initialised model, a toolchain, and the
+installed headers.
 """
 import os
 import subprocess
@@ -17,6 +17,8 @@ import sysconfig
 from pathlib import Path
 
 import pytest
+
+pytestmark = pytest.mark.live
 
 MODEL_ID = os.environ.get('MODENA_SNIPPET_MODEL', 'flowRate')
 PREFIX = Path(os.environ.get('MODENA_PREFIX', Path.home()))
@@ -41,7 +43,6 @@ def _run(cmd, cwd):
                           capture_output=True, text=True, timeout=300)
 
 
-@pytest.mark.integration
 @pytest.mark.parametrize('language,compiler,cmd', [
     ('c', 'gcc', ['gcc', '-o', 'ex', 'example.c',
                   f'-I{INC}', f'-I{INC}/modena', f'-I{PY_INC}',
@@ -71,7 +72,6 @@ def test_generated_snippet_compiles_and_runs(tmp_path, language, compiler, cmd):
     )
 
 
-@pytest.mark.integration
 def test_generated_python_snippet_runs(tmp_path):
     path, _ = _generate(tmp_path, 'python')
     r = _run([sys.executable, path.name], tmp_path)

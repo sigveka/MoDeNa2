@@ -13,10 +13,13 @@ target_include_directories(twoTanksMacroscopicProblem PRIVATE ${Python3_INCLUDE_
 # language binding against libmodena and evaluates the `flowRate` model
 # to end-to-end verify the wrapper is wired correctly.
 #
-# Registered under the "integration" label because they require:
-#   * a live MongoDB pointed to by MODENA_URI
-#   * the `flowRate` model already initialized (run examples/twoTanks/initModels)
-# Run with:  ctest -L integration
+# Tier labels (see ../pytest.ini) -- every entry here carries exactly one:
+#
+#   installed  needs `cmake --install`: headers, libmodena, wrapper packages
+#   live       also needs a live MongoDB at MODENA_URI holding a fitted
+#              `flowRate` (run examples/twoTanks/initModels)
+#
+# The smokes below are all `live`.  Run a tier with:  ctest -L live
 # ---------------------------------------------------------------------------
 
 # -- C++ (modena::Model, RAII wrapper) ------------------------------------
@@ -25,7 +28,7 @@ target_link_libraries(test_cpp_smoke PRIVATE modena_cpp modena)
 target_include_directories(test_cpp_smoke PRIVATE ${Python3_INCLUDE_DIRS})
 target_compile_features(test_cpp_smoke PRIVATE cxx_std_17)
 add_test(NAME modena_iface_cpp_smoke COMMAND test_cpp_smoke)
-set_tests_properties(modena_iface_cpp_smoke PROPERTIES LABELS "cpp;integration")
+set_tests_properties(modena_iface_cpp_smoke PROPERTIES LABELS "cpp;live")
 
 # -- Fortran (fmodena_oop) ------------------------------------------------
 # Only built if the Fortran wrapper is enabled.
@@ -36,7 +39,7 @@ if(TARGET fmodena_oop)
     target_link_libraries(test_fortran_smoke PRIVATE fmodena_oop fmodena modena)
     add_test(NAME modena_iface_fortran_smoke COMMAND test_fortran_smoke)
     set_tests_properties(modena_iface_fortran_smoke
-        PROPERTIES LABELS "fortran;integration"
+        PROPERTIES LABELS "fortran;live"
     )
 endif()
 
@@ -53,7 +56,7 @@ target_include_directories(test_thread_safety PRIVATE ${Python3_INCLUDE_DIRS})
 target_compile_features(test_thread_safety PRIVATE cxx_std_17)
 add_test(NAME modena_iface_thread_safety COMMAND test_thread_safety)
 set_tests_properties(modena_iface_thread_safety
-    PROPERTIES LABELS "cpp;integration;thread"
+    PROPERTIES LABELS "cpp;live;thread"
 )
 
 # -- MATLAB / Octave (via MEX gateway + Modena.m class) -------------------
@@ -77,7 +80,7 @@ if(WITH_MATLAB AND MODENA_MATLAB_GATEWAY_BUILT)
                 "${CMAKE_CURRENT_SOURCE_DIR}/test_matlab_smoke.m"
         )
         set_tests_properties(modena_iface_matlab_smoke PROPERTIES
-            LABELS "octave;integration"
+            LABELS "octave;live"
         )
     elseif(MATLAB_EXECUTABLE)
         add_test(NAME modena_iface_matlab_smoke
@@ -85,7 +88,7 @@ if(WITH_MATLAB AND MODENA_MATLAB_GATEWAY_BUILT)
                 "addpath('${MATLAB_PKG_DIR}'); run('${CMAKE_CURRENT_SOURCE_DIR}/test_matlab_smoke.m');"
         )
         set_tests_properties(modena_iface_matlab_smoke PROPERTIES
-            LABELS "matlab;integration"
+            LABELS "matlab;live"
         )
     endif()
 endif()
@@ -117,7 +120,7 @@ if(WITH_JULIA)
                 "${CMAKE_CURRENT_SOURCE_DIR}/test_julia_smoke.jl"
         )
         set_tests_properties(modena_iface_julia_smoke PROPERTIES
-            LABELS "julia;integration"
+            LABELS "julia;live"
         )
     else()
         message(WARNING
@@ -158,7 +161,7 @@ if(WITH_R AND R_EXECUTABLE)
         # library, so R only finds it with R_LIBS set -- the same thing
         # modena-env.sh does for an interactive shell.
         set_tests_properties(modena_iface_r_smoke PROPERTIES
-            LABELS "r;integration"
+            LABELS "r;live"
             ENVIRONMENT "R_LIBS=${R_LIB_DIR};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
         )
     else()
@@ -185,10 +188,10 @@ add_test(
     NAME    modena_generated_snippets
     COMMAND ${Python3_EXECUTABLE} -m pytest
             "${CMAKE_CURRENT_SOURCE_DIR}/test_generated_snippets.py"
-            -m integration --tb=short -q
+            -m live --tb=short -q
 )
 set_tests_properties(modena_generated_snippets PROPERTIES
-    LABELS      "python;integration;snippets"
+    LABELS      "python;live;snippets"
     ENVIRONMENT "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
 )
 
@@ -202,10 +205,10 @@ add_test(
     NAME    modena_oob_exception
     COMMAND ${Python3_EXECUTABLE} -m pytest
             "${CMAKE_CURRENT_SOURCE_DIR}/test_oob_exception.py"
-            -m integration --tb=short -q
+            -m live --tb=short -q
 )
 set_tests_properties(modena_oob_exception PROPERTIES
-    LABELS      "python;integration"
+    LABELS      "python;live"
     ENVIRONMENT "MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
 )
 
@@ -217,9 +220,9 @@ add_test(
     NAME    modena_status_codes
     COMMAND ${Python3_EXECUTABLE} -m pytest
             "${CMAKE_CURRENT_SOURCE_DIR}/test_status_codes.py"
-            -m integration --tb=short -q
+            -m installed --tb=short -q
 )
 set_tests_properties(modena_status_codes PROPERTIES
-    LABELS      "python;integration"
+    LABELS      "python;installed"
     ENVIRONMENT "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
 )

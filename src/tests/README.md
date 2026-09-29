@@ -1,80 +1,73 @@
 # MoDeNa Test Suite
 
-Tests live under `src/tests/` and are split into two directories:
+Tests live under `src/tests/` in three directories:
 
 ```
 src/tests/
-├── python/          pytest test suite for the Python library
-├── c/               CTest executables for the C library
-└── interface-tests/ End-to-end C++ integration tests (pre-existing)
+├── pytest.ini       tier markers (installed, live) + --strict-markers
+├── python/          pytest suite for the Python library (unit + installed)
+├── c/               CTest executables for the C library (unit)
+└── interface-tests/ language-wrapper smokes and cross-language contracts
+                     (installed + live)
 ```
+
+---
+
+## Test tiers
+
+Every test belongs to **exactly one** tier, chosen by what it needs to run.
+Each tier needs everything the one above it does.  The CTest label and the
+pytest marker have the same name.
+
+| Tier (CTest label / pytest marker) | Needs | Examples |
+|---|---|---|
+| `unit` (pytest: unmarked) | the source tree only; MongoDB is a MagicMock or mongomock | `modena_python_unit`, `modena_c_*`, `modena_portal_unit` |
+| `installed` | `cmake --install` has run: headers, `libmodena`, wrapper packages at the prefix | `modena_python_installed`, `modena_status_codes` |
+| `live` | a real MongoDB at `MODENA_URI` holding a fitted `flowRate` | every `modena_iface_*` smoke, `modena_generated_snippets`, `modena_oob_exception` |
+
+Language labels (`python`, `c`, `cpp`, `fortran`, `julia`, `r`, `octave`,
+`matlab`) are a second, independent axis: `ctest -L live -L julia` runs the
+Julia smoke only.
+
+`test_suite_integrity.py` enforces the scheme: a CTest entry with no tier,
+two tiers, or the retired `integration` label fails the `unit` tier, as does
+a pytest file under `interface-tests/` whose marker disagrees with the `-m`
+its CTest entry selects (it would be deselected and never run).
+
+`live` tests live only in `interface-tests/`.  The `conftest.py` in `python/`
+stubs out the database connection, so a `live` test there could never pass.
 
 ---
 
 ## Running the tests
 
 Tests are **opt-in** — they are not built or run during a normal
-`cmake --build .`.  Enable them with the `MODENA_BUILD_TESTS` flag.
-
-### Quick start
-
-```bash
-# From your existing build directory
-cmake -DMODENA_BUILD_TESTS=ON ..
-cmake --build .
-ctest --output-on-failure
-```
-
-Or equivalently using the `test` target:
+`cmake --build .`.  Enable them with the `MODENA_BUILD_TESTS` flag (the `dev`
+and `full` presets set it).
 
 ```bash
-cmake -DMODENA_BUILD_TESTS=ON ..
-cmake --build . --target test
+cmake --preset dev && cmake --build --preset dev
+ctest --preset dev -L unit          # no install, no database
+
+cmake --install build
+ctest --preset dev -L installed     # needs the install
+
+# live: needs MongoDB and a fitted flowRate first
+(cd examples/twoTanks && ./buildModels && modena fw reset --force && ./initModels)
+ctest --preset dev -L live
 ```
 
-### Run only unit tests (no MongoDB required)
+`modena fw reset --force` clears the FireWorks launchpad in the database
+`MODENA_URI` names.  Point `MODENA_URI` at a throwaway database before running
+the `live` tier on a machine whose launchpad you care about.
+
+Directly with pytest (it picks up `src/tests/pytest.ini` from any of these):
 
 ```bash
-ctest -L unit --output-on-failure
+pytest src/tests/python -m "not installed and not live"   # unit
+pytest src/tests/python -m installed
+pytest src/tests/interface-tests -m live
 ```
-
-### Run only Python tests
-
-```bash
-ctest -L python --output-on-failure
-```
-
-### Run only C tests
-
-```bash
-ctest -L c --output-on-failure
-```
-
-### Run integration tests (requires live MongoDB)
-
-Integration tests are disabled by default.  Enable and run them with:
-
-```bash
-ctest -L integration --output-on-failure
-```
-
-Or directly with pytest:
-
-```bash
-cd src/tests/python
-pytest -m integration -v
-```
-
----
-
-## Test categories
-
-| CTest label | pytest mark | MongoDB required | Description |
-|---|---|---|---|
-| `unit` | `not integration` | No | Pure logic, in-memory mocks |
-| `integration` | `integration` | Yes | Full workflow with live MongoDB |
-| `python` | — | Depends | All Python tests |
-| `c` | — | No | C library tests |
 
 ---
 
@@ -84,8 +77,8 @@ Located in `src/tests/python/`.  Run directly with pytest without CMake:
 
 ```bash
 cd src/tests/python
-pytest -v                       # unit tests only (default)
-pytest -m integration -v        # integration tests
+pytest -v                       # unit + installed (installed skips if nothing is built)
+pytest -m installed -v          # installed tier only
 pytest -v --tb=long             # verbose tracebacks
 ```
 
@@ -186,13 +179,12 @@ set_parameters, named_parameters, parameter_names, parameters_array,
 set_parameters_array), constructor rejection of positional list,
 dict persistence via mongomock, reordering-safety guarantee.
 
-## Interface / integration tests
+## Interface tests
 
 Language-wrapper smoke tests live under `src/tests/interface-tests/`.
 Each links a real language binding against libmodena and evaluates the
 `flowRate` surrogate to end-to-end verify the wrapper is wired
-correctly.  Registered under the `integration` label because they
-require:
+correctly.  They are in the `live` tier because they require:
 
 * a live MongoDB pointed to by `MODENA_URI` (default `mongodb://localhost:27017/test`),
 * the `flowRate` model already initialized (`cd examples/twoTanks && ./initModels`).
@@ -200,8 +192,7 @@ require:
 Run with:
 
 ```bash
-cd build
-ctest -L integration --output-on-failure
+ctest --preset dev -L live
 ```
 
 | Executable | Wrapper | What it tests |
@@ -226,10 +217,10 @@ ctest -L integration --output-on-failure
 
 | Component | Reason | Path forward |
 |---|---|---|
-| `Strategy.py` sampling / fitting | Requires R + rpy2 + MongoDB | Add under `integration` once R is available in CI |
-| `modena_model_call` in C | Requires `Py_Initialize()` + MongoDB | Test via Python integration tests |
+| `Strategy.py` sampling / fitting | Requires R + rpy2 + MongoDB | Add under `installed` (mongomock) or `live` once R is available in CI |
+| `modena_model_call` in C | Requires `Py_Initialize()` + MongoDB | Covered end-to-end by the `live` smokes |
 | Full backward-mapping loop | Requires compiled surrogate + MongoDB | Add an `examples/`-based smoke test |
-| `SurrogateFunction` Ccode compilation | Requires gcc + MongoDB | Integration test |
+| `SurrogateFunction` Ccode compilation | Requires gcc | Covered by `modena_python_installed` (`test_compile_surrogate.py`) |
 
 ---
 
@@ -238,8 +229,11 @@ ctest -L integration --output-on-failure
 ### Python
 
 Add a new file `src/tests/python/test_<module>.py`.  It is picked up
-automatically by pytest.  Use the `@pytest.mark.integration` decorator for
-any test that requires a live MongoDB connection.
+automatically by pytest.  Leave unit tests unmarked; mark a test that needs
+the installed tree `@pytest.mark.installed`.  A test that needs a live MongoDB
+goes in `src/tests/interface-tests/` with a module-level
+`pytestmark = pytest.mark.live`, and needs a CTest entry there selecting
+`-m live`.
 
 ### C
 

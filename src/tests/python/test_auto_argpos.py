@@ -145,7 +145,7 @@ class TestAutoArgPosOrdering:
     the compiled .so, and the fitting marshalling all come from dict-key
     insertion order in the SurrogateFunction."""
 
-    @pytest.mark.integration
+    @pytest.mark.installed
     def test_parameter_names_ordered_matches_declaration(
         self, tmp_path, monkeypatch, mongo_db
     ):

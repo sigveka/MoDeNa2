@@ -80,6 +80,11 @@
 !NAMESPACE
 !NAMESPACE.in
 
+# pytest configuration for src/tests/: registers the tier markers and turns
+# on --strict-markers.  Excluded by the allowlist, it would vanish from a
+# clone and every marker would silently become an unknown-marker warning.
+!src/tests/pytest.ini
+
 # Repo essentials that the allowlist would otherwise exclude
 !.gitignore
 !README.md
