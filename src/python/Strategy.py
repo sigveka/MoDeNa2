@@ -458,6 +458,43 @@ class ParameterFittingStrategy(StrategyBaseClass):
         dict.__init__(self, *args, **kwargs)
 
 
+    def _checkImproveErrorStrategy(self):
+        """Reject a strategy that cannot supply new points, at build time.
+
+        Subclasses call ``self['improveErrorStrategy'].workflow(model)`` when a
+        fit is rejected.  Anything in that slot which is not an
+        :class:`ImproveErrorStrategy` has no working ``newPoints()`` -- it
+        inherits the abstract base, which raises ``NotImplementedError``.
+
+        That failure only surfaces on the rejection branch, so a mis-declared
+        slot survives every run whose fit happens to be accepted.  ``flowRate``
+        shipped with ``NonLinFitWithErrorContol`` (a *ParameterFittingStrategy*)
+        here and nobody noticed, because it fits to ~2e-07 against a threshold
+        of 0.5.  Checking at construction moves the error to the line that
+        declares it.
+
+        Absent is allowed and means "no declared sampler": ``Sampling`` falls
+        back to a plain ``StochasticSampling`` over the fitData range.  A bare
+        ``dict`` is allowed too -- that is a payload FireWorks has not
+        deserialised into an object yet.
+        """
+        strategy = self.get('improveErrorStrategy')
+
+        if strategy is None or isinstance(strategy, ImproveErrorStrategy):
+            return
+        if type(strategy) is dict:
+            return
+
+        raise TypeError(
+            f'improveErrorStrategy must be an ImproveErrorStrategy, got '
+            f'{type(strategy).__name__}.  Its newPoints() is the unimplemented '
+            f'base method, so the first rejected fit would raise '
+            f'NotImplementedError.  Use Strategy.StochasticSampling('
+            f'nNewPoints=N), or a CASTRO sampler for composition-constrained '
+            f'inputs.'
+        )
+
+
     def workflow(self, model):
         return Workflow(
             [
@@ -1792,20 +1829,8 @@ class NonLinFitWithErrorContol(ParameterFittingStrategy):
     """
 
     def __init__(self, *args, **kwargs):
-        """
-        @todo access tuple correctly
-        """
-        #if '_fw_name' in args[0]:
-        #    ParameterFittingStrategy.__init__(self, *args, **kwargs)
-
-        #if not kwargs.has_key('improveErrorStrategy'):
-        #    raise Exception('Need improveErrorStrategy')
-        #if not isinstance(
-        #    kwargs['improveErrorStrategy'], ImproveErrorStrategy
-        #):
-        #    raise TypeError('Need improveErrorStrategy')
-
         ParameterFittingStrategy.__init__(self, *args, **kwargs)
+        self._checkImproveErrorStrategy()
 
 
     def newPointsFWAction(self, model, **kwargs):
@@ -1983,19 +2008,8 @@ class NonLinFitToPointWithSmallestError(ParameterFittingStrategy):
     """
 
     def __init__(self, *args, **kwargs):
-
-        # TODO: access tuple correctly
-        #if '_fw_name' in args[0]:
-        #    ParameterFittingStrategy.__init__(self, *args, **kwargs)
-
-        #if not kwargs.has_key('improveErrorStrategy'):
-        #    raise Exception('Need improveErrorStrategy')
-        #if not isinstance(
-        #    kwargs['improveErrorStrategy'], ImproveErrorStrategy
-        #):
-        #    raise TypeError('Need improveErrorStrategy')
-
         ParameterFittingStrategy.__init__(self, *args, **kwargs)
+        self._checkImproveErrorStrategy()
 
 
     def newPointsFWAction(self, model, **kwargs):

@@ -961,3 +961,73 @@ class TestProtocolCodes:
         assert 'IndexSet' in message
         assert 'unknown error' not in message.lower()
         assert excinfo.value.args[1] == INDEX_SET_NOT_IN_DATABASE
+
+
+# ---------------------------------------------------------------------------
+# ParameterFittingStrategy — improveErrorStrategy slot validation
+# ---------------------------------------------------------------------------
+
+class TestImproveErrorStrategyValidation:
+    """The slot is dereferenced only when a fit is rejected, so a wrong type
+    there survives every run whose fit is accepted.  flowRate shipped that way
+    for years.  These pin the construction-time check that surfaces it."""
+
+    @pytest.fixture(params=[
+        'NonLinFitWithErrorContol',
+        'NonLinFitToPointWithSmallestError',
+    ])
+    def Fitting(self, request):
+        import modena.Strategy as Strategy
+        return getattr(Strategy, request.param)
+
+    def test_parameter_fitting_strategy_in_the_slot_is_refused(self, Fitting):
+        """The exact flowRate bug: a ParameterFittingStrategy here inherits
+        the abstract newPoints(), which raises NotImplementedError."""
+        from modena.Strategy import NonLinFitWithErrorContol
+
+        with pytest.raises(TypeError) as excinfo:
+            Fitting(improveErrorStrategy=NonLinFitWithErrorContol(nNewPoints=2))
+
+        message = str(excinfo.value)
+        assert 'NonLinFitWithErrorContol' in message, 'must name what was given'
+        assert 'StochasticSampling' in message, 'must name the fix'
+
+    def test_foreign_object_in_the_slot_is_refused(self, Fitting):
+        with pytest.raises(TypeError, match='ImproveErrorStrategy'):
+            Fitting(improveErrorStrategy='StochasticSampling')
+
+    def test_improve_error_strategy_is_accepted(self, Fitting):
+        from modena.Strategy import StochasticSampling
+        sampler = StochasticSampling(nNewPoints=2)
+        assert Fitting(improveErrorStrategy=sampler)['improveErrorStrategy'] is sampler
+
+    def test_castro_samplers_are_accepted(self, Fitting):
+        """CASTRO variants subclass both InitialisationStrategy and
+        ImproveErrorStrategy; composition-constrained models declare them."""
+        from modena.Strategy import CASTROSampling, ExpandedCASTROSampling
+        for cls in (CASTROSampling, ExpandedCASTROSampling):
+            assert Fitting(improveErrorStrategy=cls(nNewPoints=2))
+
+    def test_absent_slot_is_allowed(self, Fitting):
+        """Absent means 'no declared sampler' -- Sampling.plan_points falls
+        back to StochasticSampling over the fitData range.  Requiring it here
+        would break that fallback and the mis-declaration test in
+        test_sampling.py, which constructs one bare."""
+        assert Fitting(nNewPoints=2).get('improveErrorStrategy') is None
+
+    def test_none_is_allowed(self, Fitting):
+        assert Fitting(improveErrorStrategy=None)['improveErrorStrategy'] is None
+
+    def test_undeserialised_payload_is_allowed(self, Fitting):
+        """FireWorks hands the constructor a plain dict when the nested
+        strategy has not been rebuilt into an object yet."""
+        payload = {'_fw_name': '{{modena.Strategy.StochasticSampling}}'}
+        assert Fitting(improveErrorStrategy=payload)
+
+    def test_survives_a_fireworks_round_trip(self, Fitting):
+        """from_dict() feeds the serialised mapping back through __init__, so
+        the check must not reject a strategy the framework itself produced."""
+        from modena.Strategy import StochasticSampling
+        original = Fitting(improveErrorStrategy=StochasticSampling(nNewPoints=3))
+        restored = Fitting.from_dict(original.to_dict())
+        assert restored['improveErrorStrategy']['nNewPoints'] == 3
