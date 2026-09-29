@@ -162,10 +162,16 @@ if(WITH_R AND R_EXECUTABLE)
             ENVIRONMENT "R_LIBS=${R_LIB_DIR};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
         )
     else()
-        message(STATUS
+        # WARNING, not STATUS.  A STATUS line scrolls past unread, so the only
+        # visible effect was the test count dropping from 13 to 12 -- and CI
+        # installed testthat on purpose, got a silent failure from
+        # install.packages(), and registered no R test for weeks without
+        # anything turning red.
+        message(WARNING
             "WITH_R=ON but the testthat package is not installed — "
             "skipping modena_iface_r_smoke.  Install it with:  "
-            "R -e \"install.packages('testthat')\"")
+            "apt install r-cran-testthat   (or, from source: "
+            "R -e \"install.packages('testthat')\")")
     endif()
 endif()
 

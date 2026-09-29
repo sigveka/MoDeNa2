@@ -135,12 +135,25 @@ jobs:
             gfortran octave octave-dev r-base-core r-base-dev \
             libltdl-dev python3-dev python3-pip
 
+      # Ubuntu ships testthat prebuilt.  Installing it from CRAN instead
+      # compiles it and ~20 dependencies from source, where `fs` failed to
+      # build and took pkgload and testthat down with it -- and because
+      # install.packages() only *warns* on a failed package, the step still
+      # exited 0.  CI went green having installed nothing, and the R smoke
+      # then silently did not register: its gate in
+      # src/tests/interface-tests/CMakeLists.txt asks R whether testthat is
+      # importable and skips with a message(STATUS) when it is not.
       - name: Install R test dependency
+        run: sudo apt-get install -y --no-install-recommends r-cran-testthat
+
+      # Fail here rather than let the smoke test quietly not register.  A
+      # dependency this job installs on purpose is not allowed to go missing
+      # without anyone noticing.
+      - name: Verify testthat is importable
         run: |
-          mkdir -p "$HOME/R/library"
-          echo "R_LIBS_USER=$HOME/R/library" >> "$GITHUB_ENV"
-          R_LIBS_USER="$HOME/R/library" Rscript -e \
-            'install.packages("testthat", repos="https://cloud.r-project.org")'
+          probe=$(R --no-save --slave -e "cat(requireNamespace('testthat', quietly=TRUE))")
+          echo "requireNamespace('testthat') -> $probe"
+          test "$probe" = "TRUE"
 
       - name: Install Python dependencies
         run: |
