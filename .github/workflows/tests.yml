@@ -132,7 +132,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gfortran octave r-base-core r-base-dev \
+            gfortran octave octave-dev r-base-core r-base-dev \
             libltdl-dev python3-dev python3-pip
 
       - name: Install R test dependency

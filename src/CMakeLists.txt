@@ -232,6 +232,10 @@ endif()
 # MATLAB/Octave status string
 if(NOT WITH_MATLAB)
     set(_matlab_status "NO   (set -DWITH_MATLAB=ON to enable)")
+elseif(NOT MODENA_MATLAB_GATEWAY_BUILT)
+    # An interpreter on PATH is not a toolchain: Octave ships mkoctfile in
+    # octave-dev, so `octave` alone leaves the gateway unbuildable.
+    set(_matlab_status "NO   *** requested but no mex compiler / mkoctfile — gateway not built ***")
 elseif(_MATLAB_EXECUTABLE)
     set(_matlab_status "YES  (matlab)")
 elseif(_OCTAVE_EXECUTABLE)

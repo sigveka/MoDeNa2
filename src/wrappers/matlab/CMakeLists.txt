@@ -66,12 +66,29 @@ if(MKOCTFILE)
   set(_MODENA_OCTAVE_FOUND TRUE)
 endif()
 
-if(NOT _MODENA_MATLAB_FOUND AND NOT _MODENA_OCTAVE_FOUND)
-  message(FATAL_ERROR
-    "Neither MATLAB (mex compiler) nor Octave (mkoctfile) found.\n"
-    "Install one of them and re-configure, or disable this wrapper with "
-    "-DWITH_MATLAB=OFF.\n"
-    "  Ubuntu/Debian: sudo apt install octave octave-dev"
+# A warning, not an error.  The `full` preset promises that "any component
+# whose toolchain is missing is skipped with a warning rather than failing the
+# configure, so this stays usable on a partially provisioned machine", and
+# Julia already behaves that way.  This wrapper did not: WITH_MATLAB=ON with no
+# mex compiler aborted the configure for the entire project, which made `full`
+# unusable anywhere Octave's headers were absent -- including a machine with
+# `octave` installed but not `octave-dev`, where mkoctfile is missing but the
+# interpreter is present and everything looks provisioned.
+#
+# Modena.m is installed either way: it is pure M-code, and the status-code
+# constants in it are readable without the gateway.
+if(_MODENA_MATLAB_FOUND OR _MODENA_OCTAVE_FOUND)
+  set(MODENA_MATLAB_GATEWAY_BUILT TRUE CACHE INTERNAL
+      "A MATLAB or Octave MEX gateway was compiled")
+else()
+  set(MODENA_MATLAB_GATEWAY_BUILT FALSE CACHE INTERNAL
+      "A MATLAB or Octave MEX gateway was compiled")
+  message(WARNING
+    "WITH_MATLAB=ON but neither MATLAB (mex compiler) nor Octave (mkoctfile) "
+    "was found.  Modena.m is installed, but without a gateway it cannot call "
+    "libmodena, so the MATLAB/Octave smoke test will not be registered.\n"
+    "  Ubuntu/Debian: sudo apt install octave octave-dev\n"
+    "Silence this by configuring with -DWITH_MATLAB=OFF."
   )
 endif()
 

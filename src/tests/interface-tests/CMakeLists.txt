@@ -64,7 +64,10 @@ set_tests_properties(modena_iface_thread_safety
 # Modena.m there.
 #
 # Prefer Octave when both are available (faster startup, no license).
-if(WITH_MATLAB)
+# MODENA_MATLAB_GATEWAY_BUILT, not WITH_MATLAB: the smoke test calls into
+# libmodena through the MEX gateway, so an interpreter without a mex compiler
+# would register a test that cannot possibly pass.
+if(WITH_MATLAB AND MODENA_MATLAB_GATEWAY_BUILT)
     find_program(OCTAVE_EXECUTABLE octave)
     find_program(MATLAB_EXECUTABLE matlab)
     if(OCTAVE_EXECUTABLE)
