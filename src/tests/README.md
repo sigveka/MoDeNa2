@@ -47,11 +47,12 @@ and `full` presets set it).
 
 ```bash
 cmake --preset dev && cmake --build --preset dev
-ctest --preset dev -L unit          # no install, no database
+ctest --preset unit                 # no install, no database
 
 cmake --install build
-ctest --preset dev -L installed     # needs the install
-ctest --preset dev -L live          # needs the install and a running MongoDB
+ctest --preset installed            # needs the install
+ctest --preset live                 # needs the install and a running MongoDB
+ctest --preset dev                  # all three
 ```
 
 There is no manual setup for any tier.  CTest fixtures (`src/tests/CMakeLists.txt`)
@@ -80,7 +81,7 @@ The `live` tests take a CTest `RESOURCE_LOCK` on that database, so
 
 If the install check fails but you deliberately want to run against the
 installed MoDeNa anyway, exclude that one fixture:
-`ctest --preset dev -L live -FA '^modena_installed$'`.
+`ctest --preset live -FA '^modena_installed$'`.
 
 Directly with pytest (it picks up `src/tests/pytest.ini` from any of these):
 
@@ -213,7 +214,7 @@ correctly.  They are in the `live` tier because they require:
 Run with:
 
 ```bash
-ctest --preset dev -L live
+ctest --preset live
 ```
 
 | Executable | Wrapper | What it tests |

@@ -244,9 +244,16 @@ warning separately.
 cmake --preset dev           # configure
 cmake --build --preset dev   # build
 cmake --install build        # install
-ctest --preset dev           # run tests
+ctest --preset dev           # run every test tier
 cmake --build build --target doc  # Doxygen (requires -DMODENA_BUILD_DOCS=ON)
 ```
+
+Tests are split into three tiers by what they need, each with its own test
+preset: `ctest --preset unit` (source tree only — the fast loop while
+editing), `--preset installed` (after `cmake --install build`) and
+`--preset live` (also needs a MongoDB; fixtures prepare the database named by
+the `MODENA_TEST_URI` cache variable and drop it afterwards).  See
+`src/tests/README.md`.
 
 Machine-local settings (e.g. `WITH_MATLAB=ON`, a non-standard prefix) go in
 `CMakeUserPresets.json` in the project root — this file is gitignored.
