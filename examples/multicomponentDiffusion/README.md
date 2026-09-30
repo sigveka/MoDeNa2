@@ -18,6 +18,13 @@ What this example shows is the index-set mechanics — one `CFunction` with
 `indices={'A': species, 'B': species}`, instantiated per species pair — rather
 than backward mapping; see [`../twoTanks`](../twoTanks/README.md) for that.
 
+The function declares its output and parameters with index-set notation:
+`D[A]`, and `W[A]`, `V[A]`, `W[B]`, `V[B]` (molar mass and diffusion volume of
+each species).  The instance `fullerEtAlDiffusion[A=H2O,B=N2]` stores its
+output as `D[H2O]` — the name a model built on top of it, such as a
+multicomponent mixture rule, would take as an input.  In the C code the
+indexed names are bound without brackets, as `WA`, `VA`, `WB` and `VB`.
+
 ## How to run
 
 MoDeNa must be installed and a MongoDB reachable at `MODENA_URI`

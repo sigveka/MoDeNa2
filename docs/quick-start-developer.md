@@ -339,6 +339,15 @@ write `argPos: N` in a declaration.  Supplying it explicitly raises a
 (`^[a-zA-Z_][a-zA-Z0-9_]*$`) so the Jinja2 template can bind it as
 `const double <name> = ...;`.  Validated at `CFunction` construction time.
 
+The one exception is **index-set notation**.  A name may carry indices from
+the function's `indices={...}`, as in `W[A]` or `D[A,B]`; each index must be
+declared.  The name keeps its brackets everywhere outside C — a model instance
+such as `fullerEtAlDiffusion[A=H2O,B=N2]` expands its output `D[A]` to
+`D[H2O]`, which is the name another model uses to take it as an input — and
+is bound in the generated C code without them: `W[A]` as `WA`, `D[A,B]` as
+`DAB`.  Declaring two names with the same binding (`W[A]` and `WA`) is
+rejected.  See `examples/MoDeNaModels/fullerEtAlDiffusion`.
+
 **Reordering is safe.**  Parameter values on the model are stored keyed by
 name (`DictField(FloatField)` on disk — `{"P0": 0.6134, "P1": 0.6143}`)
 — swapping the order of `'P0'` and `'P1'` in the `parameters={}`

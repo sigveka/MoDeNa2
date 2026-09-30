@@ -3,7 +3,13 @@
 #
 # Species pair: A = H2O, B = N2 (from the IndexSet definition in the module).
 # bounds: effectively unbounded (wide physics-valid domain).
-# parameters: [W[A], V[A], W[B], V[B]] — molecular weights and diffusion volumes.
+# parameters: W[A], V[A], W[B], V[B] — molecular weights and diffusion volumes.
+#
+# The [A]/[B] suffixes are index-set notation: indices A and B range over
+# the `species` IndexSet, and the model fullerEtAlDiffusion[A=H2O,B=N2]
+# expands its output D[A] to D[H2O] -- the name another model uses to take
+# it as an input.  In the Ccode they are bound without brackets (W[A] ->
+# WA), since W[A] is not a C identifier.
 
 [surrogate]
 
@@ -15,23 +21,23 @@ max = 9.0e99
 min = 0.0
 max = 9.0e99
 
-[surrogate.outputs.DA]
+[surrogate.outputs."D[A]"]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters.WA]
+[surrogate.parameters."W[A]"]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters.VA]
+[surrogate.parameters."V[A]"]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters.WB]
+[surrogate.parameters."W[B]"]
 min = 0.0
 max = 9.0e99
 
-[surrogate.parameters.VB]
+[surrogate.parameters."V[B]"]
 min = 0.0
 max = 9.0e99
 
@@ -42,7 +48,7 @@ max = 9.0e99
 # `parameters = [...]` key here would be parsed into the preceding table,
 # and positional lists are no longer accepted in any case.
 [parameters]
-WA = 16.0
-VA = 9.44
-WB = 14.0
-VB = 11.38
+"W[A]" = 16.0
+"V[A]" = 9.44
+"W[B]" = 14.0
+"V[B]" = 11.38
