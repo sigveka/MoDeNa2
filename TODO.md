@@ -332,6 +332,129 @@ and complicates deployment.
   ensembles), the out-of-bounds detector cannot assess prediction confidence,
   which is central to the backward-mapping loop.
 
+#### Requirements from the DWSIM property package
+
+*Design stage only — no code exists.  The planned consumer is a DWSIM
+`PropertyPackage` subclass that evaluates an exported surrogate of the reduced
+residual Helmholtz energy per mole, f(T, v, x) = Fʳ/n, for the compound list
+of one `IndexSet` (e.g. `residualHelmholtz[mix=C1C2C3CO2]`).  DWSIM's own
+flash algorithms call the package for fugacities, enthalpy and entropy, so the
+network is differentiated inside every flash iteration.*
+
+- **C² smoothness** — fugacities need ∂f/∂x, and Newton-based flashes and
+  stability tests effectively need ∂²f/∂x².  Use smooth activations (tanh,
+  softplus, SiLU); ReLU is not acceptable.
+- **Generated derivative code** — the exported C must return f, f_T, f_v, the
+  gradient f_x[A] and the Hessian f_xx[A,B], either by forward-mode AD in the
+  generated forward pass or as separate generated functions.  Finite
+  differences inside a flash iteration are not good enough.
+- **IndexSet-shaped inputs and outputs** — inputs `T`, `v`, `x[A]`; outputs
+  indexed over the same `IndexSet`.  The last mole fraction is dependent
+  (Σx = 1) and is computed inside the C function, as in `coolPropMixtureTP`.
+  The contiguous argPos blocks of index-expanded arguments must be recorded in
+  the exported manifest.
+- **Physics built into the architecture** — the ideal-gas limit f → 0 as
+  v → ∞ should hold by construction, e.g. f = (1/v)·NN(T, 1/v, x), not be
+  learned from data.
+- **Derivative-aware training** — the exact tasks can return f, Z and ln φᵢ
+  together; the `NeuralNetFitStrategy` loss should fit all of them (Sobolev
+  training), since the flash consumes the derivatives, not f itself.
+- **Composition never out of bounds** — declare every `x[A]` over the full
+  simplex [0, 1] and sample it with a `compositionGroup` (CASTRO), so that
+  only T and v ever trigger OOB expansion.  If flowsheets may use a subset of
+  the compound list (xᵢ = 0), training must cover the faces of the simplex.
+- **Warm-start retraining** — OOB points arrive from production flowsheets
+  and must not degrade the rest of the domain; see the catastrophic-forgetting
+  question above.  Thermodynamic consistency matters more than refit speed.
+- **Weights exportable as one blob** — `modena export` (planned) writes the
+  weights from the binary-blob storage described above straight into a
+  standalone bundle evaluated without Python or MongoDB.
+
+Work that does not wait for Phase 5: Peng–Robinson's Fʳ written as an exact
+`CFunction` in the same f(T, v, x) layout validates the IndexSet mapping,
+export, runtime and DWSIM package end to end, and should match DWSIM's own
+Peng–Robinson package to rounding error.
+
+---
+
+### Standalone runtime — `libmodena_core` and `modena export`
+
+*Design stage only — no code exists.  Motivated by the DWSIM property package
+(see Phase 5), but useful for any host that cannot embed CPython, reach
+MongoDB, or be killed and restarted on an OOB event.*
+
+libmodena cannot be used in such hosts today:
+
+- `modena_model_t` and `modena_function_t` are CPython objects
+  (`PyObject_HEAD`), and `modena.h` pulls in `Python.h` through `global.h`,
+  `function.h`, `model.h` and `indexset.h` — every consumer compiles against
+  Python headers and links libpython.
+- `modena_model_new` loads the model through MongoEngine and `minMax()`.
+- OOB returns 200, which the caller must handle by exiting.
+- Generated surrogates read `model->parameters`, whose offset depends on the
+  size of `PyObject_HEAD`.  Every compiled `.so` is therefore tied to one
+  CPython build (debug and free-threaded builds differ) — a latent hazard for
+  existing users too.
+
+#### Recommendation: a separate core library, designed as libmodena's future core
+
+- **`modena export <model_id>`** (Python CLI) writes a self-contained bundle:
+  the compiled surrogate, and a manifest with input/output names, argPos
+  (including IndexSet blocks), bounds, SI units, the IndexSet compound list,
+  fitted parameters (or the Phase 5 weight blob) and a content hash.
+  Substitute models and index expansion are resolved at export time and
+  flattened into the manifest.
+- **`libmodena_core`** (plain C, never includes `Python.h`) loads and
+  evaluates a bundle: open, argPos lookup, bounds check, call, hash, close.
+  OOB returns 200 meaning *fall back*; nothing exits.  No refitting and no
+  in-place parameter updates — a new fit is a new bundle, reloaded by the host
+  between solves.
+- **Surrogate signature without struct access** for exported bundles, e.g.
+  `void f(const double *params, const double *in, double *out)`, rendered by
+  an export-specific prologue instead of `const double* parameters =
+  model->parameters;` (`SurrogateModel.py:731`).
+- libmodena is left unchanged.  The price is duplicated argPos, bounds and
+  substitute-mapping logic, and a new cross-language boundary
+  (manifest ↔ core) that needs an ABI test in the style of
+  `test_minmax_abi.py`.
+
+Get the **surrogate signature and the manifest schema** right first; every
+later step depends on them.
+
+#### Alternative: split libmodena into core and Python layer
+
+Instead of (or after) the separate library, refactor libmodena itself:
+`libmodena_core` owns a plain-C struct, evaluation, bounds, argPos,
+substitutes and snapshot loading; `libmodena` becomes a thin `PyObject`
+wrapper holding a core pointer, plus MongoDB loading, OOB workflows and
+in-place parameter updates.
+
+- **For:** no duplicated logic, one boundary, fixes the `PyObject_HEAD`
+  offset hazard for all models, and the Fortran/Julia/MATLAB/R wrappers could
+  target the core and drop Python.
+- **Against:** changes the surrogate ABI — every cached `.so` must be rebuilt
+  and the compile cache invalidated — and rewrites the struct shared across
+  the Python↔C boundary, which `CLAUDE.md` names as the silent-breakage zone.
+
+If the separate library is built to this core API, the split becomes an
+incremental migration rather than a rewrite: first generate surrogates with
+the new signature plus an adapter keeping the old `(model, in, out)` entry
+point, then move the struct.  It is cheapest before MoDeNa 2.0 is widely
+deployed.
+
+A third variant — a snapshot constructor inside the current libmodena
+(`pModel == NULL` branches) — was rejected: it keeps the libpython link and
+`PyObject` struct, which is exactly what hosts like DWSIM cannot take, and
+adds branches to the hot path.
+
+#### Open questions
+
+- Should the other language wrappers drop Python?  If yes, the split is the
+  goal rather than an option.
+- Do exported bundles need in-place parameter updates, or is reloading a
+  bundle enough?  If updates are needed, keep parameters separate from the
+  loaded code in the core struct.
+
 ---
 
 ## Public model archive and portal
