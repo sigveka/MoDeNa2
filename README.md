@@ -532,7 +532,27 @@ python3 -m pytest -v
 
 ## License
 
-GNU Lesser General Public License v3 or later.
-See [`LICENSE`](LICENSE) or <https://www.gnu.org/licenses/>.
+MoDeNa is free software under two licenses, as in the original MoDeNa
+project.
+
+- **The core library — GNU Lesser General Public License v3 or later**
+  ([`COPYING.LESSER`](COPYING.LESSER), together with
+  [`COPYING`](COPYING), which it builds on):
+  - the C library `libmodena`: its C sources in `src/src/`, whose headers
+    grant the LGPL, and the status-code headers generated into it
+    (`modena_status.h.in`, `modena_status_messages.h.in`);
+  - the C++ wrapper header `src/wrappers/cpp/include/modena/modena.hpp`;
+  - the core Python modules `SurrogateModel.py`, `Strategy.py`,
+    `ErrorMetrics.py`, `__init__.py` and `__main__.py` in `src/python/`;
+  - the R wrapper `src/wrappers/r/`, as its `DESCRIPTION` declares.
+
+  The Lesser license is what allows applications under other licenses to
+  link against libmodena.
+- **Every other file — GNU General Public License v3 or later**
+  ([`COPYING`](COPYING)), whether or not it carries a header: the other
+  Python modules, the Fortran interface (`src/src/fmodena.f90` and
+  `src/wrappers/fortran/`), the Julia and MATLAB/Octave wrappers, the
+  portal, the tests, the examples (including `src/src/twoTanksFullProblem.C`)
+  and the applications.
 
 Copyright 2014–2026 MoDeNa Consortium.

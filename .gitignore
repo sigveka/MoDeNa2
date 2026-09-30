@@ -91,6 +91,10 @@
 !src/tests/pytest.ini
 
 # Repo essentials that the allowlist would otherwise exclude
+# License texts: the core library is LGPL-3.0-or-later, everything else
+# GPL-3.0-or-later; see the License section of README.md.
+!COPYING
+!COPYING.LESSER
 !.gitignore
 !README.md
 !install
