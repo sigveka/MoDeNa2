@@ -1,9 +1,30 @@
-# Fuller et al. diffusion coefficient — ForwardMappingModel
-# D_AB = 1.011e-4 * T^1.75 * sqrt(1/W_A + 1/W_B) / (p * (V_A^(1/3) + V_B^(1/3))^2)
+# Fuller et al. binary gas diffusion coefficient — ForwardMappingModel
+#
+#   D_AB = 1.011e-2 * T^1.75 * sqrt(1/W_A + 1/W_B) / (p * (V_A^(1/3) + V_B^(1/3))^2)
+#
+#   T  [K]      p  [Pa]      D_AB  [m^2/s]
+#   W  [g/mol]  molar mass
+#   V  [-]      Fuller diffusion volume (sum of atomic/structural increments)
+#
+# This is Poling, Prausnitz & O'Connell, "The Properties of Gases and
+# Liquids", 5th ed., eq. 11-4.4 -- D [cm^2/s] = 0.00143 T^1.75 /
+# (p[bar] M_AB^1/2 (V_A^1/3 + V_B^1/3)^2), M_AB = 2/(1/W_A + 1/W_B) -- rewritten
+# in SI units: 0.00143/sqrt(2) = 1.011e-3, times 1e-4 m^2/cm^2 and 1e5 Pa/bar.
 #
 # Species pair: A = H2O, B = N2 (from the IndexSet definition in the module).
 # bounds: effectively unbounded (wide physics-valid domain).
-# parameters: W[A], V[A], W[B], V[B] — molecular weights and diffusion volumes.
+# parameters: W[A], V[A], W[B], V[B] — molar masses and diffusion volumes.
+#
+# Values for the species in the `species` IndexSet, for building other pairs
+# (molar masses: IUPAC; diffusion volumes: Poling et al., Table 11-1):
+#
+#   species   W [g/mol]   V [-]
+#   H2O        18.015     13.1
+#   N2         28.013     18.5
+#   SO2        64.064     41.8
+#
+# Check: H2O/N2 at 290 K and 1e5 Pa gives D = 2.49e-5 m^2/s (0.249 cm^2/s),
+# in line with measured water-vapour/nitrogen diffusivities.
 #
 # The [A]/[B] suffixes are index-set notation: indices A and B range over
 # the `species` IndexSet, and the model fullerEtAlDiffusion[A=H2O,B=N2]
@@ -41,14 +62,16 @@ max = 9.0e99
 min = 0.0
 max = 9.0e99
 
-# Initial parameter values: W[H2O]=16, V[H2O]=9.44, W[N2]=14, V[N2]=11.38
-
-
 # Fixed parameter values, keyed by the names declared above.  A bare
 # `parameters = [...]` key here would be parsed into the preceding table,
 # and positional lists are no longer accepted in any case.
+#
+# These were W[H2O] = 16, V[H2O] = 9.44, W[N2] = 14, V[N2] = 11.38 from the
+# first commit, which match no tabulated set; with the formula's coefficient
+# then off by a factor of 100 (it assumed p in hPa while the caller passes
+# Pa), D came out at 3.96e-7 instead of 2.49e-5 m^2/s.
 [parameters]
-"W[A]" = 16.0
-"V[A]" = 9.44
-"W[B]" = 14.0
-"V[B]" = 11.38
+"W[A]" = 18.015   # H2O
+"V[A]" = 13.1     # H2O
+"W[B]" = 28.013   # N2
+"V[B]" = 18.5     # N2

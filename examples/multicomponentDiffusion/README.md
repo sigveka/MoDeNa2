@@ -50,5 +50,15 @@ modena fw reset --force
 ./workflow
 ```
 
+The program evaluates water vapour in nitrogen at 1 bar and 290 K and prints
+
+```
+p = 100000 T = 290 D = 2.48686e-05
+```
+
+in SI units (Pa, K, m²/s) — 0.249 cm²/s, in line with measured values.  The
+formula, its units and the molar masses and diffusion volumes it uses are
+documented in `../MoDeNaModels/fullerEtAlDiffusion/python/config.toml`.
+
 `make distclean` removes the build directory, the installed models and the
 compiled surrogate functions.
