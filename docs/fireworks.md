@@ -1234,7 +1234,31 @@ Reports the status of every MoDeNa dependency and configuration item:
 * Environment variables (`MODENA_URI`, `MODENA_SURROGATE_LIB_DIR`, `MODENA_LOG_LEVEL`, `MODENA_PATH`)
 
 Each item is marked `✓`, `✗`, or `—` (optional/not configured).  Run this
-before filing a bug report or when setting up a new environment.
+before filing a bug report or when setting up a new environment.  It exits
+non-zero if any required item fails, so it can gate a setup script.
+
+When `MODENA_URI` is unset, the database shown is the one MoDeNa actually
+uses by default, `mongodb://localhost:27017/test`.
+
+#### `modena doctor --selftest` — does MoDeNa actually work?
+
+The checks above show the pieces are present; `--selftest` runs them
+together, doing what a first model does with a bundled one (`flowRate`,
+installed to `<prefix>/share/modena/selftest`):
+
+1. installs the flowRate package, building its exact-simulation binary;
+2. resets a FireWorks launchpad and fits flowRate, running the exact
+   simulation;
+3. evaluates the surrogate from Python, and checks that an out-of-bounds call
+   raises `OutOfBounds` with return code 200;
+4. compiles and runs the C example MoDeNa generates for the model (skipped,
+   not failed, when there is no C compiler).
+
+It needs only an install — no source checkout — plus a C compiler, CMake
+and pip (with network access for the build backend).  It works in a
+database of its own on the `MODENA_URI` server, `modena_selftest_<id>`, and a
+temporary directory, and removes both afterwards: your models and launchpad
+are not touched.  It runs only when the libmodena and MongoDB checks pass.
 
 ### `modena quickstart` — usage guide
 

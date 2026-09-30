@@ -376,6 +376,15 @@ modena doctor
 This checks `libmodena.so`, MongoDB connectivity, all required Python packages,
 and key environment variables.  All required items should show `✓`.
 
+To check that MoDeNa works end to end — not just that it is installed — run
+
+```bash
+modena doctor --selftest
+```
+
+which installs, fits and evaluates a bundled model (from Python and from C) in
+a throwaway database on your MongoDB server, then removes it.
+
 ---
 
 ## Quick start

@@ -19,6 +19,7 @@ No MongoDB, no libmodena, no FireWorks launchpad required.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -406,6 +407,71 @@ class TestDoctor:
             with pytest.raises(SystemExit) as exc:
                 cli._doctor(_args())
         assert exc.value.code == 1
+
+    def test_selftest_is_an_opt_in_flag(self):
+        parser = cli._build_parser()
+        assert parser.parse_args(['doctor']).selftest is False
+        assert parser.parse_args(['doctor', '--selftest']).selftest is True
+
+
+# ---------------------------------------------------------------------------
+# One default MODENA_URI
+# ---------------------------------------------------------------------------
+
+_SRC = Path(__file__).resolve().parents[2]
+
+
+def test_every_hardcoded_modena_uri_default_is_the_shared_one():
+    """SurrogateModel connected to `.../test` while doctor reported
+    `.../modena`: with MODENA_URI unset, doctor printed one database and
+    checked another.  Every fallback must be modena._defaults'.
+
+    The portal keeps literals (it sets the default before anything imports
+    modena), so this compares values rather than forbidding literals.
+    """
+    from modena._defaults import DEFAULT_MODENA_URI
+    fallback = re.compile(
+        r'''(?:environ\.get|setdefault)\(\s*['"]MODENA_URI['"]\s*,\s*['"]([^'"]+)['"]''')
+    found = {}
+    for path in list((_SRC / 'python').glob('*.py')) + list((_SRC / 'portal').rglob('*.py')):
+        for value in fallback.findall(path.read_text()):
+            found.setdefault(value, []).append(path.name)
+    wrong = {v: files for v, files in found.items() if v != DEFAULT_MODENA_URI}
+    assert not wrong, f'MODENA_URI fallbacks differ from {DEFAULT_MODENA_URI}: {wrong}'
+
+
+# ---------------------------------------------------------------------------
+# modena doctor --selftest
+# ---------------------------------------------------------------------------
+
+class TestSelftest:
+
+    def test_private_uri_keeps_the_server_and_options(self):
+        from modena.Selftest import private_uri
+        uri, name = private_uri('mongodb://u:p@db.example:27018/work?authSource=admin')
+        assert uri == f'mongodb://u:p@db.example:27018/{name}?authSource=admin'
+        assert name.startswith('modena_selftest_')
+
+    def test_private_uri_is_fresh_each_time(self):
+        from modena.Selftest import private_uri
+        assert private_uri('mongodb://h/x')[1] != private_uri('mongodb://h/x')[1]
+
+    def test_missing_bundled_model_fails_and_still_cleans_up(self, tmp_path):
+        import modena.Selftest as selftest
+        client = MagicMock()
+        with patch.object(selftest, 'selftest_package_dir',
+                          return_value=tmp_path / 'absent'), \
+             patch('pymongo.MongoClient', return_value=client), \
+             patch.object(selftest.subprocess, 'run') as run:
+            rows = list(selftest.run_selftest('mongodb://localhost:27017/test'))
+
+        assert rows[0][:2] == (False, 'bundled model')
+        assert rows[-1][:2] == (True, 'cleanup')
+        run.assert_not_called()
+        dropped = client.drop_database.call_args.args[0]
+        assert dropped.startswith('modena_selftest_'), (
+            'cleanup must drop the private database, never the user\'s'
+        )
 
 
 # ---------------------------------------------------------------------------

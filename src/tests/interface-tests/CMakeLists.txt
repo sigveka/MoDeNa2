@@ -230,6 +230,29 @@ set_tests_properties(modena_twotanks_loop PROPERTIES
     FIXTURES_REQUIRED modena_installed
 )
 
+# -- modena doctor --selftest ---------------------------------------------
+# The install-only end-to-end check a user runs: install the bundled
+# flowRate from <prefix>/share/modena/selftest, fit it, evaluate it from
+# Python and C.  Exercising it here keeps the command a user is told to run
+# from rotting.  It uses a database of its own on the MODENA_TEST_URI server.
+#
+# doctor also checks for a project modena.toml, which a build directory does
+# not have; run it from one configure writes.
+set(_DOCTOR_DIR "${CMAKE_CURRENT_BINARY_DIR}/doctor")
+file(WRITE "${_DOCTOR_DIR}/modena.toml"
+    "# Written by src/tests/interface-tests/CMakeLists.txt for modena_doctor_selftest.\n[models]\npaths = []\n")
+add_test(
+    NAME    modena_doctor_selftest
+    COMMAND ${Python3_EXECUTABLE} -m modena doctor --selftest
+    WORKING_DIRECTORY "${_DOCTOR_DIR}"
+)
+set_tests_properties(modena_doctor_selftest PROPERTIES
+    LABELS            "python;live;selftest"
+    TIMEOUT           900
+    ENVIRONMENT       "MODENA_URI=${MODENA_TEST_URI}"
+    FIXTURES_REQUIRED modena_installed
+)
+
 # -- Status codes agree across every binding ------------------------------
 # The protocol numbers exist in five places (Python, the C enum, and the
 # Fortran / MATLAB / R mirrors).  Five copies is what let "201 = clean exit"
@@ -271,6 +294,7 @@ set(_MODENA_LIVE_TESTS
 #: Live tests that manage a database of their own instead of the fixture's.
 set(_MODENA_SELF_CONTAINED_LIVE_TESTS
     modena_twotanks_loop
+    modena_doctor_selftest
 )
 
 function(modena_require_live name)

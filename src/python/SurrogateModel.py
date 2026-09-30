@@ -71,7 +71,8 @@ __all__ = (
 )
 
 # Create connection to database
-MODENA_URI = os.environ.get('MODENA_URI', 'mongodb://localhost:27017/test')
+from modena._defaults import DEFAULT_MODENA_URI
+MODENA_URI = os.environ.get('MODENA_URI', DEFAULT_MODENA_URI)
 (uri, database) = MODENA_URI.rsplit('/', 1)
 connect(
     database,
