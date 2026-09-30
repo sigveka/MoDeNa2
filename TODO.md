@@ -368,7 +368,7 @@ network is differentiated inside every flash iteration.*
   question above.  Thermodynamic consistency matters more than refit speed.
 - **Weights exportable as one blob** — `modena export` (planned) writes the
   weights from the binary-blob storage described above straight into a
-  standalone bundle evaluated without Python or MongoDB.
+  bundle for the detached runtime (see below).
 
 Work that does not wait for Phase 5: Peng–Robinson's Fʳ written as an exact
 `CFunction` in the same f(T, v, x) layout validates the IndexSet mapping,
@@ -377,13 +377,24 @@ Peng–Robinson package to rounding error.
 
 ---
 
-### Standalone runtime — `libmodena_core` and `modena export`
+### Detached runtime for non-interruptible hosts
 
-*Design stage only — no code exists.  Motivated by the DWSIM property package
-(see Phase 5), but useful for any host that cannot embed CPython, reach
-MongoDB, or be killed and restarted on an OOB event.*
+*Design stage only — no code exists.*
 
-libmodena cannot be used in such hosts today:
+MoDeNa today has one runtime mode, **live mode**: the host runs under
+FireWorks, the model is loaded live from MongoDB, and an OOB query exits the
+host with 200 so that exact simulations, refitting and a restart can follow.
+That only works for hosts that can be killed and restarted.  Many cannot:
+process simulators (DWSIM, CAPE-OPEN hosts), closed-source solvers, GUI
+applications, optimisers, digital twins and real-time systems, co-simulation
+(FMI), and long MPI jobs where a restart is expensive.
+
+**Detached mode** serves those hosts: the host evaluates a frozen,
+hash-identified **bundle**; an OOB query is handled by a policy instead of an
+exit; OOB points are recorded and fed back to MoDeNa asynchronously; a refit
+produces a new bundle that the host reloads at a point of its own choosing.
+
+libmodena cannot provide this:
 
 - `modena_model_t` and `modena_function_t` are CPython objects
   (`PyObject_HEAD`), and `modena.h` pulls in `Python.h` through `global.h`,
@@ -396,42 +407,131 @@ libmodena cannot be used in such hosts today:
   CPython build (debug and free-threaded builds differ) — a latent hazard for
   existing users too.
 
-#### Recommendation: a separate core library, designed as libmodena's future core
+#### Layers
 
-- **`modena export <model_id>`** (Python CLI) writes a self-contained bundle:
-  the compiled surrogate, and a manifest with input/output names, argPos
-  (including IndexSet blocks), bounds, SI units, the IndexSet compound list,
-  fitted parameters (or the Phase 5 weight blob) and a content hash.
-  Substitute models and index expansion are resolved at export time and
-  flattened into the manifest.
-- **`libmodena_core`** (plain C, never includes `Python.h`) loads and
-  evaluates a bundle: open, argPos lookup, bounds check, call, hash, close.
-  OOB returns 200 meaning *fall back*; nothing exits.  No refitting and no
-  in-place parameter updates — a new fit is a new bundle, reloaded by the host
-  between solves.
-- **Surrogate signature without struct access** for exported bundles, e.g.
-  `void f(const double *params, const double *in, double *out)`, rendered by
-  an export-specific prologue instead of `const double* parameters =
-  model->parameters;` (`SurrogateModel.py:731`).
-- libmodena is left unchanged.  The price is duplicated argPos, bounds and
-  substitute-mapping logic, and a new cross-language boundary
-  (manifest ↔ core) that needs an ABI test in the style of
-  `test_minmax_abi.py`.
+```
+  host adapters   DWSIM PropertyPackage │ FMU (FMI) │ CAPE-OPEN │ direct C/Fortran │ …
+  ─────────────────────────────────────────────────────────────────────────────────────
+  runtime         libmodena_core: load · evaluate · OOB policy · record · reload
+  ─────────────────────────────────────────────────────────────────────────────────────
+  specification   bundle manifest  +  OOB record format  +  surrogate ABI
+```
 
-Get the **surrogate signature and the manifest schema** right first; every
-later step depends on them.
+Only the specification and the runtime belong in MoDeNa's core.  Adapters live
+in `applications/` or in their own repositories, and store any host-specific
+metadata in their own files next to a bundle — never in the manifest.
+
+#### Specification
+
+- **Surrogate ABI** — exported surrogates use a signature without struct
+  access, e.g. `void f(const double *params, const double *in, double *out)`
+  (`modena_core_v1`), rendered by an export-specific prologue instead of
+  `const double* parameters = model->parameters;` (`SurrogateModel.py:731`).
+- **Bundle** — one directory per fit, named by its hash: `manifest.json`,
+  `parameters.bin`, the rendered C source, and prebuilt libraries per
+  platform.  Proposed manifest decisions:
+  - JSON manifest (inspectable, readable by any host language); parameters
+    always in a binary float64 little-endian file, never inline, so
+    polynomial coefficients and Phase 5 weight blobs share one code path.
+  - The substitute graph is kept, not fused: a `models` array in topological
+    order with `map_inputs`/`map_outputs`, mirroring
+    `modena_substitute_model_t`.
+  - Inputs and outputs are flat argPos-ordered arrays; IndexSet-backed entries
+    carry a `vector` annotation (base name, set, member).  The runtime checks
+    at load that every block is contiguous and in member order.
+  - `index_sets` list members plus an `identifiers` map (e.g. `cas`,
+    `inchikey`), not one simulator's naming scheme.  `_id` bindings such as
+    `[A=H2O,B=N2]` are recorded as `bindings`.
+  - Composition `constraints` (simplex, dependent bounds) are recorded and
+    checked by the runtime, so "in bounds" means "inside the training region".
+    This deliberately differs from libmodena, which checks only the box.
+  - Optional `derivative` metadata on outputs (`of`, `wrt`) so hosts find
+    f_x[A], f_xx[A,B] by meaning (needed by the Phase 5 DWSIM requirements).
+  - **Units required from bundle format 1.0** — with many kinds of host,
+    missing units are the likeliest silent error.  Export refuses models
+    without declared units, which makes Phase 1 a prerequisite.
+  - `null` for unbounded, not the ±9e99 sentinel from `minMax()`.
+  - The hash covers the canonical manifest, parameters and source, not the
+    compiled libraries: it identifies the model, and a rebuild for another
+    platform does not change it.
+  - `format_version` major.minor: readers reject an unknown major and ignore
+    unknown fields.
+- **OOB record format** — JSON Lines, one record per OOB event: bundle hash,
+  model id, inputs by name, the policy applied, outputs if the host's
+  fallback produced them, time, and a host tag.
+
+#### Runtime responsibilities (`libmodena_core`)
+
+Plain C; never includes `Python.h`.
+
+- Load and validate a bundle; argPos lookup; evaluate.
+- **OOB policy**, chosen per handle by the host:
+
+  | Policy | Behaviour |
+  |---|---|
+  | `signal` (**default**) | return 200, outputs untouched; the host decides |
+  | `fallback` | call a host-registered callback (e.g. a rigorous EoS) and return its result |
+  | `clamp` | evaluate at the nearest in-bounds point |
+  | `extrapolate` | evaluate anyway |
+
+  Every call reports which policy acted.  MoDeNa's exact tasks are
+  Python/FireWorks, so in detached mode the "exact model" can only come from
+  the host, through the fallback callback.
+- **Record every OOB event** to a host-chosen sink (file or callback) in the
+  OOB record format, so every adapter gets the refit loop for free.
+- **Reload** — `reload` returns a new handle; the old one stays valid until
+  released, so multithreaded hosts swap at their own safe points (between
+  flowsheet solves, time steps, optimiser iterations).
+- **Reentrant, thread-safe evaluation** — handles are read-only; recording is
+  serialised internally.
+- Never writes to stdout/stderr (diagnostics go through a host-registered
+  callback), never exits, never aborts.
+
+#### MoDeNa side
+
+- **`modena export <model_id>`** writes a bundle.  Substitute models and
+  index expansion are resolved at export time.
+- **`modena ingest <records>`** reads OOB records: records with outputs
+  become training data directly; records without outputs become points for
+  exact simulations.  Either way the normal `ParameterFittingStrategy` runs
+  and a new bundle can be exported.
+- **ABI test**, in the style of `test_minmax_abi.py`: export, load in
+  `libmodena_core`, and compare with `modena_model_call` bit for bit on
+  sampled points.
+
+#### Adapters
+
+1. **DWSIM** — first adapter: a `PropertyPackage` subclass calling the
+   runtime through P/Invoke, delegating the `fallback` policy to one of
+   DWSIM's own packages with the same compounds.  See the Phase 5 DWSIM
+   requirements.
+2. **FMU (FMI)** — second adapter: a bundle packaged as a co-simulation or
+   model-exchange FMU reaches Modelica tools, Simulink and other FMI importers
+   at once.
+
+#### Implementation route: a separate core library first
+
+`libmodena_core` is built as a separate library, designed as libmodena's
+future core, and libmodena is left unchanged.  The price is duplicated argPos,
+bounds and substitute-mapping logic, and a new cross-language boundary
+(manifest ↔ core) covered by the ABI test above.  Get the **surrogate ABI and
+the manifest schema** right first; every later step depends on them.
 
 #### Alternative: split libmodena into core and Python layer
 
 Instead of (or after) the separate library, refactor libmodena itself:
 `libmodena_core` owns a plain-C struct, evaluation, bounds, argPos,
-substitutes and snapshot loading; `libmodena` becomes a thin `PyObject`
+substitutes and bundle loading; `libmodena` becomes a thin `PyObject`
 wrapper holding a core pointer, plus MongoDB loading, OOB workflows and
-in-place parameter updates.
+in-place parameter updates — i.e. live mode becomes a layer over detached
+mode.
 
 - **For:** no duplicated logic, one boundary, fixes the `PyObject_HEAD`
   offset hazard for all models, and the Fortran/Julia/MATLAB/R wrappers could
-  target the core and drop Python.
+  target the core and drop Python.  Detached mode also benefits restartable
+  hosts — a production CFD run could pin a hash-identified bundle for
+  reproducibility while development runs stay live — which makes the core the
+  natural centre of MoDeNa.
 - **Against:** changes the surrogate ABI — every cached `.so` must be rebuilt
   and the compile cache invalidated — and rewrites the struct shared across
   the Python↔C boundary, which `CLAUDE.md` names as the silent-breakage zone.
@@ -444,16 +544,25 @@ deployed.
 
 A third variant — a snapshot constructor inside the current libmodena
 (`pModel == NULL` branches) — was rejected: it keeps the libpython link and
-`PyObject` struct, which is exactly what hosts like DWSIM cannot take, and
-adds branches to the hot path.
+`PyObject` struct, which is exactly what non-interruptible hosts cannot take,
+and adds branches to the hot path.
 
 #### Open questions
 
+- Should libmodena also check composition constraints, or is the difference
+  from the runtime accepted for now?
+- One `parameters.bin` with offsets for the whole substitute graph, or one
+  file per model?
+- Where the JSON Schema for the manifest lives (proposed:
+  `src/python/bundle_schema.json`, used by export tests in CI; the runtime
+  checks required fields by hand).
+- Do `bindings` need the member's index position, or is the member name
+  enough for hosts?
 - Should the other language wrappers drop Python?  If yes, the split is the
   goal rather than an option.
-- Do exported bundles need in-place parameter updates, or is reloading a
-  bundle enough?  If updates are needed, keep parameters separate from the
-  loaded code in the core struct.
+- Do bundles need in-place parameter updates, or is reloading a bundle
+  enough?  If updates are needed, keep parameters separate from the loaded
+  code in the core struct.
 
 ---
 
