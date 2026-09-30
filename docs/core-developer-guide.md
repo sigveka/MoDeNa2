@@ -286,6 +286,8 @@ standalone (`cmake ../src`).  All local paths use `${CMAKE_CURRENT_LIST_DIR}`
 
 ---
 
+<a id="the-c-library-libmodena"></a>
+
 ## The C library — libmodena
 
 ### Responsibilities
@@ -359,6 +361,8 @@ Tests for these exist in `src/tests/c/test_siunits.c` but are wrapped in
 `#if 0`.  Remove the guards when implementations are added.
 
 ---
+
+<a id="the-python-library-modena"></a>
 
 ## The Python library — modena
 
@@ -637,10 +641,17 @@ The `surrogate_lib_dir` is resolved from (highest priority first):
 | Issue | Location | Notes |
 |---|---|---|
 | No in-place parameter update in C | `model.c` | Every optimizer iteration calls `modena_model_new()` (malloc + copy). Fix: add `modena_model_set_parameters()`. |
-| No automated tests for `minMax()` ABI | `SurrogateModel.py` / `model.c` | A mismatch fails silently. Needs a C-level integration test. |
-| `parameters` is positional, not named | `SurrogateModel.py` | Names live in `surrogateFunction.parameters` keyed by `argPos`. Easy to join incorrectly. |
 | `JigglePoint` non-convergence strategy | `Strategy.py` | Not yet implemented. Would retry a failing point with a small random perturbation. |
 | `modena_siunits_get()` and related | `inputsoutputs.c` | Declared, not implemented. Tests exist under `#if 0`. |
+
+Resolved, and listed here only so they are not re-added from older notes:
+
+- **`minMax()` ABI untested** — the Python side of the tuple contract is pinned
+  by `src/tests/python/test_minmax_abi.py`, and the C side is exercised by
+  every `live` smoke test, since each `modena_model_new()` reads the tuple.
+- **Positional `parameters`** — since the named-parameter rework,
+  `SurrogateModel.parameters` is a dict keyed by name, and the generated C
+  code binds each parameter by name (`const double P0 = parameters[0];`).
 
 ---
 

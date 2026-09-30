@@ -241,7 +241,7 @@ sequenceDiagram
 | Option | CMake flag | Requires |
 |---|---|---|
 | Fortran wrapper | `-DWITH_FORTRAN=ON` | gfortran / ifort (Fortran 2003) |
-| Julia wrapper | `-DWITH_JULIA=ON` | Julia + lld |
+| Julia wrapper | `-DWITH_JULIA=ON` | Julia (plus `lld` only if `Modena.jl` fails to precompile) |
 | MATLAB/Octave wrapper | `-DWITH_MATLAB=ON` | Octave or MATLAB |
 | R wrapper | `-DWITH_R=ON` | R interpreter |
 | Web portal | `-DMODENA_BUILD_PORTAL=ON` | `dash`, `dash-bootstrap-components`, `plotly` (installed automatically) |

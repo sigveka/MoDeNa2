@@ -141,22 +141,25 @@ pip install pytest pytest-cov mongomock
 | `pytest-cov` | Coverage reporting (optional) |
 | `mongomock` | In-memory MongoDB for unit tests |
 
-R and `rpy2` are **not** required for unit tests — they are stubbed out
-automatically by `conftest.py`.  Integration tests require the full
-MoDeNa stack including R.
+Neither R nor `rpy2` is needed by any tier: MoDeNa no longer uses R (fitting
+and sampling are SciPy-based).  R is only needed to build and test the
+optional R wrapper (`WITH_R=ON`, `modena_iface_r_smoke`).
 
 ### How the stubs work
 
 `conftest.py` runs before any test module is imported and:
 
-1. Stubs `rpy2` and `blessings` in `sys.modules` so `Strategy.py`'s
-   module-level R initialisation calls become no-ops.
+1. Patches `mongoengine.connect` with a MagicMock so importing
+   `modena.SurrogateModel` (which calls `connect()` at module scope)
+   does not require a live database.
 2. Creates a minimal `modena` package stub that points `__path__` at the
    source tree without executing `__init__.py`.  This prevents
    `import_helper()` from trying to load `libmodena.so`.
-3. Patches `mongoengine.connect` with a MagicMock so importing
-   `modena.SurrogateModel` (which calls `connect()` at module scope)
-   does not require a live database.
+3. Publishes the build's paths on the stub (`MODENA_INCLUDE_DIR`,
+   `MODENA_LIB_DIR`, …), read from the `_paths.py` that `MODENA_PATHS_FILE`
+   names (CTest sets it) or from a `build*/` tree, and puts the library
+   directory on the stub's `__path__`, so the `installed` tier can import
+   `modena.libmodena` lazily while the unit tier never loads it.
 4. Eagerly imports `modena.SurrogateModel` so its module-level
    `connect()` runs through the MagicMock stub before any test-level
    fixture can swap the connection.
@@ -288,7 +291,6 @@ reporting more than six, the initial points no longer fit the simulation.
 
 | Component | Reason | Path forward |
 |---|---|---|
-| `Strategy.py` sampling / fitting | Requires R + rpy2 + MongoDB | Add under `installed` (mongomock) or `live` once R is available in CI |
 | `modena_model_call` in C | Requires `Py_Initialize()` + MongoDB | Covered end-to-end by the `live` smokes |
 | `SurrogateFunction` Ccode compilation | Requires gcc | Covered by `modena_python_installed` (`test_compile_surrogate.py`) |
 

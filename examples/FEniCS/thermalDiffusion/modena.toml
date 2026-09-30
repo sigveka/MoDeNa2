@@ -2,8 +2,11 @@
 #
 # The thermalDiffusion package is installed into ./models with:
 #
-#   pip install --target=./models \
-#       ../../../MoDeNaModels/thermalDiffusion/python
+#   modena install --prefix ./models ../../MoDeNaModels/thermalDiffusion/python
+#
+# (`pip install --target` would lay the package out flat, where the model
+# registry -- which looks for <prefix>/lib/pythonX.Y/site-packages -- does
+# not find it; and the path had one `../` too many.)
 
 [models]
 paths = ["./models"]

@@ -440,7 +440,7 @@ def _doctor(_args):
         except importlib.metadata.PackageNotFoundError:
             _row(False, pkg, 'not installed', f'pip install {pkg}')
 
-    for pkg in ('CoolProp', 'rpy2'):
+    for pkg in ('CoolProp',):
         try:
             _opt(True, pkg, f'{importlib.metadata.version(pkg)}   (optional)')
         except importlib.metadata.PackageNotFoundError:

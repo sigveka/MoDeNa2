@@ -11,8 +11,8 @@ distclean: clean
 
 help:
 	@echo "Usage:"
-	@echo "  ./buildModels   — build and install the coolPropMixture package"
-	@echo "  ./initModels    — sample compositions with CASTRO, fit the surrogate"
+	@echo "  ./buildModels   — build and install the coolPropMixtureTP package"
+	@echo "  ./initModels    — sample (T, p) with LHS and compositions with CASTRO, fit"
 	@echo "  ./workflow      — validate the surrogate against CoolProp"
 	@echo ""
 	@echo "  make clean      — remove build artefacts"

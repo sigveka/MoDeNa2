@@ -4,15 +4,22 @@ The canonical reference for every MoDeNa status code. The per-language
 quick-starts reproduce the subset each one needs; this page is the source they
 must agree with.
 
-The numbers themselves are defined in `src/python/Strategy.py`:
+The numbers are defined once, in `src/python/_status_codes.py`, and
+re-exported by `modena.Strategy`:
 
 ```python
+OK                        = 0
+INTERNAL_ERROR            = 1
+RETRAINED                 = 100
 OUT_OF_BOUNDS             = 200
 MODEL_NOT_IN_DATABASE     = 201
 PARAMETERS_NOT_VALID      = 202
 INDEX_SET_NOT_IN_DATABASE = 401
-INTERNAL_ERROR            = 1
 ```
+
+At configure time CMake (`src/status-codes.cmake`) generates the C enum and
+the Fortran, MATLAB and R constants from that same table, so adding a code
+there reaches every binding.
 
 Because C, Fortran, MATLAB and R compare integers rather than catching typed
 exceptions, each exposes the same set as named constants. Use them instead of
@@ -148,4 +155,5 @@ launched the script:
 
 * `modena model show <id>` — whether a model is trained
 * [Architecture](architecture.md) — the full out-of-bounds loop
-* `src/src/CLAUDE.md` — the C side of the 202 protocol
+* `src/src/model.c` — the C side of the 202 protocol: where libmodena catches
+  `ParametersNotValid` and calls `SurrogateModel.exceptionParametersNotValid()`

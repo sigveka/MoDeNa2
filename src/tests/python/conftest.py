@@ -115,8 +115,8 @@ if 'modena' not in sys.modules:
     # Put the library directory on the package __path__ so `import
     # modena.libmodena` finds the extension through the normal import system
     # -- lazily, on first use.  Loading it eagerly here would defeat the point
-    # of the stub, which exists to keep the unit tier free of libmodena,
-    # rpy2 and MongoDB.
+    # of the stub, which exists to keep the unit tier free of libmodena and
+    # MongoDB.
     _LIB_DIR = _BUILD_PATHS.get('MODENA_LIB_DIR')
     if _LIB_DIR and Path(_LIB_DIR).is_dir():
         _pkg.__path__.append(str(_LIB_DIR))
