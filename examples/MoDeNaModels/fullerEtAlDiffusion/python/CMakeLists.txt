@@ -39,6 +39,12 @@ file(WRITE
 install(FILES ${DEPS}
   DESTINATION "${PYTHON_SITE}/${CMAKE_PROJECT_NAME}"
 )
+# fullerEtAlDiffusion.py reads its bounds and parameters with
+# load_model_config(__file__), which looks for config.toml beside the module.
+# Installing only the *.py files made the installed package fail on import.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/config.toml"
+  DESTINATION "${PYTHON_SITE}/${CMAKE_PROJECT_NAME}"
+)
 install(
   FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CMAKE_PROJECT_VERSION}.dist-info/METADATA"
   DESTINATION "${PYTHON_SITE}/${CMAKE_PROJECT_NAME}-${CMAKE_PROJECT_VERSION}.dist-info"

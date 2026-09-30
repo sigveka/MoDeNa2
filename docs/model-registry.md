@@ -151,15 +151,31 @@ idealGas = "2.3"
 [models.flowRate]
 surrogate_function = "flowRate"
 n_samples          = 42
-parameters         = [1.234, 5.678, 9.012]
+parameters_array   = [1.234, 5.678]
 last_fitted        = "2026-03-14T09:55:00"
+
+[models.flowRate.parameters]
+P0 = 1.234
+P1 = 5.678
 
 [models.idealGas]
 surrogate_function = "idealGas"
 n_samples          = 100
-parameters         = [8.314]
+parameters_array   = [8.314]
 last_fitted        = "2026-03-14T08:30:00"
+
+[models.idealGas.parameters]
+R = 8.314
 ```
+
+`[models.<id>.parameters]` holds the fitted values **by name** — that is what
+`modena model restore` writes back.  `parameters_array` is the same values in
+argument-position order, for tools that want the flat vector the compiled
+surrogate receives.
+
+A lock written by an older MoDeNa, whose `parameters` is a plain array, still
+restores: it is read in argument-position order, and a length mismatch is
+reported rather than written.
 
 ### Incremental updates
 
@@ -172,16 +188,16 @@ reflects the current state even if the run is interrupted.
 **Freeze** — write a lock file manually:
 
 ```bash
-python -m modena freeze                   # writes modena.lock
-python -m modena freeze -o my.lock        # custom path
+python -m modena model freeze                # writes modena.lock
+python -m modena model freeze -o my.lock     # custom path
 ```
 
 **Restore** — reproduce a previous run's surrogate state:
 
 ```bash
-python -m modena restore                  # reads modena.lock, restores DB
-python -m modena restore --verify-only    # only check package versions
-python -m modena restore -i my.lock       # custom path
+python -m modena model restore               # reads modena.lock, restores DB
+python -m modena model restore --verify-only # only check package versions
+python -m modena model restore -i my.lock    # custom path
 ```
 
 ### Committing the lock file
@@ -198,7 +214,7 @@ To reproduce:
 
 ```bash
 git checkout <commit>
-python -m modena restore
+python -m modena model restore
 ```
 
 ---
@@ -232,7 +248,7 @@ cd examples/twoTanksCxx
 | `~/.modena/config.toml` | `[models] paths = ["~/.modena/models"]` | user |
 | `modena.toml` in project root | `[models] paths = ["./models"]` | project |
 | `MODENA_PATH` env var | `export MODENA_PATH=~/.modena/models` | session |
-| `modena freeze` / `modena restore` | — | provenance |
+| `modena model freeze` / `modena model restore` | — | provenance |
 
 ### Exact-simulation binaries
 

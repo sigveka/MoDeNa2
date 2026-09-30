@@ -1,33 +1,47 @@
-@ingroup ex_multiComponent
+# multicomponentDiffusion
 
-MULTICOMPONENT DIFFUSION EXAMPLE:
-=================================
+Binary gas-phase diffusion coefficients from the correlation of Fuller et al.,
+defined once for a whole family of species pairs by an **index set**.
 
-Binary diffusion by Fuller etal. is combined with Wilke multicomponent diffusion.
+**Model:** `fullerEtAlDiffusion[A=…,B=…]` — a **forward-mapping** model: the
+correlation is evaluated in closed form with parameters (molar masses and
+diffusion volumes) read from its `config.toml`, so nothing is sampled or
+fitted and there is no out-of-bounds retraining.
+**Index set:** `species = {H2O, N2, SO2}`; the indices `A` and `B` of the
+surrogate function both range over it.
+**Macroscopic program:** `fullerEtAlDiffusionTest` (C++), which looks species
+up by name in the index set and evaluates `D` at a given `p` and `T`.
 
-This example only shows the use of index sets. No backward mapping!
+The model package lives in
+[`../MoDeNaModels/fullerEtAlDiffusion`](../MoDeNaModels/fullerEtAlDiffusion).
+What this example shows is the index-set mechanics — one `CFunction` with
+`indices={'A': species, 'B': species}`, instantiated per species pair — rather
+than backward mapping; see [`../twoTanks`](../twoTanks/README.md) for that.
 
+## How to run
 
-How to run?
------------
+MoDeNa must be installed and a MongoDB reachable at `MODENA_URI`
+(`modena doctor` checks both).
 
-# Make sure `PYTHONPATH` and `LD_LIBRARY_PATH` are set
-# TODO:
-# Make this easier to use
-    export PKG_CONFIG_PATH=${PKG_CONFIG_PATH:-}:${HOME}/lib/pkgconfig:/usr/local/lib/pkgconfig
-    export PYTHONPATH=${PYTHONPATH:-}:${HOME}/lib/python3/site-packages
-    export LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${HOME}/lib/python3/site-packages:${HOME}/lib:/usr/local/lib
+On a database FireWorks has never used, initialise its launchpad first, or
+step 2 stops with `Could not get next FW id`.  This **clears** the launchpad
+of the database `MODENA_URI` names, so skip it on one holding runs you want
+to keep:
 
-# Compile project specific sources, i.e. "models":
-    fuller="../models/fullerEtAlDiffusion/src"
-    cmake -H${fuller} -B${fuller} && make --directory=${fuller}
+```bash
+modena fw reset --force
+```
 
-# Initialise the model in the database
-    ./initModel
+```bash
+# 1. Compile and install the fullerEtAlDiffusion package into ./models
+./buildModels
 
-# Start the workflow
-    ./workflow
+# 2. Register the model for the H2O/N2 pair in the database
+./initModels
 
-# Run again to see that no fitting is done on the second start
-    ./workflow
+# 3. Run fullerEtAlDiffusionTest through FireWorks
+./workflow
+```
 
+`make distclean` removes the build directory, the installed models and the
+compiled surrogate functions.

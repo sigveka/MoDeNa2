@@ -11,9 +11,9 @@ distclean: clean
 
 help:
 	@echo "Usage:"
-	@echo "  ./buildModels   — build and install the coolPropMixture package"
-	@echo "  ./initModels    — sample compositions with CASTRO, fit the surrogate"
-	@echo "  ./workflow      — validate the surrogate against CoolProp"
+	@echo "  ./buildModels   — build and install the fullerEtAlDiffusion package"
+	@echo "  ./initModels    — register fullerEtAlDiffusion[A=H2O,B=N2] in the database"
+	@echo "  ./workflow      — run fullerEtAlDiffusionTest through FireWorks"
 	@echo ""
 	@echo "  make clean      — remove build artefacts"
 	@echo "  make distclean  — remove build artefacts and installed models"

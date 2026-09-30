@@ -186,8 +186,12 @@ flowRate = "1.0"
 [models.flowRate]
 surrogate_function = "two_tank_flowRate"
 n_samples          = 8
-parameters         = [1.234, 0.567]
+parameters_array   = [1.234, 0.567]
 last_fitted        = "2026-03-15T10:04:50"
+
+[models.flowRate.parameters]
+P0 = 1.234
+P1 = 0.567
 ```
 
 This file records exactly which model versions and fitted parameters were
@@ -201,7 +205,7 @@ git commit -m "pin surrogate parameters after calibration run"
 To restore this state on another machine:
 
 ```bash
-python3 -m modena restore
+python3 -m modena model restore
 ```
 
 ---

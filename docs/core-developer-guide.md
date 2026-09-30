@@ -48,11 +48,11 @@ MoDeNa/
 ├── CMakeLists.txt          ← single CMake entry point
 ├── src/
 │   ├── src/                ← C library (libmodena)
-│   │   ├── modena.h        ← public API — the only installed header
-│   │   ├── model.c         ← modena_model_new/call/delete
+│   │   ├── modena.h        ← public API — the only header to include
+│   │   ├── model.c         ← modena_model_new/call/destroy
 │   │   ├── function.c      ← surrogate .so loading via lt_dlopen
 │   │   ├── inputsoutputs.c ← argPos lookup, min/max arrays
-│   │   ├── global.c        ← modena_initialize(), Py_Initialize()
+│   │   ├── global.c        ← PyInit_libmodena(): runs at load, Py_Initialize()
 │   │   └── inline.h        ← modena_inputs_set/get (inlined)
 │   ├── python/             ← Python library (modena)
 │   │   ├── SurrogateModel.py
@@ -292,28 +292,44 @@ standalone (`cmake ../src`).  All local paths use `${CMAKE_CURRENT_LIST_DIR}`
 
 | Step | Function | File |
 |---|---|---|
-| Initialise Python interpreter | `modena_initialize()` | `global.c` |
+| Initialise Python interpreter | `PyInit_libmodena()` — automatic, at load | `global.c` |
 | Load model from MongoDB | `modena_model_new()` | `model.c` |
 | Evaluate surrogate | `modena_model_call()` | `model.c` |
 | Load compiled surrogate `.so` | `CFunction.__init__` → `lt_dlopen` | `function.c` |
 | Detect out-of-bounds | `modena_model_call()` | `model.c` |
-| Free model | `modena_model_delete()` | `model.c` |
+| Free model | `modena_model_destroy()` | `model.c` |
 
-`modena_initialize()` **must** be called before any other `modena_` function.
-It calls `Py_Initialize()`, configures `sys.path`, and loads the
-`SurrogateModel` Python class into the global `modena_SurrogateModel`.
+There is no initialisation call for applications to make.
+`PyInit_libmodena()` is declared `__attribute__((constructor))`
+(`global.c`), so it runs when `libmodena.so` is loaded — before `main()` for
+an application linked against it.  It reads `MODENA_LOG_LEVEL`, calls
+`Py_Initialize()` unless an interpreter is already running (a Python host),
+registers the `libmodena` extension types, and imports
+`modena.SurrogateModel` to cache `SurrogateModel`, `IndexSet`,
+`SurrogateFunction` and the `DoesNotExist` / `ParametersNotValid` /
+`OutOfBounds` exception classes in globals.  A re-entrancy guard stops the
+second `PyInit_libmodena()` that `import modena` triggers from repeating the
+import.
+
+Because this runs at load time, a unit test that must not start Python cannot
+link `libmodena.so`; `src/tests/c/` compiles the needed source files directly
+instead.
 
 ### Public API
 
-`modena.h` is the **only** public header and defines the stable ABI.  Do not
-remove or rename anything in `modena.h` without a major version bump.  Internal
-headers (`model.h`, `function.h`, `inputsoutputs.h`, `inline.h`, `global.h`)
-are not installed.
+`modena.h` is the **only** header applications include, and defines the
+stable ABI.  Do not remove or rename anything it exposes without a major
+version bump.  The internal headers (`model.h`, `function.h`,
+`inputsoutputs.h`, `inline.h`, `global.h`, `indexset.h`) are installed too —
+`modena.h` includes them — but only for that reason: they are not a public
+API and may change without notice.
 
 ### Memory ownership
 
 - `modena_model_new()` allocates `modena_model_t` and all sub-arrays on the
-  heap.  `modena_model_delete()` frees everything.  Callers must call delete.
+  heap.  `modena_model_destroy()` frees everything.  C and C++ callers must
+  call it (the C++ `modena::Model` does so in its destructor); wrappers for
+  managed languages release through `Py_DecRef` instead — see below.
 - `inputs`, `outputs`, `parameters` arrays inside `modena_model_t` are **owned
   by the struct** — do not free them separately.
 - CPython reference counting:
@@ -556,10 +572,11 @@ The wrapper must locate `libmodena.so` without a hardcoded path.  Resolve
 See `src/wrappers/matlab/mex/modena_gateway.c` and
 `src/wrappers/r/src/modena_r.c` for complete reference implementations.
 
-### Model destruction — use `Py_DecRef`, not `modena_model_delete`
+### Model destruction — use `Py_DecRef`, not `modena_model_destroy`
 
-`modena_model_t` is a Python object wrapped in a C struct.  Calling
-`modena_model_delete()` directly bypasses Python's reference counting and
+`modena_model_t` is a Python object wrapped in a C struct, and
+`modena_model_destroy()` doubles as its `tp_dealloc`.  Calling it directly
+from a wrapper bypasses Python's reference counting and
 causes a use-after-free when `Py_Finalize()` runs at process exit.  Always
 decrement the reference count via `Py_DecRef(model)` (or the equivalent
 function pointer) to let `tp_dealloc` free memory at the right time.
@@ -583,7 +600,7 @@ collected, so memory is freed even if the user forgets to call `destroy()`.
 - [ ] Cache all needed function pointers via `dlsym`
 - [ ] Expose `model_new`, `inputs_new`, `outputs_new`, `inputs_set`,
       `model_call`, `outputs_get`, `inputs_destroy`, `outputs_destroy`
-- [ ] Destroy via `Py_DecRef`, not `modena_model_delete`
+- [ ] Destroy via `Py_DecRef`, not `modena_model_destroy`
 - [ ] Register a GC finalizer for all three pointer types
 - [ ] Handle return codes: 0 = ok, 100 = retrained (retry step), 200 = OOB (exit)
 - [ ] Write unit tests (no libmodena required) and integration tests (skip if absent)

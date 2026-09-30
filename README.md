@@ -260,16 +260,42 @@ sequenceDiagram
 ##### 1.1 Mandatory
 
 ```bash
-sudo apt install build-essential cmake python3-{dev,pip}
+sudo apt install build-essential cmake libltdl-dev python3-{dev,pip}
 ```
 
-Start MongoDB:
+`libltdl-dev` is required: libmodena loads the compiled surrogates through
+it, and configure stops with `LTDL was not found` without it.  This is the
+same package set `ci/Dockerfile` builds from, which CI verifies on a clean
+Ubuntu 24.04.
+
+##### 1.2 MongoDB
+
+Ubuntu 24.04 does not package MongoDB.  Install it from MongoDB's own
+repository ([upstream instructions](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/)):
 
 ```bash
-sudo systemctl start mongod
+curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc \
+  | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" \
+  | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+sudo apt update
+sudo apt install mongodb-org
+sudo systemctl enable --now mongod
 ```
 
-##### 1.1 Optional
+Or, with Docker, run it in a container instead:
+
+```bash
+docker run -d --name mongodb -p 27017:27017 mongo:7
+```
+
+##### 1.3 Optional
+
+**Fortran Wrapper** — built automatically when a Fortran compiler is found
+
+```bash
+sudo apt install gfortran
+```
 
 **Octave Wrapper**
 
@@ -280,14 +306,13 @@ sudo apt install octave{,-dev}
 **R Wrapper**
 
 ```bash
-sudo apt install r-{base,-dev}
+sudo apt install r-base{,-dev}
 ```
 
-**Julia Wrapper**
+**Julia Wrapper** — installs Julia through juliaup
 
 ```bash
-
---yes --add-to-path=yes
+curl -fsSL https://install.julialang.org | sh -s -- --yes --add-to-path=yes
 ```
 
 #### 2 — Install Python dependencies

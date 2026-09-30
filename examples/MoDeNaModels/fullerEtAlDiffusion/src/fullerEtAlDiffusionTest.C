@@ -117,7 +117,10 @@ main(int argc, char *argv[])
     size_t ppos = modena_model_inputs_argPos(model, "p");
     size_t TPos = modena_model_inputs_argPos(model, "T");
 
-    size_t DPos = modena_model_outputs_argPos(model, "D[A]");
+    // "DA", as declared in python/config.toml.  This asked for "D[A]" -- the
+    // output's name before the config.toml migration -- and died in the
+    // lookup, while the FireWorks task around it still reported completion.
+    size_t DPos = modena_model_outputs_argPos(model, "DA");
 
     modena_model_argPos_check(model);
 
