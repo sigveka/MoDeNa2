@@ -40,6 +40,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from modena import __version__ as MODENA_VERSION
+# Import-safe (no engine, no database): the launch handlers catch it.
+from modena._errors import WorkflowFailed
 from modena import SurrogateModel
 from modena.Registry import ModelRegistry, _find_project_config
 
@@ -700,7 +702,9 @@ def _launch(wf_or_models, args) -> None:
     import modena as _modena
     try:
         _modena.run(wf_or_models, **_build_run_kwargs(args))
-    except ValueError as exc:
+    except (ValueError, WorkflowFailed) as exc:
+        # WorkflowFailed: a firework failed.  Exit non-zero so a script or CI
+        # job running `modena simulate` / `modena init` sees it.
         print(f'[modena] ERROR: {exc}', file=sys.stderr)
         sys.exit(1)
 
@@ -721,7 +725,7 @@ def _fw_launch(args):
     kwargs.pop('reset', None)          # launch() never resets; it only runs
     try:
         _modena.launch(lpad=lp, **kwargs)
-    except ValueError as exc:
+    except (ValueError, WorkflowFailed) as exc:
         print(f'[modena] ERROR: {exc}', file=sys.stderr)
         sys.exit(1)
 
@@ -848,7 +852,9 @@ def _model_sample(args):
 
     try:
         result = request_points(model, args.points, run=args.run, source='cli')
-    except InFlight as exc:
+    except (InFlight, WorkflowFailed) as exc:
+        # WorkflowFailed: with --run, a simulation failed.  This printed
+        # "Ran N simulation(s)." regardless before run() reported failures.
         print(f'[modena] ERROR: {exc}', file=sys.stderr)
         sys.exit(1)
 

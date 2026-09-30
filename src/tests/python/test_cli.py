@@ -337,6 +337,18 @@ class TestLauncherKwargs:
         assert exc.value.code == 1
         assert 'needs a qadapter' in capsys.readouterr().err
 
+    def test_launch_reports_a_failed_workflow_and_exits_nonzero(self, capsys):
+        """`modena simulate` must not exit 0 when its simulation failed."""
+        from modena.Runner import WorkflowFailed
+        fake = MagicMock()
+        fake.run.side_effect = WorkflowFailed(
+            [(1, 'simulation TwoTankModel', 'macroscopic simulation terminated')])
+        with patch.dict(sys.modules, {'modena': fake}):
+            with pytest.raises(SystemExit) as exc:
+                cli._launch(MagicMock(), _launcher_args())
+        assert exc.value.code == 1
+        assert 'simulation TwoTankModel' in capsys.readouterr().err
+
 
 # ---------------------------------------------------------------------------
 # install

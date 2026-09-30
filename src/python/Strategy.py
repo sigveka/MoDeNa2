@@ -94,6 +94,7 @@ __all__ = (
 # Exceptions
 'ParametersNotValid', 'OutOfBounds', 'FatalModelError',
 'TerminateWorkflow', 'ModifyWorkflow', 'BinaryNotFound',
+'workflow_failed', 'FAILURE_KEY',
 # OOB strategies
 'ExtendSpaceStochasticSampling', 'ForbidOutOfBounds', 'ExtendSpaceExpandedCASTROSampling',
 # Non-convergence strategies
@@ -2302,7 +2303,39 @@ class ParametersNotValid(Exception):
 
 
 class TerminateWorkflow(Exception):
-    pass
+    """An unrecoverable failure; ``args`` is ``(message, returnCode)``.
+
+    Reads as "<message> (return code N)" rather than as the raw tuple, since
+    the text ends up in the WorkflowFailed a user sees.
+    """
+
+    def __str__(self):
+        if len(self.args) == 2:
+            return f'{self.args[0]} (return code {self.args[1]})'
+        return super().__str__()
+
+
+#: FWAction.stored_data key recording why a firework ended its workflow.
+#: modena.Runner.launch() reads it back and raises WorkflowFailed.
+FAILURE_KEY = 'modena_failed'
+
+
+def workflow_failed(message):
+    """The FWAction for a failure that ends the workflow.
+
+    Defusing is how a task stops the rest of its workflow, but a task that
+    *returns* an action is one FireWorks records as COMPLETED -- so a
+    simulation that failed looked, to everything after it, exactly like one
+    that succeeded.  For a one-firework workflow (a plain `modena simulate`)
+    there is not even a defused child left to hint at it, and the workflow
+    scripts went on to print "Workflow complete."
+
+    The reason is therefore recorded in the launch's stored_data as well;
+    ``modena.run()`` / ``launch()`` look for it after the workers finish and
+    raise ``WorkflowFailed``.
+    """
+    return FWAction(defuse_workflow=True,
+                    stored_data={FAILURE_KEY: str(message) or 'failed'})
 
 
 class ModifyWorkflow(Exception):
@@ -2429,7 +2462,8 @@ class DefuseWorkflowOnFailure(NonConvergenceStrategy):
             'Exact simulation FAILED for model %s at point %s — defusing workflow: %s',
             model_id, point, exc,
         )
-        return FWAction(defuse_workflow=True)
+        return workflow_failed(
+            f'exact simulation for {model_id} failed at {point}: {exc}')
 
 
 @explicit_serialize
@@ -2633,7 +2667,7 @@ class ModenaFireTask(FireTaskBase):
 
         except FatalModelError as e:
             _log.error('Fatal model error — defusing workflow: %s', e)
-            raise ModifyWorkflow(FWAction(defuse_workflow=True))
+            raise ModifyWorkflow(workflow_failed(f'fatal model error: {e}'))
 
 
     def run_task(self, fw_spec):
@@ -2718,7 +2752,9 @@ class ModenaFireTask(FireTaskBase):
                     'model_id': self.get('modelId'),
                 },
             )
-            return FWAction(defuse_workflow=True)
+            return workflow_failed(
+                f"exact simulation binary '{e.name}' not found for model "
+                f"{self.get('modelId', '?')}")
 
         except Exception as e:
             _log.debug('Exact simulation exception for model %s',
@@ -2885,8 +2921,10 @@ class ModenaFireTask(FireTaskBase):
             )
 
         elif returnCode > 0:
+            # handleReturnCode serves exact *and* macroscopic tasks, so the
+            # message names neither.
             raise TerminateWorkflow(
-                'An unknown error occurred calling exact simulation',
+                'The simulation exited with an unknown error',
                 returnCode
             )
 
@@ -2928,11 +2966,12 @@ class BackwardMappingScriptTask(ModenaFireTask, ScriptTask):
 
         except TerminateWorkflow as e:
             _log.error('Macroscopic simulation terminated: %s', e)
-            return FWAction(defuse_workflow=True)
+            return workflow_failed(f'macroscopic simulation terminated: {e}')
 
         except Exception as e:
             _log.error('Macroscopic simulation failed: %s', e, exc_info=True)
-            return FWAction(defuse_workflow=True)
+            return workflow_failed(
+                f'macroscopic simulation failed: {type(e).__name__}: {e}')
 
         return FWAction()
 

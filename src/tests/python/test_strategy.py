@@ -413,6 +413,7 @@ class TestBackwardMappingScriptTaskRunTask:
         assert result is not None
 
     def test_returns_defuse_on_exception(self):
+        from modena.Strategy import FAILURE_KEY
         task = self._make_task()
 
         with patch.object(task, 'executeAndCatchExceptions',
@@ -420,6 +421,24 @@ class TestBackwardMappingScriptTaskRunTask:
             result = task.run_task({'_fw_env': {}, '_modena_fitted_models': []})
 
         assert result.defuse_workflow is True
+        # Returning an action makes FireWorks record the firework COMPLETED;
+        # the recorded reason is what lets modena.run() see it failed.
+        assert 'RuntimeError: boom' in result.stored_data[FAILURE_KEY]
+
+    def test_a_terminated_simulation_is_recorded_as_a_failure(self):
+        """An unknown exit code -- the fullerEtAlDiffusion case, where the
+        program died on a bad output name and the example still printed
+        "Workflow complete."."""
+        from modena.Strategy import FAILURE_KEY, TerminateWorkflow
+        task = self._make_task()
+
+        with patch.object(task, 'executeAndCatchExceptions',
+                          side_effect=TerminateWorkflow('return code 1')):
+            result = task.run_task({'_fw_env': {}, '_modena_fitted_models': []})
+
+        assert result.defuse_workflow is True
+        assert result.stored_data[FAILURE_KEY] == (
+            'macroscopic simulation terminated: return code 1')
 
     def test_success_returns_plain_fw_action(self):
         """When everything succeeds, run_task returns FWAction() (not defuse)."""
