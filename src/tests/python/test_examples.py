@@ -177,6 +177,56 @@ def test_parameter_values_match_declared_names(path, raw):
     )
 
 
+def _installer_ships_config(cfg):
+    """Does the package's installer copy *cfg* next to its module?
+
+    Two installers are in use.  A CMake package (built by an example's
+    buildModels, or by scikit-build) must name config.toml in an install()
+    rule.  A setuptools package must list it as package-data *and* declare
+    the package explicitly: these directories are named `python`, not after
+    the package, so auto-discovery installs a bare top-level module -- and
+    package-data, which only applies to packages, is then silently dropped.
+    """
+    here = cfg.parent
+    for cmake in (here / 'CMakeLists.txt', here.parent / 'CMakeLists.txt'):
+        if cmake.exists() and re.search(r'install\s*\([^)]*config\.toml',
+                                        cmake.read_text(), re.S):
+            return True
+    for pyproject in (here / 'pyproject.toml', here.parent / 'pyproject.toml'):
+        if not pyproject.exists():
+            continue
+        tool = tomllib.loads(pyproject.read_text()).get('tool', {})
+        st = tool.get('setuptools', {})
+        data = st.get('package-data', {})
+        ships = any('config.toml' in globs for globs in data.values())
+        declared = bool(st.get('packages')) and bool(st.get('package-dir'))
+        if ships and declared:
+            return True
+    return False
+
+
+@pytest.mark.parametrize('path,raw', _CONFIGS, ids=_ids(_CONFIGS))
+def test_config_toml_is_installed_with_its_module(path, raw):
+    """A module that loads its config.toml needs its installer to ship it.
+
+    load_model_config(__file__) looks for config.toml beside the installed
+    module.  Five of the six example packages using it installed only their
+    *.py files, so each installed cleanly and then failed on import with
+    "config.toml not found alongside ...": fullerEtAlDiffusion, coolProp,
+    coolPropMixture and coolPropMixtureTP through their CMake rules, and
+    thermalDiffusion through setuptools auto-discovery.
+    """
+    users = [py for py in path.parent.glob('*.py')
+             if 'load_model_config' in py.read_text()]
+    if not users:
+        pytest.skip('no module in this package loads config.toml')
+    assert _installer_ships_config(path), (
+        f'{_rel(path)} is loaded by {[p.name for p in users]} but no installer '
+        f'ships it: add install(FILES ".../config.toml" ...) to the CMake '
+        f'rules, or setuptools package-data plus packages/package-dir'
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Ccode
 # --------------------------------------------------------------------------- #
