@@ -127,6 +127,16 @@ pytest -m installed -v          # installed tier only
 pytest -v --tb=long             # verbose tracebacks
 ```
 
+### Documentation checks
+
+`test_docs.py` (unit tier) checks the Markdown under `docs/`, the READMEs
+and `examples/*/README.md` against the repository and the CLI: relative links
+and backticked repo paths must exist, `#anchor` links must resolve both on
+GitHub and in mkdocs (their heading slugs differ around punctuation such as
+em dashes — use an explicit `<a id="..."></a>` when they do), every page in
+`docs/` must be in the mkdocs nav, and every `modena ...` command shown as a
+shell command must parse, options included.
+
 ### Dependencies
 
 Install the test extras:
