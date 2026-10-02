@@ -7,8 +7,8 @@ rather than catching typed exceptions the way C++, Julia and Python do.  Five
 copies of the same numbers is exactly the arrangement that let "201 = clean
 exit" survive in six documents, so they are pinned here.
 
-Marked integration: needs the installed headers, wrapper packages and
-toolchains.
+Tier ``installed``: needs the installed headers, wrapper packages and
+toolchains, but no database.
 """
 import os
 import shutil
@@ -17,6 +17,8 @@ import sysconfig
 from pathlib import Path
 
 import pytest
+
+pytestmark = pytest.mark.installed
 
 PREFIX = Path(os.environ.get('MODENA_PREFIX', Path.home()))
 LIB = PREFIX / 'lib' / 'modena'
@@ -61,7 +63,6 @@ def _parsed(out):
     raise AssertionError(f'no {N}-integer line in:\n{out}')
 
 
-@pytest.mark.integration
 def test_python_is_the_source_of_truth():
     import modena.Strategy as S
     for name, value in EXPECTED.items():
@@ -70,7 +71,6 @@ def test_python_is_the_source_of_truth():
         assert getattr(S, name) == value, name
 
 
-@pytest.mark.integration
 def test_c_enum_matches(tmp_path):
     if not shutil.which('gcc'):
         pytest.skip('gcc not available')
@@ -90,7 +90,6 @@ def test_c_enum_matches(tmp_path):
     assert _parsed(run.stdout) == list(EXPECTED.values())
 
 
-@pytest.mark.integration
 def test_fortran_parameters_match(tmp_path):
     if not shutil.which('gfortran'):
         pytest.skip('gfortran not available')
@@ -110,7 +109,6 @@ def test_fortran_parameters_match(tmp_path):
     assert _parsed(run.stdout) == list(EXPECTED.values())
 
 
-@pytest.mark.integration
 def test_r_constants_match(tmp_path):
     if not shutil.which('Rscript'):
         pytest.skip('R not available')
@@ -127,7 +125,6 @@ def test_r_constants_match(tmp_path):
     assert _parsed(run.stdout) == list(EXPECTED.values())
 
 
-@pytest.mark.integration
 def test_matlab_constants_match(tmp_path):
     if not shutil.which('octave'):
         pytest.skip('octave not available')
@@ -147,7 +144,6 @@ def test_matlab_constants_match(tmp_path):
     assert _parsed(run.stdout) == list(EXPECTED.values())
 
 
-@pytest.mark.integration
 def test_error_message_describes_the_protocol_codes():
     """modena_error_message() returned "Unknown error" for every code that
     actually occurs -- its bounds check stopped at MODENA_MODEL_LAST (4)."""

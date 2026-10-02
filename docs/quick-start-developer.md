@@ -339,6 +339,15 @@ write `argPos: N` in a declaration.  Supplying it explicitly raises a
 (`^[a-zA-Z_][a-zA-Z0-9_]*$`) so the Jinja2 template can bind it as
 `const double <name> = ...;`.  Validated at `CFunction` construction time.
 
+The one exception is **index-set notation**.  A name may carry indices from
+the function's `indices={...}`, as in `W[A]` or `D[A,B]`; each index must be
+declared.  The name keeps its brackets everywhere outside C — a model instance
+such as `fullerEtAlDiffusion[A=H2O,B=N2]` expands its output `D[A]` to
+`D[H2O]`, which is the name another model uses to take it as an input — and
+is bound in the generated C code without them: `W[A]` as `WA`, `D[A,B]` as
+`DAB`.  Declaring two names with the same binding (`W[A]` and `WA`) is
+rejected.  See `examples/MoDeNaModels/fullerEtAlDiffusion`.
+
 **Reordering is safe.**  Parameter values on the model are stored keyed by
 name (`DictField(FloatField)` on disk — `{"P0": 0.6134, "P1": 0.6143}`)
 — swapping the order of `'P0'` and `'P1'` in the `parameters={}`
@@ -430,9 +439,9 @@ m = BackwardMappingModel(
     initialisationStrategy=Strategy.InitialPoints(
         initialPoints={
             'D':      [0.01, 0.01, 0.01, 0.01],
-            'rho0':   [3.4,  3.5,  3.4,  3.5 ],
-            'p0':     [2.8e5, 3.2e5, 2.8e5, 3.2e5],
-            'p1Byp0': [0.03, 0.03, 0.04, 0.04],
+            'rho0':   [0.5,  3.5,  0.5,  3.5 ],
+            'p0':     [4.2e4, 3.2e5, 4.2e4, 3.2e5],
+            'p1Byp0': [0.03, 0.03, 0.9,  0.9 ],
         },
     ),
     outOfBoundsStrategy=Strategy.ExtendSpaceStochasticSampling(
@@ -449,7 +458,11 @@ m = BackwardMappingModel(
 **`_id`** — the name used when calling `modena_model_new("flowRate")`.
 
 **`initialisationStrategy`** — points evaluated once by `./initModels` to seed
-the database before the first simulation run.
+the database before the first simulation run.  Their min/max per input is the
+initial trained box, so size it from the range the solver will visit: each
+out-of-bounds event widens only one input by a factor of 1.2 and restarts the
+simulation.  For twoTanks the box above costs 1–3 refits; a box around the
+starting point alone (rho0 3.4–3.5, p0 2.8–3.2e5, p1Byp0 0.03–0.04) costs 42.
 
 **`outOfBoundsStrategy`** — what to do when the solver queries outside the
 trained region.  `ExtendSpaceStochasticSampling` adds random points around the

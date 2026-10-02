@@ -278,6 +278,61 @@ class TestRegistryRestoreVerifyOnly:
 
 
 # ---------------------------------------------------------------------------
+# ModelRegistry.restore — parameters, in both lock formats
+# ---------------------------------------------------------------------------
+# freeze has written `parameters` as a {name: value} table since parameters
+# were named.  A lock written before that holds an argPos-ordered array, and
+# restore assigned it straight to the dict field: validation failed, the
+# error was only logged, and nothing was restored.
+
+class TestRegistryRestoreParameters:
+
+    def setup_method(self):
+        from modena.Registry import ModelRegistry
+        ModelRegistry._instance = None
+
+    def _restore(self, tmp_path, entry, model):
+        from modena.Registry import ModelRegistry, _write_toml_minimal
+        from modena.SurrogateModel import SurrogateModel
+        lock = tmp_path / 'modena.lock'
+        _write_toml_minimal(lock, {'packages': {}, 'models': {'flowRate': entry}})
+        reg = ModelRegistry()
+        objects = MagicMock()
+        objects.get.return_value = model
+        with patch.object(reg, 'active_packages', return_value={}), \
+             patch.object(SurrogateModel, 'objects', objects):
+            reg.restore(lock)
+        return model
+
+    def test_named_parameters_are_restored_by_name(self, tmp_path):
+        """The format freeze writes today, through the real writer and reader."""
+        from types import SimpleNamespace
+        from modena.Registry import _model_entry
+        entry = _model_entry(SimpleNamespace(
+            surrogateFunction=SimpleNamespace(name='flowRate'),
+            fitData={}, parameters={'P0': 1.5, 'P1': 0.25},
+            parameters_array=lambda: [1.5, 0.25], last_fitted=None,
+        ))
+        model = self._restore(tmp_path, entry, MagicMock())
+        assert model.parameters == {'P0': 1.5, 'P1': 0.25}
+        model.save.assert_called_once()
+
+    def test_positional_parameters_from_an_old_lock_are_restored(self, tmp_path):
+        model = self._restore(tmp_path, {'parameters': [1.5, 0.25]}, MagicMock())
+        model.set_parameters_array.assert_called_once_with([1.5, 0.25])
+        model.save.assert_called_once()
+
+    def test_a_wrong_length_array_is_reported_not_saved(self, tmp_path, caplog):
+        import logging
+        model = MagicMock()
+        model.set_parameters_array.side_effect = ValueError('expected 2 parameters')
+        with caplog.at_level(logging.ERROR, logger='modena.registry'):
+            self._restore(tmp_path, {'parameters': [1.0]}, model)
+        model.save.assert_not_called()
+        assert any('Could not restore' in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
 # ModelRegistry.load — [logging] section in modena.toml
 # ---------------------------------------------------------------------------
 

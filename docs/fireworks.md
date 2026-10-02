@@ -234,6 +234,8 @@ python3 -m modena model refit flowRate --sequential
 python3 -m modena model refit flowRate --jobs 4
 ```
 
+<a id="operation-3--run-the-macroscopic-simulation"></a>
+
 ### Operation 3 — run the macroscopic simulation
 
 Run the full simulation workflow (the C/Fortran/Python application that calls
@@ -276,7 +278,7 @@ from .twoTank import m, TwoTankModel
 serialisation: when a rocket process deserialises the Firework from MongoDB it
 resolves `{{twoTank.TwoTankModel}}` by importing `twoTank` and calling
 `getattr(twoTank, 'TwoTankModel')`.  The class must therefore be exported at
-the package top level (see [FireTask serialisation](#firetask-serialisation)).
+the package top level (see [How FireWorks deserializes tasks](#how-fireworks-deserializes-tasks)).
 
 #### Bash workflow script (`workflow`)
 
@@ -414,6 +416,8 @@ parameter.  All three share the same MongoDB launchpad as coordination point:
 every Firework is claimed atomically, so mixed deployments (local workers
 **and** HPC jobs running simultaneously) never execute the same Firework twice.
 
+<a id="rapidfire--local-workers-default"></a>
+
 ### `rapidfire` — local workers (default)
 
 Worker processes are spawned on the local machine.  Each worker polls MongoDB,
@@ -450,6 +454,8 @@ modena.run(models, njobs=1)
 ```
 
 ---
+
+<a id="qlaunch--hpc-queue"></a>
 
 ### `qlaunch` — HPC queue
 
@@ -504,6 +510,8 @@ modena init all \
 ```
 
 ---
+
+<a id="auto--adaptive-escalation"></a>
 
 ### `auto` — adaptive escalation
 
@@ -731,6 +739,8 @@ MoDeNa and raw FireWorks CLI tools, keep `my_launchpad.yaml` in sync with
 ---
 
 ## Inspecting and managing the launchpad
+
+<a id="modenalpad-factory"></a>
 
 ### `modena.lpad()` — factory
 
@@ -1002,16 +1012,24 @@ Import failures are silently logged at `DEBUG` level and do not abort startup.
 
 ## Command-line reference
 
-Commands are grouped into four categories:
-
 ```
 modena fw        <command>   — FireWorks launchpad operations
 modena model     <command>   — Surrogate model database operations
 modena init      <model_id>  — Run initialisation workflow
+modena simulate  [target]    — Run the macroscopic simulation workflow
 modena install   <path>      — Install a model package
+modena sweep     <model_id>  — Evaluate a surrogate over a grid, to CSV
 modena doctor               — Environment health check
 modena quickstart           — Usage guide
 ```
+
+`modena init`, `simulate`, `model refit`, `model sample --run` and
+`fw launch` exit with status 1 when a firework of their run failed — a
+simulation that crashed or exited with an unrecoverable code — and name each
+failed firework.  From Python, `modena.run()` raises `modena.WorkflowFailed`
+in the same case.
+
+<a id="modena-fw-fireworks-launchpad"></a>
 
 ### `modena fw` — FireWorks launchpad
 
@@ -1019,7 +1037,9 @@ modena quickstart           — Usage guide
 
 | Command | Description |
 |---|---|
-| `modena fw status` | Print a table of all Firework IDs, names, and states. |
+| `modena fw status` | Print a table of all Firework IDs, names, and states.  Aliases: `ls`, `list`. |
+| `modena fw status --who` | Also show who requested each batch of queued work. |
+| `modena fw launch` | Start workers on what is already queued and run until nothing is READY — for work queued by the portal's Collect Data tab or by `modena model sample`, or left by an earlier `--launcher qlaunch` run.  Takes the same `--jobs`/`--launcher`/`--qadapter` flags as `init`.  (FireWorks' own `rlaunch` reads its own launchpad config, not `MODENA_URI`, so it sees none of this work.) |
 | `modena fw reset` | Interactively reset the launchpad (prompts for confirmation). |
 | `modena fw reset --force` | Reset without prompting. |
 | `modena fw rerun <fw_id>` | Re-queue a specific FIZZLED or COMPLETED firework. |
@@ -1038,6 +1058,11 @@ already queued unless you pass them `--reset`.
 exclusive modes are available.  Note that `modena fw run` has **no launcher
 flags** (`--launcher`, `--jobs`, etc.) — those must be passed inside the
 `workflow` Python script or via `FW_config.yaml`.
+
+`-d/--dir DIR` sets the directory it works in (default: the current one):
+`--script` writes its `workflow.yaml` there and uses it as the launch
+directory, and the files named by `--workflow` and `--py` are looked up in or
+below it.
 
 **`--py FILE`** — load and execute a Python workflow script.  The script is
 run in the current process; any `modena.run()` call inside it launches the
@@ -1101,6 +1126,8 @@ directly, so it does not benefit from the post-run orphan detection or the
 `sleep_time=1` default.  Use `--py` with a `modena.run(wf)` script for
 production runs.
 
+<a id="modena-model-surrogate-model-database"></a>
+
 ### `modena model` — surrogate model database
 
 | Command | Description |
@@ -1111,6 +1138,17 @@ production runs.
 | `modena model restore [-i FILE]` | Restore model parameters from a lock file. |
 | `modena model restore --verify-only` | Check version consistency only; do not write to DB. |
 | `modena model refit <id>` | Re-fit surrogate parameters using the training data already stored in MongoDB (no exact simulations re-run). Accepts all `--jobs`/`--launcher` flags. |
+| `modena model quality <id>` | Report how well the stored parameters fit the stored data, and whether points were collected since the last fit.  `--compare` also re-fits under each cross-validation strategy (optionally limited with `--strategies`) and prints the errors side by side; `--metric` is `AbsoluteError` (default), `RelativeError` or `NormalizedError`.  Writes nothing. |
+| `modena model sample <id>` | Choose new points with the model's own sampling strategy, show their cost, and queue the exact simulations.  `--points N` (default 5), `--dry-run` to only show them, `--yes` to skip the prompt, `--run` to also run them now (otherwise run `modena fw launch`). |
+| `modena model integrate <id>` | Print a ready-to-paste example that calls this model from `--lang` `c` (default), `cpp`, `fortran`, `python`, `julia`, `matlab` or `r`, with its real inputs, outputs and build command.  `-o FILE` writes it to a file; `--quiet` prints the code only. |
+
+```bash
+modena model quality flowRate --compare --metric RelativeError
+modena model sample flowRate --points 5 --dry-run
+modena model integrate flowRate --lang fortran -o main.f90
+```
+
+<a id="modena-init--initialise-surrogate-models"></a>
 
 ### `modena init` — initialise surrogate models
 
@@ -1218,6 +1256,20 @@ model's `fitData` from MongoDB and delegates to the model's
 `parameterFittingStrategy`.  Unlike `modena init`, it does not run any
 exact simulation Fireworks first.
 
+### `modena sweep` — evaluate a surrogate over a grid
+
+```bash
+modena sweep flowRate --param D=0.005:0.02:20 --param rho0=1.0:5.0:10 --out sweep.csv
+```
+
+Loads a trained surrogate and evaluates it over the Cartesian product of the
+`--param name=min:max:n` axes (repeat for more axes), holding any
+`--fix name=value` inputs constant, and writes every input and output to a
+CSV file (default `<model_id>_sweep.csv`).  Nothing is simulated: this is the
+surrogate only.
+
+<a id="modena-doctor-environment-health-check"></a>
+
 ### `modena doctor` — environment health check
 
 ```bash
@@ -1230,11 +1282,37 @@ Reports the status of every MoDeNa dependency and configuration item:
 * `modena.toml` project config file
 * MongoDB connectivity (2 s timeout)
 * Required Python packages (scipy, fireworks, mongoengine, jinja2, pymongo)
-* Optional Python packages (CoolProp, rpy2)
+* Optional Python packages (CoolProp)
 * Environment variables (`MODENA_URI`, `MODENA_SURROGATE_LIB_DIR`, `MODENA_LOG_LEVEL`, `MODENA_PATH`)
 
 Each item is marked `✓`, `✗`, or `—` (optional/not configured).  Run this
-before filing a bug report or when setting up a new environment.
+before filing a bug report or when setting up a new environment.  It exits
+non-zero if any required item fails, so it can gate a setup script.
+
+When `MODENA_URI` is unset, the database shown is the one MoDeNa actually
+uses by default, `mongodb://localhost:27017/test`.
+
+#### `modena doctor --selftest` — does MoDeNa actually work?
+
+The checks above show the pieces are present; `--selftest` runs them
+together, doing what a first model does with a bundled one (`flowRate`,
+installed to `<prefix>/share/modena/selftest`):
+
+1. installs the flowRate package, building its exact-simulation binary;
+2. resets a FireWorks launchpad and fits flowRate, running the exact
+   simulation;
+3. evaluates the surrogate from Python, and checks that an out-of-bounds call
+   raises `OutOfBounds` with return code 200;
+4. compiles and runs the C example MoDeNa generates for the model (skipped,
+   not failed, when there is no C compiler).
+
+It needs only an install — no source checkout — plus a C compiler, CMake
+and pip (with network access for the build backend).  It works in a
+database of its own on the `MODENA_URI` server, `modena_selftest_<id>`, and a
+temporary directory, and removes both afterwards: your models and launchpad
+are not touched.  It runs only when the libmodena and MongoDB checks pass.
+
+<a id="modena-quickstart-usage-guide"></a>
 
 ### `modena quickstart` — usage guide
 

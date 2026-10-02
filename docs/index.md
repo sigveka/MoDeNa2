@@ -17,10 +17,12 @@ restarts the caller — all without any application-side code changes.
 |---|---|
 | [Quick start — user](quick-start-user.md) | Installation, first run, environment setup |
 | [Quick start — developer](quick-start-developer.md) | Define a new model, run a workflow |
+| [HPC and clusters](quick-start-hpc.md) | Deployment topologies, queue launchers, remote and staged simulations |
 | [Architecture](architecture.md) | Runtime call path, backward-mapping loop, protocol details |
 | [Core developer guide](core-developer-guide.md) | C library, Python library, cross-language boundaries |
 | [Model registry](model-registry.md) | `modena.toml`, `MODENA_PATH`, lock files |
 | [FireWorks](fireworks.md) | Workflow engine integration, launchpad API, CLI reference |
+| [Return codes](return-codes.md) | The status-code protocol every language binding shares |
 
 ## Language bindings
 

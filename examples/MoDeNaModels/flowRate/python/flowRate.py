@@ -126,13 +126,31 @@ m = BackwardMappingModel(
     surrogateFunction= f,
     exactTask= FlowRateExactSim(),
     substituteModels= [ ],
+    # The initial points set the trained box, and the box sets how often the
+    # twoTanks simulation goes out of bounds.  Each out-of-bounds event widens
+    # only the offending input, to 1.2x the offending value, then restarts the
+    # simulation from t=0 -- so an input needs about log(range)/log(1.2)
+    # events to cover what the simulation visits:
+    #
+    #   D 0.01;  rho0 0.422 - 3.483;  p0 36364 - 3e5 Pa;  p1Byp0 0.0333 - 0.9998
+    #
+    # (twoTanksMacroscopicProblem.C, end_time 5.5 s).  The previous box,
+    # rho0 3.4-3.5 / p0 2.8-3.2e5 / p1Byp0 0.03-0.04, took 42 refits to get
+    # there.  This one ends each input within a single 1.2x step of that
+    # envelope, so the simulation refits at least once and at most once per
+    # input -- 1 to 3 times -- which keeps the out-of-bounds loop exercised
+    # without dominating the run.  test_twotanks_loop.py asserts the count.
+    #
+    # The corners pair low rho0 with low p0, as p = rho*R*T does.  Keep
+    # rho0 = 3.4, p0 = 2.8e5..3e5, p1Byp0 = 0.03 inside the box: every
+    # wrapper smoke test evaluates the model there.
     initialisationStrategy= Strategy.InitialPoints(
         initialPoints=
         {
             'D': [0.01, 0.01, 0.01, 0.01],
-            'rho0': [3.4, 3.5, 3.4, 3.5],
-            'p0': [2.8e5, 3.2e5, 2.8e5, 3.2e5],
-            'p1Byp0': [0.03, 0.03, 0.04, 0.04],
+            'rho0': [0.5, 3.5, 0.5, 3.5],
+            'p0': [4.2e4, 3.2e5, 4.2e4, 3.2e5],
+            'p1Byp0': [0.03, 0.03, 0.9, 0.9],
         },
     ),
     outOfBoundsStrategy= Strategy.ExtendSpaceStochasticSampling(

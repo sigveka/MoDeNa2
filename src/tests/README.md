@@ -1,80 +1,118 @@
 # MoDeNa Test Suite
 
-Tests live under `src/tests/` and are split into two directories:
+Tests live under `src/tests/` in three directories:
 
 ```
 src/tests/
-├── python/          pytest test suite for the Python library
-├── c/               CTest executables for the C library
-└── interface-tests/ End-to-end C++ integration tests (pre-existing)
+├── pytest.ini       tier markers (installed, live) + --strict-markers
+├── python/          pytest suite for the Python library (unit + installed)
+├── c/               CTest executables for the C library (unit)
+└── interface-tests/ language-wrapper smokes and cross-language contracts
+                     (installed + live)
 ```
+
+---
+
+## Test tiers
+
+Every test belongs to **exactly one** tier, chosen by what it needs to run.
+Each tier needs everything the one above it does.  The CTest label and the
+pytest marker have the same name.
+
+| Tier (CTest label / pytest marker) | Needs | Examples |
+|---|---|---|
+| `unit` (pytest: unmarked) | the source tree only; MongoDB is a MagicMock or mongomock | `modena_python_unit`, `modena_c_*`, `modena_portal_unit` |
+| `installed` | `cmake --install` has run: headers, `libmodena`, wrapper packages at the prefix | `modena_python_installed`, `modena_status_codes` |
+| `live` | a reachable MongoDB; CTest fixtures fill the database `MODENA_TEST_URI` names | every `modena_iface_*` smoke, `modena_generated_snippets`, `modena_oob_exception`, `modena_twotanks_loop` |
+
+Language labels (`python`, `c`, `cpp`, `fortran`, `julia`, `r`, `octave`,
+`matlab`) are a second, independent axis: `ctest -L live -L julia` runs the
+Julia smoke only.
+
+`test_suite_integrity.py` enforces the scheme: a CTest entry with no tier,
+two tiers, or the retired `integration` label fails the `unit` tier, as does
+a pytest file under `interface-tests/` whose marker disagrees with the `-m`
+its CTest entry selects (it would be deselected and never run).
+
+`live` tests live only in `interface-tests/`.  The `conftest.py` in `python/`
+stubs out the database connection, so a `live` test there could never pass.
 
 ---
 
 ## Running the tests
 
 Tests are **opt-in** — they are not built or run during a normal
-`cmake --build .`.  Enable them with the `MODENA_BUILD_TESTS` flag.
-
-### Quick start
-
-```bash
-# From your existing build directory
-cmake -DMODENA_BUILD_TESTS=ON ..
-cmake --build .
-ctest --output-on-failure
-```
-
-Or equivalently using the `test` target:
+`cmake --build .`.  Enable them with the `MODENA_BUILD_TESTS` flag (the `dev`
+and `full` presets set it).
 
 ```bash
-cmake -DMODENA_BUILD_TESTS=ON ..
-cmake --build . --target test
+cmake --preset dev && cmake --build --preset dev
+ctest --preset unit                 # no install, no database
+
+cmake --install build
+ctest --preset installed            # needs the install
+ctest --preset live                 # needs the install and a running MongoDB
+ctest --preset dev                  # all three
 ```
 
-### Run only unit tests (no MongoDB required)
+There is no manual setup for any tier.  CTest fixtures (`src/tests/CMakeLists.txt`)
+run before the tests that need them:
+
+| Fixture | Runs before | Does |
+|---|---|---|
+| `modena_fixture_installed` | every `installed` and `live` test | fails fast, naming the stale files, if the installed `libmodena` is older than the build or an installed `modena` module differs from `src/python/` — otherwise these tiers would quietly test whatever was installed last |
+| `modena_fixture_live_setup` | every `live` test using the shared database | drops the test database, installs `examples/MoDeNaModels/flowRate` into `build/test-live/`, resets the FireWorks launchpad, fits `flowRate` |
+| `modena_fixture_live_cleanup` | after them | drops the test database |
+
+**The test database** is the CMake cache variable `MODENA_TEST_URI`
+(default `mongodb://localhost:27017/modena_ctest`), not the `MODENA_URI` in
+your shell.  The fixture drops it, so configure refuses a database name that
+does not start with `modena_` and contain `test`: your working `modena`
+database and SurrogateModel's default `test` database are never touched.
+Everything else the fixture writes (model packages, compiled surrogates,
+FireWorks launch directories) stays under `build/test-live/`.
 
 ```bash
-ctest -L unit --output-on-failure
+cmake --preset dev -DMODENA_TEST_URI=mongodb://dbhost:27017/modena_ctest_alice
 ```
 
-### Run only Python tests
+The `live` tests take a CTest `RESOURCE_LOCK` on that database, so
+`ctest -j` does not run two of them against it at once.
+
+If the install check fails but you deliberately want to run against the
+installed MoDeNa anyway, exclude that one fixture:
+`ctest --preset live -FA '^modena_installed$'`.
+
+### Two modes: your machine, and a clean one
+
+The same suite answers two different questions:
+
+| Mode | Command | Answers |
+|---|---|---|
+| **Local** | `ctest --preset dev` (or `unit` / `installed` / `live`) | does *my* build and install work? |
+| **Clean** | `ci/docker-tests dev` (or `full`) | does MoDeNa build, install and pass from nothing? |
+
+`ci/docker-tests` needs only Docker.  It builds `ci/Dockerfile` from the
+**git-tracked files** (with their working-tree content: uncommitted edits to
+tracked files are included, untracked files are not), starts a throwaway
+MongoDB on a private network, then configures, builds, installs and runs
+`ctest --preset <preset>` as a non-root user whose `$HOME` is the install
+prefix.  Everything is removed afterwards.  It catches what a local run
+cannot: a dependency that happens to be installed on your machine but is not
+declared, and a file your build needs that the allowlist `.gitignore`
+silently excludes from a clone.
+
+CI runs exactly this command (`.github/workflows/tests.yml`), so passing
+locally in Docker and passing in CI mean the same thing.  Add
+`--results DIR` to collect the CTest JUnit report.
+
+Directly with pytest (it picks up `src/tests/pytest.ini` from any of these):
 
 ```bash
-ctest -L python --output-on-failure
+pytest src/tests/python -m "not installed and not live"   # unit
+pytest src/tests/python -m installed
+pytest src/tests/interface-tests -m live
 ```
-
-### Run only C tests
-
-```bash
-ctest -L c --output-on-failure
-```
-
-### Run integration tests (requires live MongoDB)
-
-Integration tests are disabled by default.  Enable and run them with:
-
-```bash
-ctest -L integration --output-on-failure
-```
-
-Or directly with pytest:
-
-```bash
-cd src/tests/python
-pytest -m integration -v
-```
-
----
-
-## Test categories
-
-| CTest label | pytest mark | MongoDB required | Description |
-|---|---|---|---|
-| `unit` | `not integration` | No | Pure logic, in-memory mocks |
-| `integration` | `integration` | Yes | Full workflow with live MongoDB |
-| `python` | — | Depends | All Python tests |
-| `c` | — | No | C library tests |
 
 ---
 
@@ -84,10 +122,20 @@ Located in `src/tests/python/`.  Run directly with pytest without CMake:
 
 ```bash
 cd src/tests/python
-pytest -v                       # unit tests only (default)
-pytest -m integration -v        # integration tests
+pytest -v                       # unit + installed (installed skips if nothing is built)
+pytest -m installed -v          # installed tier only
 pytest -v --tb=long             # verbose tracebacks
 ```
+
+### Documentation checks
+
+`test_docs.py` (unit tier) checks the Markdown under `docs/`, the READMEs
+and `examples/*/README.md` against the repository and the CLI: relative links
+and backticked repo paths must exist, `#anchor` links must resolve both on
+GitHub and in mkdocs (their heading slugs differ around punctuation such as
+em dashes — use an explicit `<a id="..."></a>` when they do), every page in
+`docs/` must be in the mkdocs nav, and every `modena ...` command shown as a
+shell command must parse, options included.
 
 ### Dependencies
 
@@ -103,22 +151,25 @@ pip install pytest pytest-cov mongomock
 | `pytest-cov` | Coverage reporting (optional) |
 | `mongomock` | In-memory MongoDB for unit tests |
 
-R and `rpy2` are **not** required for unit tests — they are stubbed out
-automatically by `conftest.py`.  Integration tests require the full
-MoDeNa stack including R.
+Neither R nor `rpy2` is needed by any tier: MoDeNa no longer uses R (fitting
+and sampling are SciPy-based).  R is only needed to build and test the
+optional R wrapper (`WITH_R=ON`, `modena_iface_r_smoke`).
 
 ### How the stubs work
 
 `conftest.py` runs before any test module is imported and:
 
-1. Stubs `rpy2` and `blessings` in `sys.modules` so `Strategy.py`'s
-   module-level R initialisation calls become no-ops.
+1. Patches `mongoengine.connect` with a MagicMock so importing
+   `modena.SurrogateModel` (which calls `connect()` at module scope)
+   does not require a live database.
 2. Creates a minimal `modena` package stub that points `__path__` at the
    source tree without executing `__init__.py`.  This prevents
    `import_helper()` from trying to load `libmodena.so`.
-3. Patches `mongoengine.connect` with a MagicMock so importing
-   `modena.SurrogateModel` (which calls `connect()` at module scope)
-   does not require a live database.
+3. Publishes the build's paths on the stub (`MODENA_INCLUDE_DIR`,
+   `MODENA_LIB_DIR`, …), read from the `_paths.py` that `MODENA_PATHS_FILE`
+   names (CTest sets it) or from a `build*/` tree, and puts the library
+   directory on the stub's `__path__`, so the `installed` tier can import
+   `modena.libmodena` lazily while the unit tier never loads it.
 4. Eagerly imports `modena.SurrogateModel` so its module-level
    `connect()` runs through the MagicMock stub before any test-level
    fixture can swap the connection.
@@ -186,22 +237,20 @@ set_parameters, named_parameters, parameter_names, parameters_array,
 set_parameters_array), constructor rejection of positional list,
 dict persistence via mongomock, reordering-safety guarantee.
 
-## Interface / integration tests
+## Interface tests
 
 Language-wrapper smoke tests live under `src/tests/interface-tests/`.
 Each links a real language binding against libmodena and evaluates the
 `flowRate` surrogate to end-to-end verify the wrapper is wired
-correctly.  Registered under the `integration` label because they
-require:
+correctly.  They are in the `live` tier because they require:
 
-* a live MongoDB pointed to by `MODENA_URI` (default `mongodb://localhost:27017/test`),
-* the `flowRate` model already initialized (`cd examples/twoTanks && ./initModels`).
+* a MongoDB holding a fitted `flowRate` model, which the live fixture
+  prepares in the database `MODENA_TEST_URI` names (see *Running the tests*).
 
 Run with:
 
 ```bash
-cd build
-ctest -L integration --output-on-failure
+ctest --preset live
 ```
 
 | Executable | Wrapper | What it tests |
@@ -211,6 +260,32 @@ ctest -L integration --output-on-failure
 | `test_thread_safety` | C (`libmodena` directly, `std::thread`) | N pthreads share one `modena_model_t` with per-thread I/O vectors; every call must reproduce the reference `mdot` bit-for-bit.  Regression guard for the `modena_substitute_model_t` per-call allocation fix and the internal GIL protocol. |
 | `test_matlab_smoke` | MATLAB / Octave (via MEX gateway + `Modena.m` class) | Same coverage via `m.set_input`/`m.call`/`m.get_output`, plus Phase 3 named-parameter accessors (`m.parameters()` returning a struct, `m.get_parameter('P0')`).  Registered when `WITH_MATLAB=ON`; prefers Octave over MATLAB (faster startup, no license). |
 | `test_julia_smoke.jl` | Julia (`Modena.jl`, pure `ccall` bindings) | Same coverage via `set!`/`call!`/`output`, plus `parameters(m)` / `parameter(m, "P0")` and the 1-based↔0-based argPos conversion.  Also covers the Libdl discovery of `libmodena.so`, the `RTLD_GLOBAL` libpython priming, and named access *after* `check` (the GIL-release segfault class).  Registered when `WITH_JULIA=ON`. |
+
+### The out-of-bounds → refit loop (`modena_twotanks_loop`)
+
+`test_twotanks_loop.py` runs the loop MoDeNa exists for: the twoTanks
+simulation (`twoTanksMacroscopicProblem`) calls `flowRate`, leaves its trained
+box, exits with 200, and FireWorks samples new points, refits and restarts the
+simulation until a run finishes inside the box.  It asserts the workflow
+completes and that it took **1 to 6 refits**.
+
+It is self-contained: it installs `examples/MoDeNaModels/flowRate` and
+`twoTank` into a temporary prefix, runs with a temporary `HOME` (because
+`modena install` writes `~/.modena/config.toml`), and uses its own database
+on the `MODENA_TEST_URI` server (`modena_looptest_<id>`, dropped afterwards),
+so it does not use the live fixture.  It
+needs a reachable MongoDB but neither `buildModels` nor `initModels`, and
+takes about 25 s.
+
+The refit count follows from `flowRate`'s initial points.  Each out-of-bounds
+event widens only the offending input, to 1.2× the offending value, and the
+simulation restarts from t = 0; an input therefore needs about
+log(range)/log(1.2) events to cover what the simulation visits
+(rho0 0.422–3.483, p0 36 364–300 000 Pa, p1Byp0 0.0333–0.9998, D fixed).
+The initial box ends each input within one such step of that envelope, so
+each input triggers at most one refit.  The earlier, narrow box
+(rho0 3.4–3.5, p0 2.8–3.2e5, p1Byp0 0.03–0.04) needed 42.  If this test starts
+reporting more than six, the initial points no longer fit the simulation.
 
 ### Notes
 
@@ -226,10 +301,8 @@ ctest -L integration --output-on-failure
 
 | Component | Reason | Path forward |
 |---|---|---|
-| `Strategy.py` sampling / fitting | Requires R + rpy2 + MongoDB | Add under `integration` once R is available in CI |
-| `modena_model_call` in C | Requires `Py_Initialize()` + MongoDB | Test via Python integration tests |
-| Full backward-mapping loop | Requires compiled surrogate + MongoDB | Add an `examples/`-based smoke test |
-| `SurrogateFunction` Ccode compilation | Requires gcc + MongoDB | Integration test |
+| `modena_model_call` in C | Requires `Py_Initialize()` + MongoDB | Covered end-to-end by the `live` smokes |
+| `SurrogateFunction` Ccode compilation | Requires gcc | Covered by `modena_python_installed` (`test_compile_surrogate.py`) |
 
 ---
 
@@ -238,8 +311,11 @@ ctest -L integration --output-on-failure
 ### Python
 
 Add a new file `src/tests/python/test_<module>.py`.  It is picked up
-automatically by pytest.  Use the `@pytest.mark.integration` decorator for
-any test that requires a live MongoDB connection.
+automatically by pytest.  Leave unit tests unmarked; mark a test that needs
+the installed tree `@pytest.mark.installed`.  A test that needs a live MongoDB
+goes in `src/tests/interface-tests/` with a module-level
+`pytestmark = pytest.mark.live`, and needs a CTest entry there selecting
+`-m live`.
 
 ### C
 

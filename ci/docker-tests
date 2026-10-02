@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Run the MoDeNa test suite from a clean install, in Docker.
+#
+#   ci/docker-tests [dev|full] [--results DIR]
+#
+# The same command CI runs, so "passes here" and "passes in CI" mean the same
+# thing.  Needs only Docker.
+#
+# What goes into the image is the git-tracked files, with their working-tree
+# content: uncommitted edits to tracked files are tested, untracked files are
+# not.  That is what a fresh clone would contain once you commit -- and this
+# repository's allowlist .gitignore has more than once excluded a file every
+# local build depended on, which only a clean clone reveals.
+#
+# A throwaway MongoDB runs beside the tests on a private network; both are
+# removed on exit.
+set -euo pipefail
+
+preset=dev
+results=
+while [ $# -gt 0 ]; do
+    case "$1" in
+        dev|full)   preset=$1 ;;
+        --results)  results=$2; shift ;;
+        -h|--help)  sed -n '2,17p' "$0"; exit 0 ;;
+        *)          echo "unknown argument: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+target=$([ "$preset" = full ] && echo full || echo core)
+
+repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+tag="modena-tests:$target"
+run_id="modena-tests-$$"
+network="$run_id-net"
+mongo="$run_id-mongo"
+
+cleanup() {
+    docker rm -f "$mongo" >/dev/null 2>&1 || true
+    docker network rm "$network" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+echo "==> Building $tag from the git-tracked files in $repo"
+# --ignore-failed-read: a tracked file deleted in the working tree is simply
+# absent from the image, as it will be once the deletion is committed.
+git -C "$repo" ls-files -z \
+  | tar -C "$repo" --null --files-from=- --ignore-failed-read -c -f - \
+  | docker build --target "$target" --file ci/Dockerfile --tag "$tag" -
+
+echo "==> Starting MongoDB"
+docker network create "$network" >/dev/null
+docker run --detach --name "$mongo" --network "$network" \
+    --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'" \
+    --health-interval 2s --health-timeout 5s --health-retries 30 \
+    mongo:7 >/dev/null
+until [ "$(docker inspect --format '{{.State.Health.Status}}' "$mongo")" = healthy ]; do
+    if [ "$(docker inspect --format '{{.State.Running}}' "$mongo")" != true ]; then
+        docker logs "$mongo" >&2
+        echo "MongoDB exited before becoming healthy" >&2
+        exit 1
+    fi
+    sleep 1
+done
+
+mount=()
+if [ -n "$results" ]; then
+    mkdir -p "$results"
+    # The container runs as a different uid; let it write the report.
+    chmod a+rwx "$results"
+    mount=(--volume "$(cd "$results" && pwd):/results")
+fi
+
+echo "==> Running the $preset preset"
+docker run --rm --network "$network" \
+    --env MODENA_TEST_URI="mongodb://$mongo:27017/modena_ctest" \
+    "${mount[@]}" \
+    "$tag" "$preset"

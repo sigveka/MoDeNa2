@@ -71,7 +71,8 @@ __all__ = (
 )
 
 # Create connection to database
-MODENA_URI = os.environ.get('MODENA_URI', 'mongodb://localhost:27017/test')
+from modena._defaults import DEFAULT_MODENA_URI
+MODENA_URI = os.environ.get('MODENA_URI', DEFAULT_MODENA_URI)
 (uri, database) = MODENA_URI.rsplit('/', 1)
 connect(
     database,
@@ -384,9 +385,29 @@ class SurrogateFunction(DynamicDocument):
         "See docs/quick-start-developer.md for the named-parameter convention."
     )
 
-    # C identifier regex — parameter and variable names must be usable as
-    # `const double <name> = ...;` in the synthesized Jinja2 bindings.
+    # C identifier regex — every declared name must map, through c_name(), to
+    # something usable as `const double <name> = ...;` in the synthesized
+    # Jinja2 bindings.
     _C_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+    @staticmethod
+    def c_name(name):
+        """The C identifier the variables block binds a declared name to.
+
+        Index-set names keep their brackets everywhere else -- ``W[A]`` is what
+        a model instance expands to ``W[H2O]``, and what connects the outputs
+        of one model to the inputs of another -- but ``W[A]`` is not a C
+        identifier, so the binding drops the brackets and index separators:
+        ``W[A]`` -> ``WA``, ``D[A,B]`` -> ``DAB``.  A name without an index is
+        returned unchanged, so no existing surrogate's generated code changes.
+
+        The template used to bind the declared name verbatim, which made every
+        indexed name a C syntax error; the one shipped index-set model,
+        fullerEtAlDiffusion, was flattened to ``WA``/``DA`` to compile, losing
+        the per-species names the notation exists to provide.
+        """
+        return re.sub(r'\[([^\]]*)\]$',
+                      lambda m: m.group(1).replace(',', ''), name)
 
     @abc.abstractmethod
     def __init__(self, *args, **kwargs):
@@ -478,6 +499,17 @@ class SurrogateFunction(DynamicDocument):
             for k in self.parameters.keys():
                 self.checkVariableName(k)
 
+            # Inputs and parameters are bound as C variables; two declared
+            # names mapping to one binding (`W[A]` and `WA`) would be a
+            # redefinition error in the generated code.
+            bound = {}
+            for k in list(self.inputs.keys()) + list(self.parameters.keys()):
+                other = bound.setdefault(self.c_name(k), k)
+                if other != k:
+                    raise ValueError(
+                        f"variable names {other!r} and {k!r} both bind to the "
+                        f"C variable {self.c_name(k)!r}")
+
             self.initKwargs(kwargs)
 
             self.Ccode = kwargs['Ccode']
@@ -506,23 +538,24 @@ class SurrogateFunction(DynamicDocument):
         @brief   Validate a declared variable name.
         @details
                  Two checks:
-                 1. If the name references an index set (contains brackets),
-                    that index set must be declared in ``self.indices``.
-                 2. The bare name (base name minus any index suffix) must be
-                    a valid C identifier — it is synthesized into the
-                    generated surrogate code as
-                    ``const double <name> = ...;`` by the Jinja2 template.
+                 1. If the name references index sets (contains brackets),
+                    each must be declared in ``self.indices``.
+                 2. The name's C binding, :meth:`c_name` (``W[A]`` -> ``WA``),
+                    must be a valid C identifier — it is synthesized into
+                    the generated surrogate code as
+                    ``const double <c_name> = ...;`` by the Jinja2 template.
         """
         m = re.search(r'\[(.*)\]', name)
-        if m and not m.group(1) in self.indices:
-            raise Exception(f'Index {m.group(1)} not defined')
+        if m:
+            for idx in m.group(1).split(','):
+                if idx not in self.indices:
+                    raise Exception(f'Index {idx} not defined')
 
-        base = re.sub(r'\[.*\]$', '', name)
-        if not self._C_IDENTIFIER_RE.match(base):
+        if not self._C_IDENTIFIER_RE.match(self.c_name(name)):
             raise ValueError(
-                f"variable name {name!r} is not a valid C identifier "
-                "(required for the synthesized Jinja2 binding "
-                "'const double <name> = ...;')."
+                f"variable name {name!r} does not map to a valid C identifier "
+                f"(bound as {self.c_name(name)!r} by the synthesized Jinja2 "
+                "binding 'const double <name> = ...;')."
             )
 
 
@@ -725,22 +758,24 @@ class CFunction(SurrogateFunction):
             func_dir.mkdir(parents=True, exist_ok=True)
 
             env   = jinja2.Environment(lstrip_blocks=True, trim_blocks=True)
+            # Index-set names (`W[A]`) are bound under their C name (`WA`).
+            env.filters['cname'] = SurrogateFunction.c_name
             child = env.from_string(r'''
 {% extends Ccode %}
 {% block variables %}
 const double* parameters = model->parameters;
 {% for k, v in pFunction.inputs.items() %}
 {% if 'index' in v %}
-const size_t {{k}}_argPos = {{v.argPos}};
-const double* {{k}} = &inputs[{{k}}_argPos];
-const size_t {{k}}_size = {{ v.index.iterator_size() }};
+const size_t {{k|cname}}_argPos = {{v.argPos}};
+const double* {{k|cname}} = &inputs[{{k|cname}}_argPos];
+const size_t {{k|cname}}_size = {{ v.index.iterator_size() }};
 {% else %}
-const size_t {{k}}_argPos = {{v['argPos']}};
-const double {{k}} = inputs[{{k}}_argPos];
+const size_t {{k|cname}}_argPos = {{v['argPos']}};
+const double {{k|cname}} = inputs[{{k|cname}}_argPos];
 {% endif %}
 {% endfor %}
 {% for k in pFunction.parameters %}
-const double {{k}} = parameters[{{loop.index0}}];
+const double {{k|cname}} = parameters[{{loop.index0}}];
 {% endfor %}
 {% endblock %}
             ''')

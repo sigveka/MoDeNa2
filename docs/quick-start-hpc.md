@@ -69,6 +69,8 @@ graph LR
 
 ## Deployment topologies
 
+<a id="topology-1-single-node-local"></a>
+
 ### Topology 1 — single-node local
 
 All three services on the same machine.  This is the default when you run
@@ -97,6 +99,8 @@ modena.run(models, njobs=1)         # sequential (useful for debugging)
 ```
 
 ---
+
+<a id="topology-2-login-node--hpc-cluster"></a>
 
 ### Topology 2 — login node + HPC cluster
 
@@ -189,6 +193,8 @@ modena.run(
 
 ---
 
+<a id="topology-3-heterogeneous-local-burst--hpc-overflow"></a>
+
 ### Topology 3 — heterogeneous: local burst + HPC overflow
 
 Local workers handle a steady trickle of Fireworks; a supervisor thread
@@ -239,6 +245,8 @@ cluster.  Set `escalate_at=0` to escalate immediately for any overflow beyond
 the local worker count.
 
 ---
+
+<a id="topology-4-remote-desktop--workstation-simulation"></a>
 
 ### Topology 4 — remote desktop / workstation simulation
 

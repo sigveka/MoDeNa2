@@ -69,14 +69,47 @@
   ],
   "testPresets": [
     {
-      "name": "dev",
-      "configurePreset": "dev",
+      "name": "test-base",
+      "hidden": true,
       "output": { "outputOnFailure": true }
     },
     {
+      "name": "dev",
+      "displayName": "Every tier the dev build enabled",
+      "description": "unit + installed + live. Needs `cmake --install build` and a MongoDB at MODENA_TEST_URI; CTest fixtures check the install and prepare the test database.",
+      "inherits": "test-base",
+      "configurePreset": "dev"
+    },
+    {
       "name": "full",
-      "configurePreset": "full",
-      "output": { "outputOnFailure": true }
+      "displayName": "Every tier the full build enabled",
+      "description": "As dev, plus the wrapper smokes (Fortran, Julia, MATLAB/Octave, R) whose toolchains were found.",
+      "inherits": "test-base",
+      "configurePreset": "full"
+    },
+    {
+      "name": "unit",
+      "displayName": "Unit tier — source tree only",
+      "description": "No install, no database. The fast loop while editing.",
+      "inherits": "test-base",
+      "configurePreset": "dev",
+      "filter": { "include": { "label": "^unit$" } }
+    },
+    {
+      "name": "installed",
+      "displayName": "Installed tier — needs cmake --install",
+      "description": "Fails fast, naming the stale files, if the install is older than the build.",
+      "inherits": "test-base",
+      "configurePreset": "dev",
+      "filter": { "include": { "label": "^installed$" } }
+    },
+    {
+      "name": "live",
+      "displayName": "Live tier — needs the install and a MongoDB",
+      "description": "Wrapper smokes, snippets, OOB contract and the refit loop, against the database MODENA_TEST_URI names (dropped afterwards).",
+      "inherits": "test-base",
+      "configurePreset": "dev",
+      "filter": { "include": { "label": "^live$" } }
     }
   ]
 }

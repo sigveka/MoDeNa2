@@ -137,6 +137,90 @@ class TestVariableNameValidation:
 
 
 # ---------------------------------------------------------------------------
+# Index-set names: `W[A]` is declared with its brackets, bound in C as `WA`
+# ---------------------------------------------------------------------------
+# The template used to bind every name verbatim, so `const double W[A] = ...`
+# was a C syntax error while checkVariableName accepted the name.  The one
+# shipped index-set model, fullerEtAlDiffusion, was flattened to WA/DA to
+# compile -- and lost the per-species names (D[A] -> D[H2O]) that index-set
+# notation exists to provide.
+
+class TestIndexSetNames:
+
+    _CCODE = '''
+        #include "modena.h"
+        void f(const modena_model_t* model, const double* inputs, double* outputs) {
+            {% block variables %}{% endblock %}
+            outputs[0] = T * (WA + WB);
+        }
+    '''
+
+    @pytest.fixture
+    def species(self, mongo_db):
+        from modena.SurrogateModel import IndexSet
+        return IndexSet(name='species', names=['H2O', 'N2'])
+
+    def _kw(self, species, **overrides):
+        base = dict(
+            Ccode=self._CCODE,
+            inputs={'T': {'min': 0.0, 'max': 1.0}},
+            outputs={'D[A]': {'min': 0.0, 'max': 1.0}},
+            parameters={'W[A]': {'min': 0.0, 'max': 1.0},
+                        'W[B]': {'min': 0.0, 'max': 1.0}},
+            indices={'A': species, 'B': species},
+        )
+        base.update(overrides)
+        return base
+
+    @pytest.mark.parametrize('name,bound', [
+        ('W[A]', 'WA'), ('D[A,B]', 'DAB'), ('k0', 'k0'), ('P_1', 'P_1'),
+    ])
+    def test_c_name(self, name, bound):
+        from modena.SurrogateModel import SurrogateFunction
+        assert SurrogateFunction.c_name(name) == bound
+
+    def test_indexed_names_are_accepted(self, species):
+        from unittest.mock import patch
+        from modena.SurrogateModel import CFunction
+        with patch.object(CFunction, 'compileCcode', return_value='/tmp/x.so'), \
+             patch.object(CFunction, 'save'):
+            f = CFunction(**self._kw(species))
+        assert f.parameter_names_ordered() == ['W[A]', 'W[B]']
+
+    def test_every_index_of_a_multi_index_name_must_be_declared(self, species):
+        from modena.SurrogateModel import CFunction
+        with pytest.raises(Exception, match='Index C not defined'):
+            CFunction(**self._kw(species, outputs={'D[A,C]': {'min': 0.0, 'max': 1.0}}))
+
+    def test_two_names_binding_to_one_c_variable_are_rejected(self, species):
+        from modena.SurrogateModel import CFunction
+        with pytest.raises(ValueError, match="both bind to the C variable 'WA'"):
+            CFunction(**self._kw(species, parameters={
+                'W[A]': {'min': 0.0, 'max': 1.0}, 'WA': {'min': 0.0, 'max': 1.0}}))
+
+    def test_generated_code_binds_indexed_names_as_c_identifiers(
+            self, species, tmp_path, monkeypatch):
+        """Render the real template; only the gcc step is stubbed out."""
+        from unittest.mock import patch
+        import modena
+        from modena import SurrogateModel as sm
+        from modena.Registry import ModelRegistry
+        monkeypatch.setattr(modena, 'MODENA_INCLUDE_DIR', str(tmp_path), raising=False)
+        monkeypatch.setattr(modena, 'MODENA_LIB_DIR', str(tmp_path), raising=False)
+        monkeypatch.setattr(ModelRegistry(), '_surrogate_lib_dir', str(tmp_path))
+        kw = self._kw(species)
+        # compileCcode reads argPos off inputs, as initKwargs has set it.
+        kw['inputs'] = {'T': {'min': 0.0, 'max': 1.0, 'argPos': 0}}
+        with patch.object(sm, '_compile_c_surrogate'):
+            sm.CFunction.compileCcode(sm.CFunction.__new__(sm.CFunction), kw)
+
+        source = next(tmp_path.glob('func_*/*.c')).read_text()
+        assert 'const double WA = parameters[0];' in source
+        assert 'const double WB = parameters[1];' in source
+        assert 'W[A]' not in source
+
+
+# ---------------------------------------------------------------------------
 # argPos ordering matches declaration order
 # ---------------------------------------------------------------------------
 
@@ -145,7 +229,7 @@ class TestAutoArgPosOrdering:
     the compiled .so, and the fitting marshalling all come from dict-key
     insertion order in the SurrogateFunction."""
 
-    @pytest.mark.integration
+    @pytest.mark.installed
     def test_parameter_names_ordered_matches_declaration(
         self, tmp_path, monkeypatch, mongo_db
     ):

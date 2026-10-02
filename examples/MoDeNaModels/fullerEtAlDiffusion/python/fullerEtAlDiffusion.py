@@ -72,7 +72,10 @@ void fullerEtAlDiffusion
     // `const double <name> = parameters[<i>];` for every declared parameter.
     // Declaring them again here is a redefinition error.
 
-    outputs[0] = 1.011e-4*pow(T, 1.75)*pow(1.0/WA + 1.0/WB, 1.0/2.0);
+    // SI units: T [K], p [Pa], D [m^2/s]; W [g/mol].  1.011e-2 is Poling
+    // et al. eq. 11-4.4 (cm^2/s, bar) converted -- see config.toml.  It
+    // was 1.011e-4, which assumes p in hPa, while callers pass Pa.
+    outputs[0] = 1.011e-2*pow(T, 1.75)*pow(1.0/WA + 1.0/WB, 1.0/2.0);
     outputs[0] /= p*(pow(pow(VA, 1.0/3.0) + pow(VB, 1.0/3.0), 2.0));
 }
 ''',

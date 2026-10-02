@@ -66,6 +66,15 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/modena-env.sh"
   DESTINATION "share/modena"
 )
 
+# The model `modena doctor --selftest` installs, fits and evaluates.  Shipped
+# as source so the selftest needs an install and nothing else -- the example
+# directory is not part of an install.  See Selftest.py.
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/examples/MoDeNaModels/flowRate"
+  DESTINATION "share/modena/selftest"
+  PATTERN "__pycache__" EXCLUDE
+  PATTERN "build"       EXCLUDE
+)
+
 # Console entry point.  setup.py.in declares `modena = modena.__main__:_main`
 # under console_scripts, but the package is installed by the install(FILES)
 # rule above rather than by running setup.py, so nothing ever generates the

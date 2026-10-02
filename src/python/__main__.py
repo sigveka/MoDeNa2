@@ -40,6 +40,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from modena import __version__ as MODENA_VERSION
+# Import-safe (no engine, no database): the launch handlers catch it.
+from modena._errors import WorkflowFailed
 from modena import SurrogateModel
 from modena.Registry import ModelRegistry, _find_project_config
 
@@ -357,9 +359,10 @@ def _model_migrate(args):
 # ------------------------------------------------------------------ #
 
 def _doctor(_args):
-    """Run environment health checks."""
+    """Run environment health checks; with --selftest, also run MoDeNa."""
     import importlib.metadata
     import os
+    from modena._defaults import DEFAULT_MODENA_URI
 
     _results = []   # (ok, label, detail, hint)
 
@@ -390,9 +393,11 @@ def _doctor(_args):
 
     # ── Core ──────────────────────────────────────────────────────────
     print('  Core')
+    lib_ok = db_ok = False
     try:
         import modena.libmodena as _lm
         _row(True, 'libmodena.so', getattr(_lm, '__file__', 'loaded'))
+        lib_ok = True
     except Exception as exc:
         _row(False, 'libmodena.so', str(exc)[:60],
              'Build and install:\n       cmake -B build . && cmake --install build')
@@ -409,12 +414,16 @@ def _doctor(_args):
     # ── Database ──────────────────────────────────────────────────────
     print()
     print('  Database')
-    uri = os.environ.get('MODENA_URI', 'mongodb://localhost:27017/modena')
+    # The same default SurrogateModel connects with.  This used to read
+    # `.../modena` while the connection below used `.../test`, so with
+    # MODENA_URI unset doctor reported one database and checked another.
+    uri = os.environ.get('MODENA_URI', DEFAULT_MODENA_URI)
     try:
         from modena.Launchpad import ModenaLaunchPad
         lp = ModenaLaunchPad.from_modena_uri(server_selection_timeout_ms=2000)
         info = lp.db.client.server_info()
         _row(True, 'MongoDB', f'{uri}   (server v{info.get("version", "?")})')
+        db_ok = True
     except Exception as exc:
         _row(False, 'MongoDB', f'{uri}',
              f'{exc}\n'
@@ -431,7 +440,7 @@ def _doctor(_args):
         except importlib.metadata.PackageNotFoundError:
             _row(False, pkg, 'not installed', f'pip install {pkg}')
 
-    for pkg in ('CoolProp', 'rpy2'):
+    for pkg in ('CoolProp',):
         try:
             _opt(True, pkg, f'{importlib.metadata.version(pkg)}   (optional)')
         except importlib.metadata.PackageNotFoundError:
@@ -440,10 +449,27 @@ def _doctor(_args):
     # ── Environment ───────────────────────────────────────────────────
     print()
     print('  Environment')
-    _env('MODENA_URI',                'mongodb://localhost:27017/modena')
+    _env('MODENA_URI',                DEFAULT_MODENA_URI)
     _env('MODENA_SURROGATE_LIB_DIR')
     _env('MODENA_LOG_LEVEL',          'INFO')
     _env('MODENA_PATH')
+
+    # ── Selftest ──────────────────────────────────────────────────────
+    # `is True`, not truthiness: tests call _doctor() with a MagicMock
+    # namespace, whose every attribute is truthy.
+    if getattr(_args, 'selftest', False) is True:
+        print()
+        print('  Selftest')
+        if not (lib_ok and db_ok):
+            _row(False, 'selftest', 'not run: needs libmodena and MongoDB',
+                 'Fix the libmodena / MongoDB checks above first.')
+        else:
+            from modena.Selftest import run_selftest
+            for ok, label, detail, hint in run_selftest(uri):
+                if ok is None:                  # skipped: optional tool absent
+                    _opt(False, label, detail)
+                else:
+                    _row(ok, label, detail, hint)
 
     # ── Summary ───────────────────────────────────────────────────────
     print()
@@ -676,7 +702,9 @@ def _launch(wf_or_models, args) -> None:
     import modena as _modena
     try:
         _modena.run(wf_or_models, **_build_run_kwargs(args))
-    except ValueError as exc:
+    except (ValueError, WorkflowFailed) as exc:
+        # WorkflowFailed: a firework failed.  Exit non-zero so a script or CI
+        # job running `modena simulate` / `modena init` sees it.
         print(f'[modena] ERROR: {exc}', file=sys.stderr)
         sys.exit(1)
 
@@ -697,7 +725,7 @@ def _fw_launch(args):
     kwargs.pop('reset', None)          # launch() never resets; it only runs
     try:
         _modena.launch(lpad=lp, **kwargs)
-    except ValueError as exc:
+    except (ValueError, WorkflowFailed) as exc:
         print(f'[modena] ERROR: {exc}', file=sys.stderr)
         sys.exit(1)
 
@@ -824,7 +852,9 @@ def _model_sample(args):
 
     try:
         result = request_points(model, args.points, run=args.run, source='cli')
-    except InFlight as exc:
+    except (InFlight, WorkflowFailed) as exc:
+        # WorkflowFailed: with --run, a simulation failed.  This printed
+        # "Ran N simulation(s)." regardless before run() reported failures.
         print(f'[modena] ERROR: {exc}', file=sys.stderr)
         sys.exit(1)
 
@@ -1612,6 +1642,12 @@ def _build_parser():
         'doctor',
         help='Check environment, dependencies, and MongoDB connectivity',
         description='Run health checks and report the status of the MoDeNa environment.',
+    )
+    p.add_argument(
+        '--selftest', action='store_true',
+        help='also install, fit and evaluate a bundled model (flowRate) end to '
+             'end, in a throwaway database on the MODENA_URI server that is '
+             'dropped afterwards; needs a C compiler, CMake and pip',
     )
     p.set_defaults(func=_doctor)
 

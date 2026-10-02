@@ -48,6 +48,8 @@ from fireworks.queue.queue_launcher import rapidfire as queue_rapidfire
 
 from modena.Launchpad import ModenaLaunchPad, _fw_strm_lvl
 from modena.SurrogateModel import SurrogateModel, EmptyFireTask
+from modena.Strategy import FAILURE_KEY
+from modena._errors import WorkflowFailed  # noqa: F401  (re-exported)
 
 _log = logging.getLogger('modena.runner')
 
@@ -257,6 +259,8 @@ def run(
     Raises:
         ValueError: unknown ``launcher``.
         ValueError: ``'qlaunch'`` or ``'auto'`` without a ``qadapter``.
+        WorkflowFailed: a firework of this run failed.  A script that prints
+            "done" after ``run()`` returns can rely on it having succeeded.
     """
     _ensure_fw_config()
 
@@ -345,6 +349,10 @@ def launch(
 
     Returns:
         The ``ModenaLaunchPad`` used.
+
+    Raises:
+        WorkflowFailed: a firework launched by this call failed -- its task
+            ended the workflow on an error, or raised.
     """
     _ensure_fw_config()
 
@@ -365,6 +373,8 @@ def launch(
     if lpad is None:
         lpad = ModenaLaunchPad.from_modena_uri()
 
+    # Launches newer than this belong to this run; see _failures_since.
+    first_new = _last_launch_id(lpad)
     n_ready   = len(lpad.get_fw_ids(query={'state': 'READY'}))
     n_waiting = len(lpad.get_fw_ids(query={'state': 'WAITING'}))
     strm_lvl  = _fw_strm_lvl()
@@ -444,7 +454,47 @@ def launch(
             )
 
     _log.info('run: done. %s', lpad.state_summary())
+
+    failures = _failures_since(lpad, first_new)
+    if failures:
+        raise WorkflowFailed(failures)
     return lpad
+
+
+def _last_launch_id(lpad) -> int:
+    """The newest launch id in the launchpad (0 when there are none)."""
+    doc = lpad.launches.find_one({}, projection={'launch_id': 1},
+                                 sort=[('launch_id', -1)])
+    return int(doc['launch_id']) if doc else 0
+
+
+def _failures_since(lpad, launch_id: int) -> list:
+    """``(fw_id, name, reason)`` for each failed launch newer than *launch_id*.
+
+    Two kinds count: a task that ended its workflow through
+    :func:`modena.Strategy.workflow_failed` (the launch is COMPLETED, the
+    reason is in its stored_data), and a task that raised (FIZZLED, with the
+    traceback FireWorks stores).  Recoveries -- out-of-bounds detours, skipped
+    points -- are neither.
+    """
+    failures = []
+    for launch in lpad.launches.find(
+            {'launch_id': {'$gt': launch_id}},
+            projection={'fw_id': 1, 'state': 1, 'action': 1},
+            sort=[('launch_id', 1)]):
+        stored = (launch.get('action') or {}).get('stored_data') or {}
+        if FAILURE_KEY in stored:
+            reason = stored[FAILURE_KEY]
+        elif launch.get('state') == 'FIZZLED':
+            trace = ((stored.get('_exception') or {}).get('_stacktrace') or '')
+            last = trace.strip().splitlines()[-1:] or ['raised an exception']
+            reason = last[0]
+        else:
+            continue
+        fw = lpad.fireworks.find_one({'fw_id': launch['fw_id']},
+                                     projection={'name': 1}) or {}
+        failures.append((launch['fw_id'], fw.get('name', '?'), reason))
+    return failures
 
 
 def _run_rapidfire(lpad, strm_lvl, sleep_time, timeout):

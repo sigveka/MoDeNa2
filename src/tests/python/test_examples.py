@@ -13,6 +13,9 @@ somebody ran into it:
   * ``fullerEtAlDiffusion`` hand-declared 4 bindings -> gcc redefinition error
   * ``flowRate_idealGas``   hand-declared 2 bindings -> gcc redefinition error
   * ``fullerEtAlDiffusion`` named parameters ``W[A]`` -> not a C identifier
+    (the template bound the name verbatim; it now binds index-set names as
+    ``WA`` via ``SurrogateFunction.c_name``, and the example's indexed names
+    are restored)
   * ``flowRate_idealGas``   declared ``param0`` while the code used ``P0``
   * ``idealGas``            ``parameters = [287.0]`` -> field is now a dict
 
@@ -132,11 +135,19 @@ def test_config_validates_against_the_schema(path, raw):
 _C_IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 
+def _c_name(name):
+    """The C binding the template uses -- the real rule, not a copy of it."""
+    from modena.SurrogateModel import SurrogateFunction
+    return SurrogateFunction.c_name(name)
+
+
 @pytest.mark.parametrize('path,raw', _CONFIGS, ids=_ids(_CONFIGS))
 def test_declared_names_are_valid_c_identifiers(path, raw):
-    """The Jinja2 template binds each name as ``const double <name> = ...``.
+    """The Jinja2 template binds each name as ``const double <c_name> = ...``.
 
-    ``W[A]`` is a perfectly good TOML key and a syntax error in C.
+    Index-set names keep their brackets (``W[A]`` is what a model instance
+    expands to ``W[H2O]``) and are bound without them (``WA``); anything
+    else must already be a C identifier.
     """
     if raw is None:
         pytest.skip('invalid TOML; reported by test_config_toml_parses')
@@ -145,7 +156,7 @@ def test_declared_names_are_valid_c_identifiers(path, raw):
         f'{section}.{name}'
         for section in ('inputs', 'outputs', 'parameters')
         for name in (surrogate.get(section) or {})
-        if not _C_IDENTIFIER.match(name)
+        if not _C_IDENTIFIER.match(_c_name(name))
     ]
     assert not bad, f'{_rel(path)}: not valid C identifiers: {bad}'
 
@@ -163,6 +174,56 @@ def test_parameter_values_match_declared_names(path, raw):
     assert not unknown, (
         f'{_rel(path)}: [parameters] names nothing declared under '
         f'[surrogate.parameters]: {sorted(unknown)} (declared: {sorted(declared)})'
+    )
+
+
+def _installer_ships_config(cfg):
+    """Does the package's installer copy *cfg* next to its module?
+
+    Two installers are in use.  A CMake package (built by an example's
+    buildModels, or by scikit-build) must name config.toml in an install()
+    rule.  A setuptools package must list it as package-data *and* declare
+    the package explicitly: these directories are named `python`, not after
+    the package, so auto-discovery installs a bare top-level module -- and
+    package-data, which only applies to packages, is then silently dropped.
+    """
+    here = cfg.parent
+    for cmake in (here / 'CMakeLists.txt', here.parent / 'CMakeLists.txt'):
+        if cmake.exists() and re.search(r'install\s*\([^)]*config\.toml',
+                                        cmake.read_text(), re.S):
+            return True
+    for pyproject in (here / 'pyproject.toml', here.parent / 'pyproject.toml'):
+        if not pyproject.exists():
+            continue
+        tool = tomllib.loads(pyproject.read_text()).get('tool', {})
+        st = tool.get('setuptools', {})
+        data = st.get('package-data', {})
+        ships = any('config.toml' in globs for globs in data.values())
+        declared = bool(st.get('packages')) and bool(st.get('package-dir'))
+        if ships and declared:
+            return True
+    return False
+
+
+@pytest.mark.parametrize('path,raw', _CONFIGS, ids=_ids(_CONFIGS))
+def test_config_toml_is_installed_with_its_module(path, raw):
+    """A module that loads its config.toml needs its installer to ship it.
+
+    load_model_config(__file__) looks for config.toml beside the installed
+    module.  Five of the six example packages using it installed only their
+    *.py files, so each installed cleanly and then failed on import with
+    "config.toml not found alongside ...": fullerEtAlDiffusion, coolProp,
+    coolPropMixture and coolPropMixtureTP through their CMake rules, and
+    thermalDiffusion through setuptools auto-discovery.
+    """
+    users = [py for py in path.parent.glob('*.py')
+             if 'load_model_config' in py.read_text()]
+    if not users:
+        pytest.skip('no module in this package loads config.toml')
+    assert _installer_ships_config(path), (
+        f'{_rel(path)} is loaded by {[p.name for p in users]} but no installer '
+        f'ships it: add install(FILES ".../config.toml" ...) to the CMake '
+        f'rules, or setuptools package-data plus packages/package-dir'
     )
 
 
@@ -241,8 +302,9 @@ def test_named_style_ccode_references_every_declared_parameter(path, code):
     if re.search(r'\bparameters\s*\[', body):
         pytest.skip('indexed-array style; names are not required')
 
+    # Index-set names are referenced in C by their binding: W[A] as WA.
     missing = [n for n in declared
-               if not re.search(rf'\b{re.escape(n)}\b', body)]
+               if not re.search(rf'\b{re.escape(_c_name(n))}\b', body)]
     assert not missing, (
         f'{_rel(path)}: parameter(s) {missing} are declared in config.toml but '
         f'the Ccode neither indexes parameters[...] nor references them by '

@@ -6,15 +6,15 @@ Unit tests (no libmodena required)
 Verify that _compile_c_surrogate constructs the correct compiler command and
 handles error cases, using subprocess.run mocks.
 
-Integration tests (@pytest.mark.integration)
+Integration tests (@pytest.mark.installed)
 ---------------------------------------------
 Actually compile a C file and load it with ctypes.  Requires:
   - A C compiler on PATH
   - An installed modena (modena.h and libmodena.so visible via MODENA_INCLUDE_DIR
     and MODENA_LIB_DIR)
 
-Run integration tests with:
-    pytest -m integration src/tests/python/test_compile_surrogate.py
+Run them with:
+    pytest -m installed src/tests/python/test_compile_surrogate.py
 """
 
 import shutil
@@ -194,7 +194,7 @@ void test_surrogate(
 """
 
 
-@pytest.mark.integration
+@pytest.mark.installed
 @pytest.mark.skipif(not _has_c_compiler(), reason='no C compiler found')
 @pytest.mark.skipif(not _modena_installed(), reason='modena not installed (no modena.h / libmodena.so)')
 class TestCompileSurrogateIntegration:
@@ -303,7 +303,7 @@ class TestCompileSurrogateIntegration:
 # Tests for find_package(MODENA) path exports
 # ---------------------------------------------------------------------------
 
-@pytest.mark.integration
+@pytest.mark.installed
 @pytest.mark.skipif(not _modena_installed(), reason='modena not installed')
 class TestModenaPaths:
     """Verify that the paths exported by the installed modena package are usable."""

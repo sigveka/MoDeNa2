@@ -17,8 +17,14 @@ Both failure modes were live in this repository until 2026-09-29:
   label selection, so that command silently listed every other test and never
   this one.
 
-Together, nothing in the ``@pytest.mark.integration`` tier could execute by
-any invocation.  The tests below fail rather than skip if either returns.
+Together, nothing in the ``@pytest.mark.integration`` tier (now split into
+``installed`` and ``live``) could execute by any invocation.  The tests below
+fail rather than skip if either returns.
+
+The tiers themselves are checked too: every CTest entry must carry exactly one
+of the labels ``unit`` / ``installed`` / ``live``, and every pytest file that
+CTest runs with ``-m <tier>`` must actually carry that marker -- otherwise the
+selection deselects it and it passes by never running.
 
 The oracle for "is there a build to test?" is deliberately the filesystem, not
 anything the suite configures -- otherwise these guards could be disabled by
@@ -26,6 +32,7 @@ the same mistake they are meant to catch.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -34,6 +41,10 @@ import pytest
 
 _TESTS_PY_DIR = Path(__file__).parent.resolve()
 _REPO_ROOT    = _TESTS_PY_DIR.parent.parent.parent.resolve()
+_IFACE_DIR    = _TESTS_PY_DIR.parent / 'interface-tests'
+
+#: The CTest tier labels, mirroring the markers in src/tests/pytest.ini.
+TIERS = ('unit', 'installed', 'live')
 
 
 def _build_exists_on_disk():
@@ -60,11 +71,11 @@ needs_a_build = pytest.mark.skipif(
 
 
 # ---------------------------------------------------------------------------
-# The integration tier must be reachable
+# The installed tier must be reachable
 # ---------------------------------------------------------------------------
 
 @needs_a_build
-class TestIntegrationTierIsReachable:
+class TestInstalledTierIsReachable:
 
     def test_conftest_publishes_the_build_paths(self):
         """The stub must carry the real include and lib directories."""
@@ -105,13 +116,13 @@ class TestIntegrationTierIsReachable:
             'it guards would skip with a reason that is not true'
         )
 
-    def test_the_integration_marker_is_actually_used(self):
+    def test_the_installed_marker_is_actually_used(self):
         """A tier with no members is not a tier."""
         marked = [
             path for path in _TESTS_PY_DIR.glob('test_*.py')
-            if 'pytest.mark.integration' in path.read_text()
+            if _uses_marker(path, 'installed')
         ]
-        assert marked, 'no test carries @pytest.mark.integration'
+        assert marked, 'no test carries @pytest.mark.installed'
 
 
 # ---------------------------------------------------------------------------
@@ -144,8 +155,161 @@ class TestNoCTestEntryIsDisabled:
 
 
 # ---------------------------------------------------------------------------
+# Every test belongs to exactly one tier
+# ---------------------------------------------------------------------------
+
+def _ctest_entries():
+    """``{test name: [[labels], ...]}`` for every add_test() under src/.
+
+    One inner list per set_tests_properties(... LABELS) call naming the test,
+    so a test registered in both arms of an if/elseif (the MATLAB smoke) is
+    judged per registration rather than as the union of both.  Parsed
+    statically from the CMakeLists files so the check needs no build
+    directory.  A test with no LABELS anywhere maps to an empty list.
+    """
+    entries = {}
+    for cmakelists in (_REPO_ROOT / 'src').rglob('CMakeLists.txt'):
+        text = '\n'.join(
+            line for line in cmakelists.read_text().splitlines()
+            if not line.lstrip().startswith('#')
+        )
+        for name in re.findall(r'add_test\(\s*NAME\s+(\w+)', text):
+            entries.setdefault(name, [])
+        for body in re.findall(r'set_tests_properties\((.*?)\)', text, re.S):
+            names, _, props = body.partition('PROPERTIES')
+            labels = re.search(r'LABELS\s+"([^"]*)"', props)
+            if not labels:
+                continue
+            for name in names.split():
+                entries.setdefault(name, []).append(labels.group(1).split(';'))
+    return entries
+
+
+def _uses_marker(path, marker):
+    """True when *path* applies ``pytest.mark.<marker>`` as code, not text."""
+    return re.search(
+        rf'^\s*(@pytest\.mark\.{marker}\b'
+        rf'|pytestmark\s*=.*pytest\.mark\.{marker}\b)',
+        path.read_text(), re.M,
+    ) is not None
+
+
+def _pytestmark_tier(path):
+    """The tier named by a module-level ``pytestmark``, or None."""
+    match = re.search(r'^pytestmark\s*=\s*pytest\.mark\.(\w+)',
+                      path.read_text(), re.M)
+    return match.group(1) if match else None
+
+
+class TestTiersAreAssigned:
+
+    def test_ctest_entries_were_found(self):
+        """Guards the parser: an empty result would make the rest vacuous."""
+        entries = _ctest_entries()
+        assert 'modena_python_unit' in entries
+        assert 'modena_iface_cpp_smoke' in entries
+
+    def test_every_ctest_entry_has_exactly_one_tier(self):
+        """`ctest -L <tier>` must partition the suite.
+
+        A test with no tier is run by nobody who selects by tier; a test with
+        two is run twice and belongs to neither.  The retired `integration`
+        label meant three different things at once -- needs an install, needs
+        a live database, needs a fitted model -- which is why it is rejected
+        by name as well.
+        """
+        problems = []
+        for name, registrations in sorted(_ctest_entries().items()):
+            if not registrations:
+                problems.append(f'{name}: no LABELS at all')
+            for labels in registrations:
+                tiers = [label for label in labels if label in TIERS]
+                if len(tiers) != 1:
+                    problems.append(
+                        f'{name}: tiers {tiers or "none"} in {labels}')
+                if 'integration' in labels:
+                    problems.append(f'{name}: retired label `integration`')
+        assert not problems, (
+            f'each CTest entry needs exactly one of {TIERS}:\n  '
+            + '\n  '.join(problems)
+        )
+
+    def test_every_live_interface_test_is_attached_to_a_database(self):
+        """A live test outside both lists runs against the ambient MODENA_URI.
+
+        interface-tests/CMakeLists.txt attaches the tests in _MODENA_LIVE_TESTS
+        to the live fixture (test database, fitted flowRate, resource lock);
+        _MODENA_SELF_CONTAINED_LIVE_TESTS manage a database of their own.  A
+        new live test added to neither would silently use -- and possibly
+        write to -- whatever database the developer's shell names.
+        """
+        cmake = (_IFACE_DIR / 'CMakeLists.txt').read_text()
+
+        def listed(var):
+            body = re.search(rf'set\({var}\s(.*?)\)', cmake, re.S)
+            assert body, f'{var} is not defined in interface-tests/CMakeLists.txt'
+            return set(body.group(1).split())
+
+        attached = listed('_MODENA_LIVE_TESTS')
+        own_db = listed('_MODENA_SELF_CONTAINED_LIVE_TESTS')
+        assert not attached & own_db, f'in both lists: {attached & own_db}'
+
+        live_here = {
+            name for name, registrations in _ctest_entries().items()
+            if any('live' in labels for labels in registrations)
+            and re.search(rf'add_test\(\s*NAME\s+{name}\b', cmake)
+        }
+        assert live_here, 'no live test found in interface-tests/CMakeLists.txt'
+        unattached = live_here - attached - own_db
+        assert not unattached, (
+            f'live tests attached to no database: {sorted(unattached)}; add '
+            f'them to _MODENA_LIVE_TESTS in interface-tests/CMakeLists.txt'
+        )
+        stale = (attached | own_db) - live_here
+        assert not stale, f'listed but not registered as live: {sorted(stale)}'
+
+    def test_no_live_test_under_python(self):
+        """conftest.py here stubs the database, so `live` cannot pass here."""
+        offenders = [
+            path.name for path in _TESTS_PY_DIR.glob('test_*.py')
+            if _uses_marker(path, 'live')
+        ]
+        assert not offenders, (
+            f'live-tier tests belong in interface-tests/: {offenders}'
+        )
+
+    @pytest.mark.parametrize(
+        'path', sorted(_IFACE_DIR.glob('test_*.py')), ids=lambda p: p.name,
+    )
+    def test_interface_pytest_file_matches_its_ctest_selection(self, path):
+        """CTest runs each of these with `-m <tier>`: the marks must agree.
+
+        A test lacking the mark is deselected by that `-m` and reports as
+        passed without running.
+        """
+        tier = _pytestmark_tier(path)
+        assert tier in TIERS, (
+            f'{path.name} needs a module-level `pytestmark = '
+            f'pytest.mark.<tier>` with tier in {TIERS}'
+        )
+        cmake = (_IFACE_DIR / 'CMakeLists.txt').read_text()
+        selected = re.search(
+            re.escape(path.name) + r'"?\s+-m\s+"?(\w+)', cmake,
+        )
+        assert selected, f'{path.name} is not run by any CTest entry'
+        assert selected.group(1) == tier, (
+            f'{path.name} is marked `{tier}` but CTest selects '
+            f'`-m {selected.group(1)}`'
+        )
+
+
+# ---------------------------------------------------------------------------
 # Skips must be justified
 # ---------------------------------------------------------------------------
+
+#: Set in the environment of the child pytest run TestSkipsAreHonest starts.
+_SKIP_AUDIT_CHILD = 'MODENA_SKIP_AUDIT_CHILD'
+
 
 @needs_a_build
 class TestSkipsAreHonest:
@@ -155,14 +319,24 @@ class TestSkipsAreHonest:
 
         Catches new guards that repeat the original mistake, not just the two
         already fixed.
+
+        The child run must not start this test again.  It used to exclude it
+        with ``--deselect <file>::TestSkipsAreHonest``, but a deselect nodeid
+        is relative to pytest's rootdir: when src/tests/pytest.ini moved the
+        rootdir up a level the nodeid stopped matching, and every child
+        spawned another child.  An environment flag does not depend on where
+        the rootdir is.
         """
         import subprocess
 
+        if os.environ.get(_SKIP_AUDIT_CHILD):
+            pytest.skip('inside the audit run this test started')
+
         result = subprocess.run(
             [sys.executable, '-m', 'pytest', str(_TESTS_PY_DIR),
-             '-q', '-rs', '-p', 'no:cacheprovider',
-             '--deselect', f'{Path(__file__).name}::TestSkipsAreHonest'],
+             '-q', '-rs', '-p', 'no:cacheprovider'],
             capture_output=True, text=True, cwd=str(_TESTS_PY_DIR),
+            env={**os.environ, _SKIP_AUDIT_CHILD: '1'},
         )
         suspicious = [
             line for line in result.stdout.splitlines()

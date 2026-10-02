@@ -4,19 +4,21 @@ cmake_minimum_required(VERSION 3.22...3.28)
 # Test targets that link against modena must also see Python headers.
 find_package(Python3 COMPONENTS Development REQUIRED)
 
-add_executable(twoTanksMacroscopicProblem "${CMAKE_CURRENT_SOURCE_DIR}/twoTanksFullProblem.C")
-target_link_libraries(twoTanksMacroscopicProblem modena)
-target_include_directories(twoTanksMacroscopicProblem PRIVATE ${Python3_INCLUDE_DIRS})
-
 # ---------------------------------------------------------------------------
 # Interface smoke tests — one per language wrapper.  Each links a real
 # language binding against libmodena and evaluates the `flowRate` model
 # to end-to-end verify the wrapper is wired correctly.
 #
-# Registered under the "integration" label because they require:
-#   * a live MongoDB pointed to by MODENA_URI
-#   * the `flowRate` model already initialized (run examples/twoTanks/initModels)
-# Run with:  ctest -L integration
+# Tier labels (see ../pytest.ini) -- every entry here carries exactly one:
+#
+#   installed  needs `cmake --install`: headers, libmodena, wrapper packages
+#   live       also needs a MongoDB holding a fitted `flowRate`
+#
+# The live tests do not prepare that database themselves: the fixtures in
+# ../CMakeLists.txt do, in the database MODENA_TEST_URI names, and every
+# live test is attached to them by modena_require_live() at the bottom of
+# this file.  `ctest -L live` therefore runs the whole chain -- install
+# check, flowRate install + fit, the tests, cleanup -- with no manual step.
 # ---------------------------------------------------------------------------
 
 # -- C++ (modena::Model, RAII wrapper) ------------------------------------
@@ -25,7 +27,7 @@ target_link_libraries(test_cpp_smoke PRIVATE modena_cpp modena)
 target_include_directories(test_cpp_smoke PRIVATE ${Python3_INCLUDE_DIRS})
 target_compile_features(test_cpp_smoke PRIVATE cxx_std_17)
 add_test(NAME modena_iface_cpp_smoke COMMAND test_cpp_smoke)
-set_tests_properties(modena_iface_cpp_smoke PROPERTIES LABELS "cpp;integration")
+set_tests_properties(modena_iface_cpp_smoke PROPERTIES LABELS "cpp;live")
 
 # -- Fortran (fmodena_oop) ------------------------------------------------
 # Only built if the Fortran wrapper is enabled.
@@ -36,7 +38,7 @@ if(TARGET fmodena_oop)
     target_link_libraries(test_fortran_smoke PRIVATE fmodena_oop fmodena modena)
     add_test(NAME modena_iface_fortran_smoke COMMAND test_fortran_smoke)
     set_tests_properties(modena_iface_fortran_smoke
-        PROPERTIES LABELS "fortran;integration"
+        PROPERTIES LABELS "fortran;live"
     )
 endif()
 
@@ -53,7 +55,7 @@ target_include_directories(test_thread_safety PRIVATE ${Python3_INCLUDE_DIRS})
 target_compile_features(test_thread_safety PRIVATE cxx_std_17)
 add_test(NAME modena_iface_thread_safety COMMAND test_thread_safety)
 set_tests_properties(modena_iface_thread_safety
-    PROPERTIES LABELS "cpp;integration;thread"
+    PROPERTIES LABELS "cpp;live;thread"
 )
 
 # -- MATLAB / Octave (via MEX gateway + Modena.m class) -------------------
@@ -77,7 +79,7 @@ if(WITH_MATLAB AND MODENA_MATLAB_GATEWAY_BUILT)
                 "${CMAKE_CURRENT_SOURCE_DIR}/test_matlab_smoke.m"
         )
         set_tests_properties(modena_iface_matlab_smoke PROPERTIES
-            LABELS "octave;integration"
+            LABELS "octave;live"
         )
     elseif(MATLAB_EXECUTABLE)
         add_test(NAME modena_iface_matlab_smoke
@@ -85,7 +87,7 @@ if(WITH_MATLAB AND MODENA_MATLAB_GATEWAY_BUILT)
                 "addpath('${MATLAB_PKG_DIR}'); run('${CMAKE_CURRENT_SOURCE_DIR}/test_matlab_smoke.m');"
         )
         set_tests_properties(modena_iface_matlab_smoke PROPERTIES
-            LABELS "matlab;integration"
+            LABELS "matlab;live"
         )
     endif()
 endif()
@@ -117,7 +119,7 @@ if(WITH_JULIA)
                 "${CMAKE_CURRENT_SOURCE_DIR}/test_julia_smoke.jl"
         )
         set_tests_properties(modena_iface_julia_smoke PROPERTIES
-            LABELS "julia;integration"
+            LABELS "julia;live"
         )
     else()
         message(WARNING
@@ -158,7 +160,7 @@ if(WITH_R AND R_EXECUTABLE)
         # library, so R only finds it with R_LIBS set -- the same thing
         # modena-env.sh does for an interactive shell.
         set_tests_properties(modena_iface_r_smoke PROPERTIES
-            LABELS "r;integration"
+            LABELS "r;live"
             ENVIRONMENT "R_LIBS=${R_LIB_DIR};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
         )
     else()
@@ -185,10 +187,10 @@ add_test(
     NAME    modena_generated_snippets
     COMMAND ${Python3_EXECUTABLE} -m pytest
             "${CMAKE_CURRENT_SOURCE_DIR}/test_generated_snippets.py"
-            -m integration --tb=short -q
+            -m live --tb=short -q
 )
 set_tests_properties(modena_generated_snippets PROPERTIES
-    LABELS      "python;integration;snippets"
+    LABELS      "python;live;snippets"
     ENVIRONMENT "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
 )
 
@@ -202,11 +204,53 @@ add_test(
     NAME    modena_oob_exception
     COMMAND ${Python3_EXECUTABLE} -m pytest
             "${CMAKE_CURRENT_SOURCE_DIR}/test_oob_exception.py"
-            -m integration --tb=short -q
+            -m live --tb=short -q
 )
 set_tests_properties(modena_oob_exception PROPERTIES
-    LABELS      "python;integration"
+    LABELS      "python;live"
     ENVIRONMENT "MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
+)
+
+# -- The out-of-bounds -> refit loop, end to end --------------------------
+# Runs the twoTanks simulation against a freshly initialised flowRate and
+# asserts it leaves the trained box, refits, and finishes -- in 1..6 refits.
+# Installs the example packages itself and uses a database of its own
+# (modena_looptest_<id> on the MODENA_TEST_URI server, dropped afterwards),
+# so it does not use the live fixture and cannot disturb the tests that do.
+add_test(
+    NAME    modena_twotanks_loop
+    COMMAND ${Python3_EXECUTABLE} -m pytest
+            "${CMAKE_CURRENT_SOURCE_DIR}/test_twotanks_loop.py"
+            -m live --tb=short -q
+)
+set_tests_properties(modena_twotanks_loop PROPERTIES
+    LABELS            "python;live;workflow"
+    TIMEOUT           900
+    ENVIRONMENT       "MODENA_URI=${MODENA_TEST_URI}"
+    FIXTURES_REQUIRED modena_installed
+)
+
+# -- modena doctor --selftest ---------------------------------------------
+# The install-only end-to-end check a user runs: install the bundled
+# flowRate from <prefix>/share/modena/selftest, fit it, evaluate it from
+# Python and C.  Exercising it here keeps the command a user is told to run
+# from rotting.  It uses a database of its own on the MODENA_TEST_URI server.
+#
+# doctor also checks for a project modena.toml, which a build directory does
+# not have; run it from one configure writes.
+set(_DOCTOR_DIR "${CMAKE_CURRENT_BINARY_DIR}/doctor")
+file(WRITE "${_DOCTOR_DIR}/modena.toml"
+    "# Written by src/tests/interface-tests/CMakeLists.txt for modena_doctor_selftest.\n[models]\npaths = []\n")
+add_test(
+    NAME    modena_doctor_selftest
+    COMMAND ${Python3_EXECUTABLE} -m modena doctor --selftest
+    WORKING_DIRECTORY "${_DOCTOR_DIR}"
+)
+set_tests_properties(modena_doctor_selftest PROPERTIES
+    LABELS            "python;live;selftest"
+    TIMEOUT           900
+    ENVIRONMENT       "MODENA_URI=${MODENA_TEST_URI}"
+    FIXTURES_REQUIRED modena_installed
 )
 
 # -- Status codes agree across every binding ------------------------------
@@ -217,9 +261,52 @@ add_test(
     NAME    modena_status_codes
     COMMAND ${Python3_EXECUTABLE} -m pytest
             "${CMAKE_CURRENT_SOURCE_DIR}/test_status_codes.py"
-            -m integration --tb=short -q
+            -m installed --tb=short -q
 )
 set_tests_properties(modena_status_codes PROPERTIES
-    LABELS      "python;integration"
-    ENVIRONMENT "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
+    LABELS            "python;installed"
+    ENVIRONMENT       "MODENA_PREFIX=${CMAKE_INSTALL_PREFIX};MODENA_LIB_DIR=${INSTALL_LIB_DIR}/modena"
+    FIXTURES_REQUIRED modena_installed
 )
+
+# ---------------------------------------------------------------------------
+# Attach every live test to the live fixture
+#
+# Appends, rather than sets, so tests that already carry an ENVIRONMENT (the
+# R smoke, the snippets) keep it.  Tests registered only for some toolchains
+# (Fortran, MATLAB, Julia, R) are skipped when absent.
+#
+# Every test labelled `live` in this file must appear in exactly one of the
+# two lists below; test_suite_integrity.py enforces it, because a live test
+# missing from both would run against whatever database the environment
+# happens to name.
+# ---------------------------------------------------------------------------
+set(_MODENA_LIVE_TESTS
+    modena_iface_cpp_smoke
+    modena_iface_fortran_smoke
+    modena_iface_thread_safety
+    modena_iface_matlab_smoke
+    modena_iface_julia_smoke
+    modena_iface_r_smoke
+    modena_generated_snippets
+    modena_oob_exception
+)
+#: Live tests that manage a database of their own instead of the fixture's.
+set(_MODENA_SELF_CONTAINED_LIVE_TESTS
+    modena_twotanks_loop
+    modena_doctor_selftest
+)
+
+function(modena_require_live name)
+    if(NOT TEST ${name})
+        return()
+    endif()
+    set_property(TEST ${name} APPEND PROPERTY ENVIRONMENT ${MODENA_LIVE_ENVIRONMENT})
+    set_property(TEST ${name} APPEND PROPERTY
+        FIXTURES_REQUIRED modena_installed modena_live_db)
+    set_property(TEST ${name} APPEND PROPERTY RESOURCE_LOCK modena_live_db)
+endfunction()
+
+foreach(_t IN LISTS _MODENA_LIVE_TESTS)
+    modena_require_live(${_t})
+endforeach()

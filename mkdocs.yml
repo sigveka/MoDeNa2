@@ -8,6 +8,7 @@ nav:
   - Home: index.md
   - User Guide: quick-start-user.md
   - Developer Guide: quick-start-developer.md
+  - HPC and Clusters: quick-start-hpc.md
   - Language Bindings:
       - C: quick-start-c.md
       - C++: quick-start-cpp.md

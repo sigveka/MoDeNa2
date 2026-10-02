@@ -17,8 +17,8 @@
 #   * 1-based Julia index <-> 0-based C argPos conversion in parameter(m, name)
 #
 # Requires `flowRate` to be initialized in the MongoDB pointed to by
-# MODENA_URI (run examples/twoTanks/initModels), hence the "integration"
-# CTest label.
+# MODENA_URI, hence the "live" CTest label; under ctest the live fixture
+# prepares it (src/tests/CMakeLists.txt).
 #
 # Exit code: 0 on success, non-zero on any assertion failure or ccall error.
 

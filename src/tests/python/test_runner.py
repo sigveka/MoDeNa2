@@ -28,6 +28,10 @@ def _make_lpad():
     lp = MagicMock()
     lp.get_fw_ids.return_value = []
     lp.state_summary.return_value = 'COMPLETED=1'
+    # No launches: run()/launch() look for failed ones afterwards, and a bare
+    # MagicMock would answer with more MagicMocks rather than "none".
+    lp.launches.find_one.return_value = None
+    lp.launches.find.return_value = []
     return lp
 
 
@@ -218,3 +222,78 @@ class TestLocalWorkers:
                 launcher='auto', njobs=3)
         _, kwargs = mock_mp.call_args
         assert kwargs['num_jobs'] == 3
+
+
+# ---------------------------------------------------------------------------
+# A failed firework must fail run() / launch()
+# ---------------------------------------------------------------------------
+# A task ends its workflow on an error by returning a defuse action, which
+# FireWorks records as COMPLETED.  run() used to return normally regardless,
+# so `modena.run(wf); print("Workflow complete.")` announced success for a
+# simulation that had died.  The workflow_failed() action now records the
+# reason, and run() raises WorkflowFailed when a launch of this run carries
+# one -- or FIZZLED.
+
+class TestFailureDetection:
+
+    @pytest.fixture
+    def lp(self):
+        import mongomock
+        db = mongomock.MongoClient().db
+        lp = _make_lpad()
+        lp.launches = db.launches
+        lp.fireworks = db.fireworks
+        return lp
+
+    @staticmethod
+    def _launch(lp, launch_id, fw_id, name, state='COMPLETED', stored=None, **action):
+        lp.fireworks.insert_one({'fw_id': fw_id, 'name': name})
+        lp.launches.insert_one({
+            'launch_id': launch_id, 'fw_id': fw_id, 'state': state,
+            'action': dict(action, stored_data=stored or {}),
+        })
+
+    def _run(self, lp, during):
+        """run() with a fake worker that records *during*'s launches."""
+        from fireworks import Firework, Workflow
+        from modena.Runner import run
+        with patch('modena.Runner.rapidfire',
+                   side_effect=lambda *a, **k: during(lp)):
+            return run(Workflow([Firework([])]), lpad=lp, reset=False, njobs=1)
+
+    def test_a_recorded_failure_raises(self, lp):
+        from modena.Runner import WorkflowFailed
+        from modena.Strategy import FAILURE_KEY
+
+        def worker(lp):
+            self._launch(lp, 1, 7, 'simulation TwoTankModel', defuse_workflow=True,
+                         stored={FAILURE_KEY: 'macroscopic simulation terminated: rc 1'})
+        with pytest.raises(WorkflowFailed) as excinfo:
+            self._run(lp, worker)
+        assert excinfo.value.failures == [
+            (7, 'simulation TwoTankModel', 'macroscopic simulation terminated: rc 1')]
+        assert 'simulation TwoTankModel' in str(excinfo.value)
+
+    def test_a_fizzled_launch_raises_with_the_last_traceback_line(self, lp):
+        from modena.Runner import WorkflowFailed
+
+        def worker(lp):
+            self._launch(lp, 1, 3, 'fit', state='FIZZLED', stored={
+                '_exception': {'_stacktrace': 'Traceback ...\nValueError: boom\n'}})
+        with pytest.raises(WorkflowFailed) as excinfo:
+            self._run(lp, worker)
+        assert excinfo.value.failures == [(3, 'fit', 'ValueError: boom')]
+
+    def test_failures_from_before_this_run_are_ignored(self, lp):
+        from modena.Strategy import FAILURE_KEY
+        self._launch(lp, 5, 1, 'old', stored={FAILURE_KEY: 'an earlier run'})
+
+        def worker(lp):
+            self._launch(lp, 6, 2, 'new')
+        assert self._run(lp, worker) is lp
+
+    def test_success_and_recoveries_return_normally(self, lp):
+        def worker(lp):
+            self._launch(lp, 1, 1, 'sim')                          # plain success
+            self._launch(lp, 2, 2, 'sim', detours=[{'fws': []}])    # OOB detour
+        assert self._run(lp, worker) is lp

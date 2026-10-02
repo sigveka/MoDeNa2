@@ -18,7 +18,7 @@
  * model is missing the ctor throws modena::ModelNotFound and the process
  * exits with a non-zero status — the CTest harness catches that.
  *
- * The test is registered under the "integration" label because it needs
+ * The test is registered under the "live" label because it needs
  * a live MongoDB with the model pre-initialized.
  */
 

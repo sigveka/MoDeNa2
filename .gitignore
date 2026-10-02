@@ -80,7 +80,21 @@
 !NAMESPACE
 !NAMESPACE.in
 
+# Clean-install test harness (Dockerfile and extensionless / .sh scripts).
+# ci/docker-tests builds its image from the git-tracked files only, so an
+# untracked file here would be missing from the very image it defines.
+!ci/*
+
+# pytest configuration for src/tests/: registers the tier markers and turns
+# on --strict-markers.  Excluded by the allowlist, it would vanish from a
+# clone and every marker would silently become an unknown-marker warning.
+!src/tests/pytest.ini
+
 # Repo essentials that the allowlist would otherwise exclude
+# License texts: the core library is LGPL-3.0-or-later, everything else
+# GPL-3.0-or-later; see the License section of README.md.
+!COPYING
+!COPYING.LESSER
 !.gitignore
 !README.md
 !install

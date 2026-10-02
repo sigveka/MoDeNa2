@@ -8,5 +8,18 @@ version = "0.1.0"
 requires-python = ">=3.9"
 dependencies    = ["modena", "fireworks"]
 
+# This directory IS the thermalDiffusion package (its __init__.py imports
+# `.thermalDiffusion`), but it is named `python`, so setuptools must be told.
+# Without the mapping, auto-discovery installed thermalDiffusion.py as a bare
+# top-level module: __init__.py was never used, and package-data -- which
+# only applies to packages -- left config.toml behind, so the installed
+# module failed on import ("config.toml not found alongside ...").
+# applications/LAMMPS/thermalDiffusion/pyproject.toml maps it the same way.
+[tool.setuptools]
+packages = ["thermalDiffusion"]
+
+[tool.setuptools.package-dir]
+thermalDiffusion = "."
+
 [tool.setuptools.package-data]
 thermalDiffusion = ["config.toml"]

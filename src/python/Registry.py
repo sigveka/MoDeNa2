@@ -34,8 +34,16 @@ Lock file (modena.lock) format – TOML:
     [models.flowRate]
     surrogate_function = "flowRate"
     n_samples          = 42
-    parameters         = [1.234, 5.678]
+    parameters_array   = [1.234, 5.678]
     last_fitted        = "2026-03-14T09:55:00"
+
+    [models.flowRate.parameters]
+    P0 = 1.234
+    P1 = 5.678
+
+``parameters`` is keyed by name; ``parameters_array`` is the same values in
+argPos order.  restore() also accepts the older format, where ``parameters``
+was a plain argPos-ordered array.
 """
 
 import glob as _glob
@@ -460,7 +468,14 @@ class ModelRegistry:
                 continue
             try:
                 model = SurrogateModel.objects.get(_id=model_id)
-                model.parameters = params
+                if isinstance(params, list):
+                    # A lock written before parameters were named: an
+                    # argPos-ordered array.  Assigning it to the dict field
+                    # failed validation, and the error below was only logged,
+                    # so such locks silently restored nothing.
+                    model.set_parameters_array(params)
+                else:
+                    model.parameters = dict(params)
                 model.save()
                 _log.info("Restored parameters for model '%s'", model_id)
             except Exception as exc:

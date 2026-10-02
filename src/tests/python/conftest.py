@@ -6,9 +6,14 @@ submodules (Launchpad, Registry, Runner) can be imported and tested without:
   - A running MongoDB instance
   - A compiled libmodena.so
 
-Tests that do require the full stack are marked @pytest.mark.integration
-and are skipped by default (run with: ctest -L integration  or
-pytest -m integration).
+Tests that need the installed MoDeNa tree (headers, libmodena) are marked
+@pytest.mark.installed and run in every default invocation; they skip only
+when nothing has been built.  Select a tier with ``ctest -L unit|installed``
+or ``pytest -m installed``.  The tiers are defined in ../pytest.ini.
+
+No test in this directory may be marked ``live``: the stub below replaces the
+database connection, so a test that needs a real MongoDB belongs in
+../interface-tests/.  test_suite_integrity.py enforces that.
 """
 
 import os
@@ -49,7 +54,7 @@ def _discover_build_paths():
     The stub below shadows the installed ``modena`` package, so without this
     the stub carries no ``MODENA_INCLUDE_DIR`` / ``MODENA_LIB_DIR`` and no
     ``modena.libmodena``.  Every guard that asks "is modena installed?" then
-    answers *no* on every machine, and the whole ``@pytest.mark.integration``
+    answers *no* on every machine, and the whole ``@pytest.mark.installed``
     tier skips permanently instead of conditionally -- which is exactly what
     it did until this was added.  ``test_suite_integrity.py`` fails if that
     silently regresses.
@@ -64,7 +69,7 @@ def _discover_build_paths():
          source tree itself.
 
     Returns the parsed name -> value mapping, or ``{}`` when MoDeNa has not
-    been built or installed -- in which case the integration tier skips for
+    been built or installed -- in which case the installed tier skips for
     a real reason.
     """
     candidates = []
@@ -110,8 +115,8 @@ if 'modena' not in sys.modules:
     # Put the library directory on the package __path__ so `import
     # modena.libmodena` finds the extension through the normal import system
     # -- lazily, on first use.  Loading it eagerly here would defeat the point
-    # of the stub, which exists to keep the unit tier free of libmodena,
-    # rpy2 and MongoDB.
+    # of the stub, which exists to keep the unit tier free of libmodena and
+    # MongoDB.
     _LIB_DIR = _BUILD_PATHS.get('MODENA_LIB_DIR')
     if _LIB_DIR and Path(_LIB_DIR).is_dir():
         _pkg.__path__.append(str(_LIB_DIR))
@@ -125,20 +130,10 @@ if str(_SRC_PYTHON) not in sys.path:
 # Eagerly import modena.SurrogateModel now so its module-level
 # ``mongoengine.connect(...)`` call fires against the MagicMock stub above,
 # not against whatever real connection a later mongomock fixture installs.
-# Otherwise, running an integration test file in isolation triggers the
+# Otherwise, running an installed-tier test file in isolation triggers the
 # import mid-fixture and blows up with "A different connection with alias
 # `default` was already registered".
 import modena.SurrogateModel  # noqa: F401 — imported for its side effect
-
-
-# ---------------------------------------------------------------------------
-# Custom markers
-# ---------------------------------------------------------------------------
-def pytest_configure(config):
-    config.addinivalue_line(
-        'markers',
-        'integration: requires a live MongoDB instance and the full modena stack',
-    )
 
 
 # ---------------------------------------------------------------------------
