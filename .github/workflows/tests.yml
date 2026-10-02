@@ -34,14 +34,14 @@ jobs:
     name: Core (dev preset)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build, install and test in a clean container
         run: ci/docker-tests dev --results results
 
       - name: Upload the CTest report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-dev
           path: results/
@@ -56,14 +56,14 @@ jobs:
     name: Wrappers + portal (full preset)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build, install and test in a clean container
         run: ci/docker-tests full --results results
 
       - name: Upload the CTest report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-full
           path: results/
