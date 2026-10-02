@@ -30,8 +30,9 @@ def make_sampling_form(default_n: int = 5):
         html.H5('Collect more training data', className='card-title'),
         html.P(
             'Runs the exact simulation at new points chosen by this model\'s '
-            'own sampling strategy, then refits. Queued through FireWorks — '
-            'watch progress on the Runs page.',
+            'own sampling strategy, then refits. The work is queued through '
+            'FireWorks, not run here: it starts when a worker drains the queue '
+            '(modena fw launch), and progress then shows on the Runs page.',
             className='text-muted small',
         ),
         dbc.Row([

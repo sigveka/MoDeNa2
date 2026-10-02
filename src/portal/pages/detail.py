@@ -175,7 +175,7 @@ def layout(model_id: str = ""):
         html.P(f"Type: {model.__class__.__name__}", className="text-muted"),
         dcc.Link(
             dbc.Button("Evaluate Model", color="success", size="sm"),
-            href=f"/model/{encoded_id}/evaluate",
+            href=f"/evaluate/{encoded_id}",
         ),
         html.Hr(),
         # Hidden store to pass model_id to callbacks

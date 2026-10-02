@@ -244,7 +244,7 @@ sequenceDiagram
 | Julia wrapper | `-DWITH_JULIA=ON` | Julia (plus `lld` only if `Modena.jl` fails to precompile) |
 | MATLAB/Octave wrapper | `-DWITH_MATLAB=ON` | Octave or MATLAB |
 | R wrapper | `-DWITH_R=ON` | R interpreter |
-| Web portal | `-DMODENA_BUILD_PORTAL=ON` | `dash`, `dash-bootstrap-components`, `plotly` (installed automatically) |
+| Web portal | `-DMODENA_BUILD_PORTAL=ON` | `dash`, `dash-bootstrap-components`, `dash-cytoscape`, `plotly` (install them yourself; configure warns if missing) |
 | Test suite | `-DMODENA_BUILD_TESTS=ON` | pytest |
 | Doxygen docs | `-DMODENA_BUILD_DOCS=ON` | doxygen |
 
@@ -489,27 +489,55 @@ cmake --build build --target doc
 
 ### Web portal
 
-The portal is a Dash web app that shows all surrogate models in the database,
-their fit data and C code, and all FireWorks simulation runs.  Build and install
-it with:
+The portal is a Dash web app over the model database and the FireWorks
+launchpad:
+
+- **Overview** — environment, install locations, MongoDB, and which models are
+  trained;
+- **Library** and **model pages** — inputs, outputs, fitted parameters,
+  dependency graph, documentation, fit data and C code;
+- **Evaluate** — evaluate a trained surrogate at chosen inputs;
+- **Fit Quality** and **Refit** — score the stored fit, compare
+  cross-validation strategies, and *promote* a better fit (this overwrites the
+  stored parameters);
+- **Collect Data** — queue exact simulations at new points, after a cost
+  estimate (they run when a worker drains the queue: `modena fw launch`);
+- **Integrate** — ready-to-paste code calling the model from C, C++, Fortran,
+  Python, Julia, MATLAB or R;
+- **Runs** — workflows, with rerun, orphan recovery and ancestry tracing.
+
+Build and start it:
 
 ```bash
-cmake -B build -DMODENA_BUILD_PORTAL=ON .
-cmake --build build
-cmake --build build --target install
+pip install dash dash-bootstrap-components dash-cytoscape plotly
+cmake --preset dev -DMODENA_BUILD_PORTAL=ON && cmake --build --preset dev
+cmake --install build
 
-export MODENA_URI=mongodb://localhost:27017/modena
-modena-portal        # http://0.0.0.0:8050
+modena-portal        # http://127.0.0.1:8050 -- this machine only
 ```
 
-The portal can also be run directly from the source tree without a CMake build:
+Or run it straight from a source checkout, without installing the portal
+(MoDeNa itself must be installed):
 
 ```bash
-export MODENA_URI=mongodb://localhost:27017/modena
-cd src/portal
-pip install dash dash-bootstrap-components plotly
-python run.py
+./run_portal
 ```
+
+**Access.**  The portal can promote parameters and queue simulations, so it
+serves only requests from its own machine unless credentials are set; with
+them, every request needs HTTP Basic authentication.  This holds however it is
+served:
+
+```bash
+export MODENA_PORTAL_USER=alice MODENA_PORTAL_PASSWORD='...'
+MODENA_PORTAL_HOST=0.0.0.0 modena-portal              # development server
+gunicorn "modena_portal.app:server" --bind 0.0.0.0:8050 --workers 2   # production
+```
+
+Basic authentication sends the password with every request, so serve anything
+beyond `localhost` behind HTTPS, for example a reverse proxy (nginx, Caddy)
+that terminates TLS.  `MODENA_URI` selects the database
+(default `mongodb://localhost:27017/test`).
 
 ---
 

@@ -31,10 +31,38 @@ add_custom_command(OUTPUT ${OUTPUT}
 
 add_custom_target(portal ALL DEPENDS ${OUTPUT})
 
+# The portal's runtime dependencies are the user's to install.  They are
+# checked here, at configure time, and reported -- not installed: see below.
+set(_portal_modules dash dash_bootstrap_components dash_cytoscape plotly)
+set(_portal_missing "")
+foreach(_mod IN LISTS _portal_modules)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import ${_mod}"
+        RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
+    if(NOT _rc EQUAL 0)
+        list(APPEND _portal_missing ${_mod})
+    endif()
+endforeach()
+if(_portal_missing)
+    list(JOIN _portal_missing ", " _portal_missing_text)
+    message(WARNING
+        "MODENA_BUILD_PORTAL=ON, but the portal's Python dependencies are not "
+        "importable by ${Python3_EXECUTABLE}: ${_portal_missing_text}.  The "
+        "portal installs, but will not start until they are.  Install them "
+        "with:\n  ${Python3_EXECUTABLE} -m pip install dash "
+        "dash-bootstrap-components dash-cytoscape plotly")
+endif()
+
 # Install modena_portal into the same site-packages directory as modena so
 # the user's PYTHONPATH (which already finds modena) also finds modena_portal.
+#
+# --no-deps: pip --target does not look at what is already installed, so
+# without it this put dash, Flask, Werkzeug, plotly and their dependencies
+# into PYTHON_SITE -- the user's site-packages for a $HOME install -- and,
+# with --upgrade, replaced whatever versions were there, under every other
+# tool that uses them.  Only the portal package itself belongs here.
 install(
-    CODE "execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install --target=${PYTHON_SITE} --upgrade ${CMAKE_CURRENT_BINARY_DIR})"
+    CODE "execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install --target=${PYTHON_SITE} --upgrade --no-deps ${CMAKE_CURRENT_BINARY_DIR})"
 )
 
 # Install the entry-point script directly, replacing any stale egg-based one.

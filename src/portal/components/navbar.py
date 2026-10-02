@@ -1,4 +1,6 @@
 """Top navigation / breadcrumb bar."""
+from urllib.parse import quote
+
 import dash_bootstrap_components as dbc
 from dash import html
 
@@ -16,8 +18,10 @@ def make_navbar(model_id: str | None = None, page: str | None = None,
     ]
 
     if model_id:
+        # Encoded like every other model link: ids such as
+        # fullerEtAlDiffusion[A=H2O,B=N2] carry brackets and commas.
         items.append(dbc.NavItem(
-            dbc.NavLink(model_id, href=f"/model/{model_id}")
+            dbc.NavLink(model_id, href=f"/model/{quote(model_id, safe='')}")
         ))
 
     if page == "evaluate":

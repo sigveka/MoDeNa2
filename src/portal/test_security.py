@@ -95,3 +95,57 @@ class TestBasicAuth:
         """partition() splits on the first colon, so the password keeps the rest."""
         assert _authorised(_header('alice', 'a:b:c'), 'alice', 's3cret') is False
         assert _authorised(_header('alice', 'a:b:c'), 'alice', 'a:b:c')
+
+
+# ---------------------------------------------------------------------------
+# The policy as enforced on requests -- what holds under gunicorn too
+# ---------------------------------------------------------------------------
+# install() used to be called only by `modena-portal`, so the documented
+# production recipe (gunicorn "modena_portal.app:server") served every
+# request with no authentication, credentials set or not.
+
+def _server(creds):
+    from flask import Flask
+    from modena_portal.security import install
+    app = Flask('policy-test')
+
+    @app.route('/')
+    def index():
+        return 'ok'
+
+    install(app, creds)
+    return app.test_client()
+
+
+def _get(client, addr, auth=None):
+    headers = {'Authorization': auth} if auth else {}
+    return client.get('/', headers=headers, environ_base={'REMOTE_ADDR': addr}).status_code
+
+
+class TestRequestPolicy:
+
+    def test_no_credentials_serves_this_machine(self):
+        assert _get(_server(None), '127.0.0.1') == 200
+        assert _get(_server(None), '::1') == 200
+
+    @pytest.mark.parametrize('addr', ['10.0.0.5', '192.168.1.20', '203.0.113.7'])
+    def test_no_credentials_refuses_everyone_else(self, addr):
+        assert _get(_server(None), addr) == 403
+
+    def test_credentials_are_required_from_anywhere(self):
+        client = _server(('alice', 's3cret'))
+        assert _get(client, '127.0.0.1') == 401
+        assert _get(client, '10.0.0.5') == 401
+
+    def test_credentials_admit_from_anywhere(self):
+        client = _server(('alice', 's3cret'))
+        assert _get(client, '10.0.0.5', _header('alice', 's3cret')) == 200
+        assert _get(client, '10.0.0.5', _header('alice', 'wrong')) == 401
+
+    def test_installing_twice_adds_one_hook(self):
+        from flask import Flask
+        from modena_portal.security import install
+        app = Flask('twice')
+        install(app, None)
+        install(app, None)
+        assert len(app.before_request_funcs.get(None, [])) == 1

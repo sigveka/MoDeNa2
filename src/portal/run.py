@@ -1,11 +1,18 @@
 """
 Entry point for the MoDeNa Portal.
 
-Development:
-    python src/portal/run.py
+Development, from a source checkout (no install needed):
+    ./run_portal
 
-Production (gunicorn):
-    gunicorn "modena_portal.app:server" --bind 127.0.0.1:8050 --workers 2
+Production (gunicorn -- `pip install gunicorn`):
+    export MODENA_PORTAL_USER=alice MODENA_PORTAL_PASSWORD='...'
+    gunicorn "modena_portal.app:server" --bind 0.0.0.0:8050 --workers 2
+
+    The access policy lives in the app, so it holds under gunicorn too:
+    with credentials set every request needs them; without, only requests
+    from this machine are served (403 otherwise).  Basic auth sends the
+    password with every request, so serve anything beyond localhost behind
+    HTTPS -- e.g. a reverse proxy (nginx, Caddy) terminating TLS.
 
 Environment variables:
     MODENA_URI              MongoDB connection URI
@@ -16,9 +23,8 @@ Environment variables:
     MODENA_PORTAL_PORT      Bind port (default: 8050)
     MODENA_PORTAL_USER      HTTP Basic username
     MODENA_PORTAL_PASSWORD  HTTP Basic password
-    LD_LIBRARY_PATH         Must include the directory containing libmodena.so
-                            and the per-model compiled surrogate libraries
-                            (.so files) for callModel() to work.
+    MODENA_PATH             Where model packages are installed, if not in a
+                            modena.toml (needed to evaluate models).
 
 Example -- serve on the network, with a password:
     export MODENA_PORTAL_HOST=0.0.0.0

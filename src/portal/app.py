@@ -1,16 +1,16 @@
 """
 MoDeNa Portal - Dash app factory.
 
-Run in development:
-    python src/portal/app.py
+Run in development, from a source checkout:
+    ./run_portal
 
-Run with gunicorn (production):
-    gunicorn "modena_portal.app:server" --bind 127.0.0.1:8050 --workers 2
+Run with gunicorn (production) -- see run.py for credentials and HTTPS:
+    gunicorn "modena_portal.app:server" --bind 0.0.0.0:8050 --workers 2
 
 Requirements:
     - MODENA_URI env var (defaults to mongodb://localhost:27017/test)
-    - LD_LIBRARY_PATH must include the directory containing libmodena.so
-      so that callModel() can load the compiled surrogate libraries.
+    - an installed MoDeNa: libmodena is found through MODENA_LIB_DIR, so
+      LD_LIBRARY_PATH is not needed for a standard install.
 """
 # config.py must be the very first modena-related import.
 import modena_portal.config  # noqa: F401
@@ -26,6 +26,12 @@ app = dash.Dash(
 )
 
 server = app.server  # Expose Flask server for gunicorn
+
+# Access policy for every server that loads this module -- `modena-portal`,
+# gunicorn or any other WSGI host: Basic auth when credentials are set, and
+# loopback clients only when they are not.  See security.install().
+from modena_portal.security import credentials as _credentials, install as _install  # noqa: E402
+_install(server, _credentials())
 
 app.layout = dash.page_container
 
