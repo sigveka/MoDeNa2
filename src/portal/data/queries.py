@@ -13,6 +13,8 @@ __all__ = [
     'list_model_sample_counts',
     'get_model',
     'get_fitdata',
+    'get_sample_count',
+    'initial_design_size',
     'get_parameter_table',
     'transpose_fitdata',
 ]
@@ -58,6 +60,33 @@ def get_model(model_id: str):
 def get_fitdata(model_id: str):
     """Return only the fitData field for a model."""
     return SurrogateModel.objects.only('fitData').get(_id=model_id)
+
+
+def get_sample_count(model_id: str) -> int:
+    """Number of stored samples for one model, without loading fitData."""
+    return list_model_sample_counts().get(model_id, 0)
+
+
+def initial_design_size(model) -> int | None:
+    """How many of the first stored samples came from the initial design.
+
+    Initialisation runs before anything else is collected, so the first N
+    samples are the initial design and the rest arrived later (out-of-bounds
+    expansion, error-driven sampling, requests from the portal).  N is known
+    for the strategies that fix their points up front; None otherwise.
+    """
+    try:
+        strategy = model.initialisationStrategy()
+    except Exception:                                          # noqa: BLE001
+        return None
+    kind = type(strategy).__name__
+    if kind == 'InitialRange':
+        return 10           # InitialRange.newPoints() always samples 10 points
+    data = {'InitialPoints': 'initialPoints', 'InitialData': 'initialData'}.get(kind)
+    points = strategy.get(data) if data else None
+    if not points:
+        return None
+    return len(next(iter(points.values())))
 
 
 

@@ -12,11 +12,14 @@ import dash_bootstrap_components as dbc
 
 from modena_portal.components.fit_quality import (
     make_parity_plot, make_quality_summary, make_residual_plot,
+    make_worst_table, sample_descriptions,
 )
 from modena_portal.components.refit_panel import (
-    make_promote_controls, make_refit_form, make_results_table,
+    describe_change, make_promote_controls, make_refit_form,
+    make_results_table, make_stored_line,
 )
-from modena_portal.data.queries import get_model_full
+from modena_portal.data.helpers import fmt, plural
+from modena_portal.data.queries import get_model, get_model_full
 
 _log = logging.getLogger('modena_portal.diagnostics')
 
@@ -75,14 +78,25 @@ def load_quality_on_tab(active_tab, model_id):
         _log.exception('fit quality failed for %s', model_id)
         return dbc.Alert(f"Could not compute fit quality: {exc}", color="danger")
 
+    from modena_portal.callbacks.detail_callbacks import fitdata_layout
+
+    fitdata = dict(model.fitData)
+    _cols, labels, inputs, _outs = fitdata_layout(model, fitdata)
+    inputs = [n for n in inputs if n in fitdata]
+    # Residuals come per output in model.outputs iteration order -- the
+    # order SurrogateModel.error() walks them in.
+    output_names = list(model.outputs)
+    samples = sample_descriptions(fitdata, inputs)
+
     return html.Div([
         make_quality_summary(quality),
         html.Hr(),
         html.H5("Measured vs predicted"),
-        make_parity_plot(preds),
+        make_parity_plot(preds, samples),
         html.Hr(),
         html.H5("Residuals"),
-        make_residual_plot(quality),
+        make_residual_plot(quality, output_names, samples),
+        make_worst_table(quality, output_names, fitdata, inputs, labels),
     ])
 
 
@@ -99,8 +113,14 @@ def load_quality_on_tab(active_tab, model_id):
 def load_refit_on_tab(active_tab, model_id):
     if active_tab != 'tab-refit' or not model_id:
         return no_update
+    try:
+        stored = make_stored_line(get_model(model_id))
+    except Exception as exc:                                   # noqa: BLE001
+        stored = dbc.Alert(f"Could not load the stored parameters: {exc}",
+                           color="danger", className="py-2")
     return html.Div([
         make_refit_form(),
+        html.Div(id='refit-stored', children=stored),
         html.Div(id='refit-results', children=make_results_table([])),
         make_promote_controls(),
     ])
@@ -140,7 +160,7 @@ def run_refit(n_clicks, cv_name, cv_param, opt_name, metric_name,
     if not n_clicks or not model_id:
         return no_update, no_update, no_update
 
-    from modena.Diagnostics import METRICS, OPTIMIZERS, cross_validate
+    from modena.Diagnostics import METRICS, OPTIMIZERS, cross_validate, fit_quality
 
     store = store or []
     try:
@@ -151,23 +171,29 @@ def run_refit(n_clicks, cv_name, cv_param, opt_name, metric_name,
             optimizer=OPTIMIZERS[opt_name](),
             metric=METRICS[metric_name](),
         )
+        # The stored parameters scored under the same metric: without it a
+        # candidate's error has nothing to be compared with.
+        stored_error = (fit_quality(model, metric=METRICS[metric_name]())['error']
+                        if model.parameters else None)
     except ValueError as exc:
         return dbc.Alert(str(exc), color="warning"), store, True
     except Exception as exc:
         _log.exception('refit failed for %s', model_id)
         return dbc.Alert(f"Fit failed: {exc}", color="danger"), store, True
 
+    stored = dict(model.parameters or {})
     store.append({
-        'strategy':   result['crossValidation'],
-        'optimizer':  result['optimizer'],
-        'metric':     result['metric'],
-        'n_folds':    result['n_folds'],
-        'cv_error':   f"{result['cv_error']:.6g}",
-        'full_error': f"{result['full_fit_error']:.6g}",
-        'parameters': ', '.join(f'{k}={v:.6g}'
-                                for k, v in result['named_parameters'].items()),
-        '_params':    result['full_fit_parameters'],
-        '_cv_error':  result['cv_error'],
+        'strategy':     result['crossValidation'],
+        'optimizer':    result['optimizer'],
+        'metric':       result['metric'],
+        'n_folds':      result['n_folds'],
+        'cv_error':     fmt(result['cv_error']),
+        'full_error':   fmt(result['full_fit_error']),
+        'stored_error': fmt(stored_error),
+        'parameters':   ', '.join(f'{k} = {describe_change(v, stored.get(k))}'
+                                  for k, v in result['named_parameters'].items()),
+        '_params':      result['full_fit_parameters'],
+        '_cv_error':    result['cv_error'],
     })
 
     best = min(r['_cv_error'] for r in store)
@@ -191,7 +217,18 @@ def toggle_promote(selected_rows):
 # ---------------------------------------------------------------------------
 
 @callback(
+    Output('refit-promote-hint', 'children'),
+    Input('refit-promote-btn', 'disabled'),
+    prevent_initial_call=True,
+)
+def promote_hint(disabled):
+    """Say why the button is greyed out, rather than leave it unexplained."""
+    return "Select a fit in the table to promote it." if disabled else None
+
+
+@callback(
     Output('refit-promote-status', 'children'),
+    Output('refit-stored', 'children'),
     Input('refit-promote-btn', 'n_clicks'),
     State('refit-results-table', 'selected_rows'),
     State('refit-store', 'data'),
@@ -200,7 +237,7 @@ def toggle_promote(selected_rows):
 )
 def promote(n_clicks, selected_rows, store, model_id):
     if not n_clicks or not selected_rows or not store or not model_id:
-        return no_update
+        return no_update, no_update
 
     from modena.Diagnostics import promote_parameters
 
@@ -210,13 +247,13 @@ def promote(n_clicks, selected_rows, store, model_id):
         named = promote_parameters(model, row['_params'])
     except Exception as exc:
         _log.exception('promote failed for %s', model_id)
-        return dbc.Badge(f"Promote failed: {exc}", color="danger")
+        return dbc.Badge(f"Promote failed: {exc}", color="danger"), no_update
 
     return dbc.Badge(
         f"Promoted {row['strategy']} fit: "
-        + ', '.join(f'{k}={v:.6g}' for k, v in named.items()),
+        + ', '.join(f'{k} = {fmt(v)}' for k, v in named.items()),
         color="success",
-    )
+    ), make_stored_line(model)
 
 
 # ---------------------------------------------------------------------------
@@ -356,7 +393,7 @@ def queue_sampling(n_clicks, n_points, model_id):
     # earlier version said only "watch the Runs page", which sent the reader
     # to a page where nothing would ever happen.
     return html.Span([
-        dbc.Badge(f"Queued {result['n_points']} simulation(s)", color='success'),
+        dbc.Badge(f"Queued {plural(result['n_points'], 'simulation')}", color='success'),
         html.Span(' — nothing runs them yet. Start a worker with ',
                   className='ms-2'),
         html.Code('modena fw launch'),

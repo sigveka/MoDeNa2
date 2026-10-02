@@ -50,7 +50,10 @@ def layout(model_id: str = ""):
 
     return dbc.Container([
         make_navbar(model_id=decoded_id, page="evaluate", active='library'),
-        html.H2(f"Evaluate: {decoded_id}", className="mb-3"),
+        html.H2(f"Evaluate: {decoded_id}", className="mb-1"),
+        html.P("Results update when you release a slider or press Enter in a "
+               "box. Slider ends are the trained range.",
+               className="text-muted small"),
         dcc.Link(
             html.Small("← Back to model detail"),
             href=f"/model/{encoded_id}",
@@ -58,14 +61,7 @@ def layout(model_id: str = ""):
         html.Hr(),
         unavailable_banner,
         dcc.Store(id='eval-model-id', data=decoded_id),
-        dcc.Store(id='eval-lib-ok', data=lib_ok),
+        dcc.Store(id='eval-lib-ok', data=bool(lib_ok)),
         make_evaluator_form(model),
-        dbc.Button(
-            "Evaluate",
-            id='eval-button',
-            color='primary',
-            className='mt-3',
-            disabled=not lib_ok,
-        ),
         html.Div(id='eval-result', className='mt-4'),
     ], fluid=True)

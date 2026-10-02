@@ -24,10 +24,15 @@ def list_workflows() -> list[dict]:
     rows = []
     for doc in lp.workflows.find(
         {},
-        {'name': 1, 'state': 1, 'fw_states': 1, 'created_on': 1, 'updated_on': 1},
+        {'name': 1, 'state': 1, 'fw_states': 1, 'created_on': 1, 'updated_on': 1,
+         'nodes': 1},
     ):
         fw_states = doc.get('fw_states', {})
+        nodes = sorted(int(n) for n in doc.get('nodes', []))
         rows.append({
+            # A workflow is named by its lowest firework id: stable, unique,
+            # and what `lpad get_wflows -i` takes.
+            'wf_id':      nodes[0] if nodes else None,
             'name':       doc.get('name', '—'),
             'state':      doc.get('state', 'UNKNOWN'),
             'n_fw':       len(fw_states),
@@ -35,12 +40,55 @@ def list_workflows() -> list[dict]:
             'running':    sum(1 for s in fw_states.values() if s == 'RUNNING'),
             'waiting':    sum(1 for s in fw_states.values() if s in ('WAITING', 'READY', 'RESERVED')),
             'fizzled':    sum(1 for s in fw_states.values() if s == 'FIZZLED'),
-            'created_on': doc.get('created_on'),
-            'updated_on': doc.get('updated_on'),
+            'created_on': as_datetime(doc.get('created_on')),
+            'updated_on': as_datetime(doc.get('updated_on')),
         })
     from datetime import datetime
     rows.sort(key=lambda r: r['created_on'] or datetime.min, reverse=True)
     return rows
+
+
+#: States in which a workflow can still change -- the Runs page polls while
+#: any workflow is in one of them.
+ACTIVE_STATES = frozenset({'RUNNING', 'READY', 'RESERVED', 'WAITING'})
+
+
+def as_datetime(value):
+    """A launchpad timestamp as a naive UTC datetime, or None.
+
+    FireWorks stores workflow times as BSON dates but firework times as ISO
+    strings ('2026-10-02T19:17:03.123456'), so the two collections disagree.
+    """
+    from datetime import datetime
+    if value is None or isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def list_fireworks(wf_id: int) -> list[dict]:
+    """The fireworks of the workflow containing firework *wf_id*.
+
+    Each dict has fw_id, name, state, created_on and updated_on, ordered by
+    fw_id -- the order FireWorks created them in.
+    """
+    import modena
+    lp = modena.lpad()
+    wf = lp.workflows.find_one({'nodes': int(wf_id)}, {'nodes': 1})
+    if wf is None:
+        return []
+    return [
+        {'fw_id': doc['fw_id'], 'name': doc.get('name', '—'),
+         'state': doc.get('state', 'UNKNOWN'),
+         'created_on': as_datetime(doc.get('created_on')),
+         'updated_on': as_datetime(doc.get('updated_on'))}
+        for doc in lp.fireworks.find(
+            {'fw_id': {'$in': wf['nodes']}},
+            {'fw_id': 1, 'name': 1, 'state': 1, 'created_on': 1, 'updated_on': 1},
+        ).sort('fw_id', 1)
+    ]
 
 
 def fizzled_fw_ids() -> list[int]:

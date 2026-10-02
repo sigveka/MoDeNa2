@@ -1,9 +1,19 @@
-"""Callbacks for the Model Evaluator page."""
-from dash import Input, Output, State, callback, no_update, ALL, ctx
-import dash_bootstrap_components as dbc
-from dash import dash_table, html
+"""Callbacks for the Model Evaluator page.
 
+The result follows the inputs: it is computed when the page opens and again
+whenever an input changes (on slider release, or Enter / leaving a number
+box).  An Evaluate button used to stand between changing a value and seeing
+its effect, which is the one thing this page exists to show.
+"""
+from dash import ALL, Input, Output, State, callback, dash_table, html, no_update
+import dash_bootstrap_components as dbc
+
+from modena_portal.data.helpers import SIG_FIGS, fmt, ordered_names, unit_text
 from modena_portal.data.queries import get_model
+
+
+def _rounded(x):
+    return None if x is None else float(f'{x:.{SIG_FIGS}g}')
 
 
 # ---------------------------------------------------------------------------
@@ -13,10 +23,15 @@ from modena_portal.data.queries import get_model
 @callback(
     Output({'type': 'eval-input', 'index': ALL}, 'value'),
     Input({'type': 'eval-slider', 'index': ALL}, 'value'),
+    State({'type': 'eval-input', 'index': ALL}, 'value'),
     prevent_initial_call=True,
 )
-def sync_slider_to_input(slider_values):
-    return slider_values
+def sync_slider_to_input(slider_values, input_values):
+    # A slider step lands on values like 0.4165239571818414; the box shows
+    # SIG_FIGS digits.  A value typed into the box is left exactly as typed:
+    # when it already agrees with the slider at that precision, keep it.
+    return [i if i is not None and _rounded(i) == _rounded(s) else _rounded(s)
+            for s, i in zip(slider_values, input_values)]
 
 
 # ---------------------------------------------------------------------------
@@ -38,14 +53,13 @@ def sync_input_to_slider(input_values):
 
 @callback(
     Output('eval-result', 'children'),
-    Input('eval-button', 'n_clicks'),
-    State({'type': 'eval-input', 'index': ALL}, 'value'),
+    Input({'type': 'eval-input', 'index': ALL}, 'value'),
     State({'type': 'eval-input', 'index': ALL}, 'id'),
     State('eval-model-id', 'data'),
-    prevent_initial_call=True,
+    State('eval-lib-ok', 'data'),
 )
-def run_evaluation(n_clicks, input_values, input_ids, model_id):
-    if not n_clicks or not model_id:
+def run_evaluation(input_values, input_ids, model_id, lib_ok):
+    if not model_id or not lib_ok or not input_ids:
         return no_update
 
     # A cleared field used to be evaluated as 0.0 -- outside most models'
@@ -63,10 +77,15 @@ def run_evaluation(n_clicks, input_values, input_ids, model_id):
     except Exception as e:
         return _evaluation_error(e, model_id, inputs_dict)
 
-    rows = [{'Output': k, 'Value': f"{v:.8g}"} for k, v in outputs.items()]
+    declared = getattr(model, 'outputs', None) or {}
+    order = [n for n in ordered_names(declared) if n in outputs] + \
+            [n for n in outputs if n not in declared]
+    rows = [{'Output': k, 'Value': fmt(outputs[k]),
+             'Unit': (unit_text(declared[k]) if k in declared else None) or '—'}
+            for k in order]
     table = dash_table.DataTable(
         data=rows,
-        columns=[{'name': c, 'id': c} for c in ['Output', 'Value']],
+        columns=[{'name': c, 'id': c} for c in ['Output', 'Value', 'Unit']],
         style_cell={'textAlign': 'left', 'padding': '8px'},
         style_header={'fontWeight': 'bold'},
     )
@@ -92,7 +111,7 @@ def _evaluation_error(exc, model_id, inputs):
     except Exception:                                          # noqa: BLE001
         bounds = {}
     outside = [
-        html.Li(f"{n} = {x:.6g}   (trained on {bounds[n][0]:.6g} … {bounds[n][1]:.6g})")
+        html.Li(f"{n} = {fmt(x)}   (trained on {fmt(bounds[n][0])} … {fmt(bounds[n][1])})")
         for n, x in inputs.items()
         if n in bounds and not bounds[n][0] <= x <= bounds[n][1]
     ]

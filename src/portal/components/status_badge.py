@@ -8,6 +8,14 @@ import dash_bootstrap_components as dbc
 
 _COLOURS = {'Untrained': 'danger', 'Library missing': 'warning', 'Trained': 'success'}
 
+#: The same colours as (background, text) CSS, for DataTable cells, which
+#: cannot hold a Badge.
+STATUS_CSS = {
+    'Trained':         ('#d1e7dd', '#0a3622'),
+    'Library missing': ('#fff3cd', '#664d03'),
+    'Untrained':       ('#f8d7da', '#58151c'),
+}
+
 
 def status_string(model) -> str:
     """Return the model's training status as plain text:

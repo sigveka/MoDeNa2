@@ -79,6 +79,18 @@ class TestFacts:
         for name, (lo, hi) in _DEMO.items():
             assert lo <= facts['values'][name] <= hi
 
+    @pytest.mark.parametrize('lo, hi, expected', [
+        (0.01, 0.01000001, 0.01),              # a range grown by a hair
+        (34993.779, 320000.0, 180000.0),       # not 177496.8895
+        (0.416524, 3.5, 2.0),
+        (1.0, 1.0, 1.0),                       # fixed input
+        (0.0, 1e-12, 5e-13),
+    ])
+    def test_placeholder_values_are_short_and_inside_the_range(self, I, lo, hi, expected):
+        """The exact midpoint printed to 10 digits read as noise (0.010000005)."""
+        value = I.placeholder_value(lo, hi)
+        assert value == expected and lo <= value <= hi
+
     def test_substitute_supplied_inputs_are_identified(self, I):
         m = _model({'D': (0, 1), 'rho0': (0, 1)}, ['y'],
                    substitutes=[_substitute('idealGas', ['rho0'])])
