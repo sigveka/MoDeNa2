@@ -48,20 +48,20 @@ def run_evaluation(n_clicks, input_values, input_ids, model_id):
     if not n_clicks or not model_id:
         return no_update
 
-    # Build inputs dict from pattern-matched ids
-    inputs_dict = {
-        id_obj['index']: float(val) if val is not None else 0.0
-        for id_obj, val in zip(input_ids, input_values)
-    }
+    # A cleared field used to be evaluated as 0.0 -- outside most models'
+    # trained range, so the answer was an out-of-bounds error naming no input,
+    # or worse, a plausible number for a point nobody asked about.
+    names = [id_obj['index'] for id_obj in input_ids]
+    blank = [n for n, val in zip(names, input_values) if val is None]
+    if blank:
+        return dbc.Alert(f"Enter a value for: {', '.join(blank)}.", color="warning")
+    inputs_dict = {n: float(val) for n, val in zip(names, input_values)}
 
     try:
         model = get_model(model_id)
         outputs = model.callModel(inputs_dict)
     except Exception as e:
-        return dbc.Alert(
-            [html.Strong("Evaluation failed: "), str(e)],
-            color="danger",
-        )
+        return _evaluation_error(e, model_id, inputs_dict)
 
     rows = [{'Output': k, 'Value': f"{v:.8g}"} for k, v in outputs.items()]
     table = dash_table.DataTable(
@@ -75,3 +75,30 @@ def run_evaluation(n_clicks, input_values, input_ids, model_id):
         html.H5("Results"),
         table,
     ])
+
+
+def _evaluation_error(exc, model_id, inputs):
+    """Explain a failed evaluation; out-of-bounds names the offending inputs.
+
+    OutOfBounds used to reach the page as its raw argument tuple:
+    "('Surrogate model is used out-of-bounds', <BackwardMappingModel ...>, 200)".
+    """
+    from modena.Strategy import OutOfBounds
+    if not isinstance(exc, OutOfBounds):
+        return dbc.Alert([html.Strong("Evaluation failed: "), str(exc)], color="danger")
+
+    try:
+        bounds = {n: (v.min, v.max) for n, v in get_model(model_id).inputs.items()}
+    except Exception:                                          # noqa: BLE001
+        bounds = {}
+    outside = [
+        html.Li(f"{n} = {x:.6g}   (trained on {bounds[n][0]:.6g} … {bounds[n][1]:.6g})")
+        for n, x in inputs.items()
+        if n in bounds and not bounds[n][0] <= x <= bounds[n][1]
+    ]
+    return dbc.Alert([
+        html.Strong("Outside the range this surrogate was trained on."),
+        html.Ul(outside, className="mb-1 mt-2") if outside else None,
+        html.Small("In a simulation, MoDeNa would run new exact simulations here "
+                   "and refit; the portal only evaluates the existing fit."),
+    ], color="warning")

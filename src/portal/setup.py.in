@@ -31,12 +31,15 @@ args = {
             'modena-portal = modena_portal.run:main',
         ],
     },
+    # Valid trove classifiers (pypi.org/classifiers); the previous ones were
+    # all invented, which PyPI rejects.  GPL: see the License section of the
+    # top-level README.
     'classifiers': [
-        'License :: GNU - General Public License (GPL)',
-        'Programming Language :: Python',
-        'Development Status :: 0 - Beta',
-        'Intended Audience :: Science and Engineering',
-        'Topic :: Multi-scale Modelling',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'Programming Language :: Python :: 3',
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering',
     ],
     'python_requires': '>=3.10',
     'keywords': 'multi-scale modelling surrogate model portal',

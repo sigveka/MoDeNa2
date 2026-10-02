@@ -1,4 +1,11 @@
-"""Model Evaluator page - /model/<encoded_id>/evaluate."""
+"""Model Evaluator page - /evaluate/<encoded_id>.
+
+Not /model/<id>/evaluate: Dash matches path templates in registration order
+and the detail page's /model/<model_id> captured "flowRate/evaluate" as the
+model id, so this page was unreachable and every "Evaluate Model" button led
+to "Model 'flowRate/evaluate' not found".  test_pages.py checks that every
+page's template resolves to that page.
+"""
 from pathlib import Path
 import dash
 from dash import html, dcc
@@ -11,7 +18,7 @@ from modena_portal.data.queries import get_model
 
 dash.register_page(
     __name__,
-    path_template="/model/<model_id>/evaluate",
+    path_template="/evaluate/<model_id>",
     title="MoDeNa - Evaluate",
 )
 

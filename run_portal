@@ -1,5 +1,22 @@
-#!/bin/bash
-export MODENA_URI='mongodb://localhost:27017/test'
-export LD_LIBRARY_PATH="/path/to/libmodena:${LD_LIBRARY_PATH}"
-python "src/portal/app.py"   # dev server at http://localhost:8050
+#!/usr/bin/env bash
+# Run the MoDeNa portal from this source checkout, without installing it.
+#
+#   ./run_portal          -> http://127.0.0.1:8050  (debug mode, auto-reload)
+#
+# The portal's sources import themselves as `modena_portal`, the name they
+# are installed under; a temporary directory maps that name onto src/portal.
+# MoDeNa itself (the `modena` package and libmodena) must be installed, and
+# MongoDB reachable at MODENA_URI (default mongodb://localhost:27017/test).
+# Needs: pip install dash dash-bootstrap-components dash-cytoscape plotly
+#
+# This used to run `python src/portal/app.py` with a placeholder
+# LD_LIBRARY_PATH: `python` does not exist on current Ubuntu, and app.py
+# cannot import `modena_portal` from the source tree.
+set -euo pipefail
 
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+shim="$(mktemp -d)"
+trap 'rm -rf "$shim"' EXIT
+ln -s "$here/src/portal" "$shim/modena_portal"
+
+PYTHONPATH="$shim${PYTHONPATH:+:$PYTHONPATH}" python3 -m modena_portal.run "$@"

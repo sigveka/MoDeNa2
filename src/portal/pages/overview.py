@@ -2,6 +2,7 @@
 import os
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 if sys.platform == 'darwin':
     _LIBMODENA_NAME  = 'libmodena.dylib'
@@ -18,7 +19,7 @@ import dash_bootstrap_components as dbc
 from dash import html
 
 from modena_portal.components.navbar import make_navbar
-from modena_portal.components.status_badge import status_badge
+from modena_portal.components.status_badge import status_badge, status_string
 from modena_portal.data.queries import list_models
 
 dash.register_page(__name__, path="/", title="MoDeNa - Overview")
@@ -70,13 +71,22 @@ def _kv_table(rows: list[tuple[str, str]]) -> dbc.Table:
 
 
 def _find_libmodena() -> str:
-    """Best-effort search for the modena shared library on the platform library path."""
-    search_path = os.environ.get(_LIBPATH_ENV_VAR, "")
-    for d in search_path.split(os.pathsep):
-        candidate = Path(d) / _LIBMODENA_NAME
-        if candidate.is_file():
-            return str(candidate)
-    return f"not found on {_LIBPATH_ENV_VAR}"
+    """Where the modena Python package loads libmodena from.
+
+    That is MODENA_LIB_DIR, recorded at install time -- not the library
+    search path.  This used to look only on LD_LIBRARY_PATH, which a default
+    $HOME install does not need (libmodena carries RUNPATH=$ORIGIN), so a
+    working installation reported the library as "not found".
+    """
+    try:
+        import modena
+        lib_dir = Path(modena.MODENA_LIB_DIR)
+    except Exception as exc:                               # noqa: BLE001
+        return f"modena not importable: {exc}"
+    candidate = lib_dir / _LIBMODENA_NAME
+    if candidate.is_file():
+        return str(candidate)
+    return f"not found in {lib_dir} (MODENA_LIB_DIR)"
 
 
 def _mongo_status(uri: str) -> tuple[bool, str]:
@@ -111,8 +121,9 @@ def layout():
         _env_row("MODENA_LOG_LEVEL",
                  "Log verbosity: WARNING | INFO (default) | DEBUG | DEBUG_VERBOSE"),
         _env_row(_LIBPATH_ENV_VAR,
-                 f"Must include the directory containing {_LIBMODENA_NAME} so that "
-                 "compiled surrogate libraries can be loaded at runtime."),
+                 f"Not needed by MoDeNa itself: {_LIBMODENA_NAME} is found through "
+                 "MODENA_LIB_DIR.  An application linked against it needs this "
+                 "only for a non-standard install prefix."),
     ]
 
     # ── Install locations ─────────────────────────────────────────────────────
@@ -160,9 +171,9 @@ def layout():
         models = []
         model_error = str(e)
 
-    trained = [m for m in models if _model_status(m) == "Trained"]
-    library_missing = [m for m in models if _model_status(m) == "Library missing"]
-    untrained = [m for m in models if _model_status(m) == "Untrained"]
+    trained = [m for m in models if status_string(m) == "Trained"]
+    library_missing = [m for m in models if status_string(m) == "Library missing"]
+    untrained = [m for m in models if status_string(m) == "Untrained"]
 
     return dbc.Container([
         make_navbar(active="overview"),
@@ -214,15 +225,6 @@ def layout():
 # Helpers used inside layout()
 # ---------------------------------------------------------------------------
 
-def _model_status(model) -> str:
-    if not model.parameters:
-        return "Untrained"
-    lib = getattr(model.surrogateFunction, "libraryName", None)
-    if lib and Path(lib).is_file():
-        return "Trained"
-    return "Library missing"
-
-
 def _model_readiness_body(models, trained, library_missing, untrained, error):
     if error:
         return dbc.Alert(f"Could not load models: {error}", color="danger")
@@ -254,7 +256,7 @@ def _model_readiness_body(models, trained, library_missing, untrained, error):
     rows = []
     for m in sorted(models, key=lambda m: m._id):
         rows.append(html.Tr([
-            html.Td(html.A(m._id, href=f"/model/{m._id}",
+            html.Td(html.A(m._id, href=f"/model/{quote(m._id, safe='')}",
                            style={"fontFamily": "monospace"})),
             html.Td(status_badge(m)),
         ]))
@@ -269,9 +271,11 @@ def _model_readiness_body(models, trained, library_missing, untrained, error):
     if library_missing:
         note = dbc.Alert(
             "Models marked \"Library missing\" have fitted parameters in the "
-            "database but their compiled surrogate .so was not found on this "
-            "machine. The .so will be recompiled automatically on first use if "
-            "MoDeNa is installed and the C build tools are available.",
+            "database, but their compiled surrogate library is not on this "
+            "machine and could not be rebuilt.  MoDeNa recompiles a missing "
+            "library whenever it loads the model -- loading them for this page "
+            "already tried -- so this needs a C compiler and the installed "
+            "MoDeNa headers.  Evaluation is unavailable until then.",
             color="warning", className="mt-3 mb-0 py-2",
         )
 

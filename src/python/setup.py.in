@@ -14,12 +14,18 @@ args = {
         ['tomli', 'pydantic>=2.0', 'mongoengine', 'fireworks', 'scipy', 'jinja2'] if sys.version_info < (3, 11)
         else ['pydantic>=2.0', 'mongoengine', 'fireworks', 'scipy', 'jinja2']
     ),
+    # Valid trove classifiers (pypi.org/classifiers); the previous ones were
+    # all invented.  Both licenses: the core modules are LGPL-3.0-or-later,
+    # the rest GPL-3.0-or-later -- see the License section of the README.
     'classifiers' : [
-        "License :: GNU - General Public License (GPL)",
-        "Programing Language :: Python, C, FORTRAN",
-        "Development Status :: 0 - Beta",
-        "Intended Audience :: Science and Engineering",
-        "Topic :: Multi-scale Modelling",
+        "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: C",
+        "Programming Language :: Fortran",
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering",
     ],
     'python_requires': '>=3.10',
     'keywords'    : 'multi-scale modelling',
