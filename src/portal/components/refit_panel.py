@@ -130,7 +130,11 @@ def make_results_table(rows):
     return html.Div([
         dash_table.DataTable(
             id="refit-results-table",
-            data=rows,
+            # Display fields only.  The rows also carry _params (a list, kept
+            # in refit-store for Promote), and DataTable cells must be
+            # scalars: in debug mode Dash rejected the whole table, so Refit
+            # showed no results under ./run_portal.
+            data=[{k: v for k, v in r.items() if not k.startswith('_')} for r in rows],
             columns=[{'name': label, 'id': key} for key, label in _COLUMNS],
             row_selectable="single",
             selected_rows=[],

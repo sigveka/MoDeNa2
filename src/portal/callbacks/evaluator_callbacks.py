@@ -5,7 +5,7 @@ whenever an input changes (on slider release, or Enter / leaving a number
 box).  An Evaluate button used to stand between changing a value and seeing
 its effect, which is the one thing this page exists to show.
 """
-from dash import ALL, Input, Output, State, callback, dash_table, html, no_update
+from dash import ALL, Input, Output, State, callback, ctx, dash_table, html, no_update
 import dash_bootstrap_components as dbc
 
 from modena_portal.data.helpers import SIG_FIGS, fmt, ordered_names, unit_text
@@ -17,34 +17,41 @@ def _rounded(x):
 
 
 # ---------------------------------------------------------------------------
-# Sync: slider → number input
+# Sync: slider ↔ number input
 # ---------------------------------------------------------------------------
 
-@callback(
-    Output({'type': 'eval-input', 'index': ALL}, 'value'),
-    Input({'type': 'eval-slider', 'index': ALL}, 'value'),
-    State({'type': 'eval-input', 'index': ALL}, 'value'),
-    prevent_initial_call=True,
-)
-def sync_slider_to_input(slider_values, input_values):
-    # A slider step lands on values like 0.4165239571818414; the box shows
-    # SIG_FIGS digits.  A value typed into the box is left exactly as typed:
-    # when it already agrees with the slider at that precision, keep it.
+def slider_to_box(slider_values, input_values):
+    """Box values after a slider moved.
+
+    A slider step lands on values like 0.4165239571818414; the box shows
+    SIG_FIGS digits.  A value typed into the box is left exactly as typed:
+    when it already agrees with the slider at that precision, keep it.
+    """
     return [i if i is not None and _rounded(i) == _rounded(s) else _rounded(s)
             for s, i in zip(slider_values, input_values)]
 
 
-# ---------------------------------------------------------------------------
-# Sync: number input → slider
-# ---------------------------------------------------------------------------
-
 @callback(
     Output({'type': 'eval-slider', 'index': ALL}, 'value'),
+    Output({'type': 'eval-input', 'index': ALL}, 'value'),
+    Input({'type': 'eval-slider', 'index': ALL}, 'value'),
     Input({'type': 'eval-input', 'index': ALL}, 'value'),
     prevent_initial_call=True,
 )
-def sync_input_to_slider(input_values):
-    return input_values
+def sync_slider_and_box(slider_values, input_values):
+    """Whichever moved, the other follows.
+
+    One callback, not two: slider -> box and box -> slider as separate
+    callbacks form a cycle, which Dash rejects ("Dependency Cycle Found") in
+    debug mode.  One callback may read and write the same properties.
+    """
+    # Both outputs are ALL wildcards, which take a list -- a bare no_update
+    # is rejected ("Output does not match callback definition") -- so the
+    # side that did not move gets its own values back.
+    trigger = ctx.triggered_id
+    if isinstance(trigger, dict) and trigger.get('type') == 'eval-slider':
+        return slider_values, slider_to_box(slider_values, input_values)
+    return input_values, input_values
 
 
 # ---------------------------------------------------------------------------

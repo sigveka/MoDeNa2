@@ -229,33 +229,32 @@ def row_index(rows, wf_id):
 
 @callback(
     Output('runs-selected-wf', 'data'),
+    Output('runs-table', 'selected_rows'),
     Input('runs-table', 'selected_rows'),
     Input('runs-table', 'active_cell'),
     State('runs-table', 'data'),
     prevent_initial_call=True,
 )
 def select_workflow(selected_rows, active_cell, rows):
-    """A click anywhere in a row selects it, not only on the radio button."""
+    """A click anywhere in a row selects it, not only on the radio button.
+
+    One callback both records the workflow and moves the radio button.  Two
+    callbacks -- selected_rows -> store, store -> selected_rows -- form a
+    cycle, which Dash rejects ("Dependency Cycle Found") in debug mode; a
+    callback may read and write the same property, two may not feed each
+    other.
+    """
     prop = ctx.triggered[0]['prop_id'] if ctx.triggered else ''
     if prop.endswith('.active_cell'):
-        row_id = (active_cell or {}).get('row_id')
-        return row_id if row_id is not None else no_update
-    if selected_rows and rows and selected_rows[0] < len(rows):
-        return rows[selected_rows[0]].get('id')
-    return no_update
-
-
-@callback(
-    Output('runs-table', 'selected_rows'),
-    Input('runs-selected-wf', 'data'),
-    State('runs-table', 'data'),
-    State('runs-table', 'selected_rows'),
-    prevent_initial_call=True,
-)
-def mark_selected_row(wf_id, rows, current):
-    """Keep the radio button in step with a click elsewhere in the row."""
+        wf_id = (active_cell or {}).get('row_id')
+    elif selected_rows and rows and selected_rows[0] < len(rows):
+        wf_id = rows[selected_rows[0]].get('id')
+    else:
+        wf_id = None
+    if wf_id is None:
+        return no_update, no_update
     wanted = row_index(rows, wf_id)
-    return no_update if (current or []) == wanted else wanted
+    return wf_id, (no_update if (selected_rows or []) == wanted else wanted)
 
 
 # ---------------------------------------------------------------------------

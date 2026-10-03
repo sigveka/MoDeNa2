@@ -182,6 +182,45 @@ def _alerts(tree, colour):
 # Access policy on the app object itself -- the one gunicorn serves
 # ---------------------------------------------------------------------------
 
+def test_no_callbacks_feed_each_other_in_a_cycle():
+    """Dash's dev tools reject a cycle between callbacks ("Dependency Cycle
+    Found") -- but only in debug mode, which is how ./run_portal runs and how
+    the browser checks did not.  The Runs page shipped with one:
+    selected_rows -> runs-selected-wf -> selected_rows across two callbacks.
+    A callback whose outputs are also its own inputs is allowed -- that is
+    the fix -- so an output that is one of the same callback's inputs is not
+    an edge here.
+    """
+    graph = {}
+    for dep in _DEPS:
+        outs = _outputs(dep)
+        outs = outs if isinstance(outs, list) else [outs]
+        sources = {f"{i['id']}.{i['property']}" for i in dep['inputs']}
+        targets = {f"{o['id']}.{o['property'].split('@')[0]}" for o in outs} - sources
+        for source in sources:
+            graph.setdefault(source, set()).update(targets)
+
+    done, path = set(), []                     # three-colour DFS
+
+    def visit(node):
+        if node in path:
+            return path[path.index(node):] + [node]
+        if node in done:
+            return None
+        path.append(node)
+        for nxt in graph.get(node, ()):
+            found = visit(nxt)
+            if found:
+                return found
+        path.pop()
+        done.add(node)
+        return None
+
+    for start in list(graph):
+        found = visit(start)
+        assert found is None, 'callback cycle: ' + ' -> '.join(found)
+
+
 def test_the_app_object_enforces_the_access_policy():
     """`gunicorn modena_portal.app:server` must not bypass security.install().
 
@@ -328,10 +367,48 @@ def test_a_fixed_input_is_shown_as_fixed_not_widened(monkeypatch):
     assert 'fixed at 300' in _texts(page)
 
 
+def _sync(moved, sliders, boxes):
+    """Drive the slider<->box callback as the browser does; moved is
+    'eval-slider' or 'eval-input'."""
+    dep = _dep('eval-slider')
+    names = list(sliders)
+    ids = {t: [{'index': n, 'type': t} for n in names] for t in ('eval-slider', 'eval-input')}
+    # ALL outputs are sent expanded: one entry per matching component.
+    outputs = [[{'id': i, 'property': 'value'} for i in ids[t]]
+               for t in ('eval-slider', 'eval-input')]
+    body = {'output': dep['output'], 'outputs': outputs,
+            'inputs': [[{'id': i, 'property': 'value', 'value': v}
+                        for i, v in zip(ids['eval-slider'], sliders.values())],
+                       [{'id': i, 'property': 'value', 'value': v}
+                        for i, v in zip(ids['eval-input'], boxes.values())]],
+            'state': [],
+            'changedPropIds': [json.dumps(ids[moved][0], sort_keys=True,
+                                          separators=(',', ':')) + '.value']}
+    r = _CLIENT.post('/_dash-update-component', json=body)
+    assert r.status_code == 200, r.get_data(as_text=True)[-800:]
+    return r.get_json()['response']
+
+
+def _values(resp, type_):
+    """{input name: value} the callback set on components of type_."""
+    return {json.loads(k)['index']: v['value'] for k, v in resp.items()
+            if json.loads(k).get('type') == type_}
+
+
+def test_typing_in_a_box_moves_its_slider(model):
+    resp = _sync('eval-input', {'T': 300.0, 'p': 1e6}, {'T': 330.0, 'p': 1e6})
+    assert _values(resp, 'eval-slider') == {'T': 330.0, 'p': 1e6}
+
+
+def test_moving_a_slider_updates_its_box(model):
+    resp = _sync('eval-slider', {'T': 312.3456789, 'p': 1e6}, {'T': 300.0, 'p': 1e6})
+    assert _values(resp, 'eval-input') == {'T': 312.346, 'p': 1e6}
+
+
 def test_dragging_rounds_the_box_but_a_typed_value_is_kept():
-    from modena_portal.callbacks.evaluator_callbacks import sync_slider_to_input
-    assert sync_slider_to_input([0.4165239571818414], [None]) == [0.416524]
-    assert sync_slider_to_input([1.2345678], [1.2345678]) == [1.2345678]
+    from modena_portal.callbacks.evaluator_callbacks import slider_to_box
+    assert slider_to_box([0.4165239571818414], [None]) == [0.416524]
+    assert slider_to_box([1.2345678], [1.2345678]) == [1.2345678]
 
 
 # ---------------------------------------------------------------------------
@@ -484,6 +561,17 @@ def test_the_largest_residuals_are_listed_with_their_inputs():
     rows = block.children[1].data
     assert [(r['sample'], r['residual'], r['T']) for r in rows] == \
         [(1, '-0.5', '2'), (2, '0.2', '3')]
+
+
+def test_refit_table_cells_are_scalars():
+    """DataTable cells must be strings, numbers or booleans; debug mode
+    rejected the table over each row's _params list, so no fit ever showed."""
+    from modena_portal.components.refit_panel import make_results_table
+    row = {'strategy': 'Holdout', 'cv_error': '0.1', 'is_best': 1,
+           '_params': [0.5, 0.5], '_cv_error': 0.1}
+    table = make_results_table([row]).children[0]
+    assert all(isinstance(v, (str, int, float, bool))
+               for r in table.data for v in r.values())
 
 
 def test_a_candidate_fit_is_shown_as_a_change_from_the_stored_one():
