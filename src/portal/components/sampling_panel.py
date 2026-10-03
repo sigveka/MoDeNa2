@@ -14,15 +14,12 @@ then be simulated at full price.  The user chooses how many, never how.
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 
+from modena_portal.data.helpers import duration, fmt, plural
+
 
 def _humanise(seconds):
-    if seconds is None:
-        return None
-    if seconds < 90:
-        return f'{seconds:.0f} s'
-    if seconds < 5400:
-        return f'{seconds / 60:.0f} min'
-    return f'{seconds / 3600:.1f} h'
+    # "< 1 s", not "0 s": a fast simulation is cheap, not free.
+    return None if seconds is None else duration(seconds)
 
 
 def make_sampling_form(default_n: int = 5):
@@ -67,9 +64,10 @@ def make_cost_readout(cost: dict):
         )
     return dbc.Alert(
         [
-            html.Strong(f"≈ {total} "),
-            f"for {cost['n_points']} point(s) — {each} each, "
-            f"averaged over {cost['basis']} previous run(s).",
+            # "< 1 s" is already an estimate; "≈ < 1 s" reads as a typo.
+            html.Strong(f"{total} " if total.startswith('<') else f"≈ {total} "),
+            f"for {plural(cost['n_points'], 'point')} — {each} each, "
+            f"averaged over {plural(cost['basis'], 'previous run')}.",
         ],
         color='info', className='py-2 mb-0',
     )
@@ -81,10 +79,10 @@ def make_points_preview(points: dict):
 
     names = list(points)
     n = len(points[names[0]]) if names else 0
-    rows = [{'#': i + 1, **{k: f'{points[k][i]:.6g}' for k in names}}
+    rows = [{'#': i + 1, **{k: fmt(points[k][i]) for k in names}}
             for i in range(n)]
     return html.Div([
-        html.H6(f'{n} point(s) to be simulated'),
+        html.H6(f"{plural(n, 'point')} to be simulated"),
         dash_table.DataTable(
             data=rows,
             columns=[{'name': c, 'id': c} for c in ['#'] + names],

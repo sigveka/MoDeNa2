@@ -57,14 +57,30 @@ def _substitute_supplied(model) -> dict:
     return supplied
 
 
+def placeholder_value(lo: float, hi: float) -> float:
+    """A short number near the middle of [lo, hi] and inside it.
+
+    The exact midpoint reads as noise -- 0.010000005 for a range that grew
+    from 0.01 by a hair, 177497.7193 for a pressure.  The value with the
+    fewest significant figures (two or more) still inside the range says the
+    same thing and can be typed.
+    """
+    mid = (lo + hi) / 2.0
+    for digits in range(2, 16):
+        nice = float(f'{mid:.{digits}g}')
+        if lo <= nice <= hi:
+            return nice
+    return mid
+
+
 def model_facts(model) -> dict:
     """Extract everything the templates render from, in argPos order."""
     inputs = sorted(model.inputs.keys(), key=lambda k: model.inputs_argPos(k))
     outputs = sorted(model.outputs.keys(), key=lambda k: model.outputs_argPos(k))
     supplied = _substitute_supplied(model)
 
-    # Placeholder values are the midpoint of each input's trained range, not
-    # 0.0.  Zero is outside the trained domain of most models, so a snippet
+    # Placeholder values are near the midpoint of each input's trained range,
+    # not 0.0.  Zero is outside the trained domain of most models, so a snippet
     # using it returns 200 (out of bounds) on the very first call -- which
     # looks like a broken example rather than a deliberate placeholder.
     values = {}
@@ -72,7 +88,7 @@ def model_facts(model) -> dict:
         entry = model.inputs[name]
         lo = entry.min if entry.min is not None else 0.0
         hi = entry.max if entry.max is not None else 1.0
-        values[name] = (lo + hi) / 2.0
+        values[name] = placeholder_value(lo, hi)
 
     return {
         'model_id':   model._id,

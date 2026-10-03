@@ -494,9 +494,10 @@ launchpad:
 
 - **Overview** — environment, install locations, MongoDB, and which models are
   trained;
-- **Library** and **model pages** — inputs, outputs, fitted parameters,
-  dependency graph, documentation, fit data and C code;
-- **Evaluate** — evaluate a trained surrogate at chosen inputs;
+- **Library** and **model pages** — inputs, outputs (with units, once declared),
+  fitted parameters, dependency graph, documentation, fit data (initial design
+  vs. points added later) and the compiled C source;
+- **Evaluate** — evaluate a trained surrogate; the result follows the inputs;
 - **Fit Quality** and **Refit** — score the stored fit, compare
   cross-validation strategies, and *promote* a better fit (this overwrites the
   stored parameters);
@@ -504,7 +505,8 @@ launchpad:
   estimate (they run when a worker drains the queue: `modena fw launch`);
 - **Integrate** — ready-to-paste code calling the model from C, C++, Fortran,
   Python, Julia, MATLAB or R;
-- **Runs** — workflows, with rerun, orphan recovery and ancestry tracing.
+- **Runs** — workflows and their fireworks, with rerun, orphan recovery and
+  ancestry tracing; refreshes itself while work is queued or running.
 
 Build and start it:
 

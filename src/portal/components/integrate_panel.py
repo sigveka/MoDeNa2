@@ -5,10 +5,11 @@ The quick-start docs already cover each language, worked through with
 outputs -- or know which inputs a substitute model supplies, which the caller
 must not claim.
 """
-from dash import dcc, html
+from dash import html
 import dash_bootstrap_components as dbc
 
 from modena.Integration import LANGUAGES
+from modena_portal.components.code_block import code_block
 
 #: dcc.Markdown highlighter name per language key.
 _HIGHLIGHT = {
@@ -50,13 +51,11 @@ def make_snippet_view(snippet: dict, model_id: str):
             color="info", className="py-2",
         ))
 
-    blocks.append(dcc.Markdown(
-        f"```{_HIGHLIGHT.get(lang_key, '')}\n{snippet['code']}\n```",
-        highlight_config={'theme': 'dark'},
-    ))
+    blocks.append(code_block(snippet['code'], _HIGHLIGHT.get(lang_key, '')))
 
     blocks.append(html.H6("Build and run", className="mt-3"))
-    blocks.append(dcc.Markdown(f"```bash\n{snippet['build']}\n```"))
+    # One long compiler line: wrapped, or it runs off the page.
+    blocks.append(code_block(snippet['build'], wrap=True))
     blocks.append(html.P(
         [
             "Paths come from this installation. If you did not install to the "
